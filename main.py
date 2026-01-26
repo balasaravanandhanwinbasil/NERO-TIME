@@ -1,6 +1,43 @@
 import streamlit as st
 import random
 from datetime import datetime, timedelta
+import firebase_admin
+from firebase_admin import credentials, firestore
+import json
+
+# Initialize Firebase (only once)
+@st.cache_resource
+def init_firebase():
+    """Initialize Firebase app"""
+    try:
+        # Check if already initialized
+        firebase_admin.get_app()
+    except ValueError:
+        # Try to use JSON file first (for local development)
+        try:
+            cred = credentials.Certificate('firebase-credentials.json')
+            firebase_admin.initialize_app(cred)
+        except FileNotFoundError:
+            # Fall back to Streamlit secrets (for cloud deployment)
+            cred_dict = {
+                "type": st.secrets["firebase"]["type"],
+                "project_id": st.secrets["firebase"]["project_id"],
+                "private_key_id": st.secrets["firebase"]["private_key_id"],
+                "private_key": st.secrets["firebase"]["private_key"],
+                "client_email": st.secrets["firebase"]["client_email"],
+                "client_id": st.secrets["firebase"]["client_id"],
+                "auth_uri": st.secrets["firebase"]["auth_uri"],
+                "token_uri": st.secrets["firebase"]["token_uri"],
+                "auth_provider_x509_cert_url": st.secrets["firebase"]["auth_provider_x509_cert_url"],
+                "client_x509_cert_url": st.secrets["firebase"]["client_x509_cert_url"]
+            }
+            cred = credentials.Certificate(cred_dict)
+            firebase_admin.initialize_app(cred)
+    
+    return firestore.client()
+
+# Initialize Firestore client
+db = init_firebase()
 
 # Constants
 VALID_SUBJECTS = ["Math", "English", "Mother Tongue", "Cygames Glazing"]
@@ -9,15 +46,69 @@ DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 # Configuration
 break_time = 2  # hours
 
+# Firebase helper functions
+def save_to_firebase(user_id, data_type, data):
+    """Save data to Firebase"""
+    try:
+        doc_ref = db.collection('users').document(user_id).collection(data_type).document('current')
+        doc_ref.set({'data': data, 'updated_at': firestore.SERVER_TIMESTAMP})
+        return True
+    except Exception as e:
+        st.error(f"Error saving to Firebase: {e}")
+        return False
+
+def load_from_firebase(user_id, data_type):
+    """Load data from Firebase"""
+    try:
+        doc_ref = db.collection('users').document(user_id).collection(data_type).document('current')
+        doc = doc_ref.get()
+        if doc.exists:
+            return doc.to_dict().get('data', None)
+        return None
+    except Exception as e:
+        st.error(f"Error loading from Firebase: {e}")
+        return None
+
+def save_timetable_snapshot(user_id, timetable, activities, events):
+    """Save a complete timetable snapshot with timestamp"""
+    try:
+        snapshot_data = {
+            'timetable': timetable,
+            'activities': activities,
+            'events': events,
+            'created_at': firestore.SERVER_TIMESTAMP
+        }
+        db.collection('users').document(user_id).collection('timetable_history').add(snapshot_data)
+        return True
+    except Exception as e:
+        st.error(f"Error saving snapshot: {e}")
+        return False
+
+def get_timetable_history(user_id, limit=10):
+    """Get timetable history"""
+    try:
+        docs = db.collection('users').document(user_id).collection('timetable_history')\
+            .order_by('created_at', direction=firestore.Query.DESCENDING)\
+            .limit(limit)\
+            .stream()
+        return [{'id': doc.id, **doc.to_dict()} for doc in docs]
+    except Exception as e:
+        st.error(f"Error loading history: {e}")
+        return []
+
 # Initialize session state
+if 'user_id' not in st.session_state:
+    st.session_state.user_id = None
 if 'timetable' not in st.session_state:
     st.session_state.timetable = {day: [] for day in DAY_NAMES}
 if 'list_of_activities' not in st.session_state:
     st.session_state.list_of_activities = []
 if 'list_of_compulsory_events' not in st.session_state:
     st.session_state.list_of_compulsory_events = []
+if 'data_loaded' not in st.session_state:
+    st.session_state.data_loaded = False
 
-# Helper functions
+# Helper functions (same as before)
 def time_str_to_minutes(time_str):
     """Convert HH:MM to minutes since midnight."""
     parts = time_str.split(":")
@@ -181,18 +272,68 @@ def generate_timetable():
     st.session_state.timetable = {day: [] for day in DAY_NAMES}
     place_compulsory_events()
     place_activities()
+    
+    # Auto-save to Firebase after generation
+    if st.session_state.user_id:
+        save_to_firebase(st.session_state.user_id, 'timetable', st.session_state.timetable)
+        save_timetable_snapshot(
+            st.session_state.user_id,
+            st.session_state.timetable,
+            st.session_state.list_of_activities,
+            st.session_state.list_of_compulsory_events
+        )
 
 # Streamlit UI
 st.set_page_config(page_title="Timetable Generator", page_icon="📅", layout="wide")
 
+# User authentication section
+if not st.session_state.user_id:
+    st.title("🔐 Welcome to Timetable Generator")
+    st.markdown("Please enter your user ID to continue")
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        user_input = st.text_input("User ID (email or username)", key="user_id_input")
+        if st.button("Login", type="primary", use_container_width=True):
+            if user_input:
+                st.session_state.user_id = user_input
+                st.rerun()
+            else:
+                st.error("Please enter a user ID")
+    st.stop()
+
+# Load data from Firebase on first run
+if not st.session_state.data_loaded and st.session_state.user_id:
+    with st.spinner("Loading your data..."):
+        loaded_activities = load_from_firebase(st.session_state.user_id, 'activities')
+        loaded_events = load_from_firebase(st.session_state.user_id, 'events')
+        loaded_timetable = load_from_firebase(st.session_state.user_id, 'timetable')
+        
+        if loaded_activities:
+            st.session_state.list_of_activities = loaded_activities
+        if loaded_events:
+            st.session_state.list_of_compulsory_events = loaded_events
+        if loaded_timetable:
+            st.session_state.timetable = loaded_timetable
+        
+        st.session_state.data_loaded = True
+
 st.title("📅 Smart Timetable Generator")
-st.markdown("Generate an optimized weekly timetable based on your activities and commitments!")
+st.markdown(f"**Logged in as:** {st.session_state.user_id}")
 
 # Sidebar for inputs
 with st.sidebar:
     st.header("⚙️ Configuration")
     
-    tab1, tab2 = st.tabs(["📝 Add Activity", "🔴 Add Event"])
+    # Logout button
+    if st.button("🚪 Logout", type="secondary", use_container_width=True):
+        st.session_state.user_id = None
+        st.session_state.data_loaded = False
+        st.rerun()
+    
+    st.divider()
+    
+    tab1, tab2, tab3 = st.tabs(["📝 Activity", "🔴 Event", "📜 History"])
     
     with tab1:
         st.subheader("Add Activity")
@@ -214,7 +355,10 @@ with st.sidebar:
                         "deadline": days_left,
                         "timing": timing
                     })
-                    st.success(f"Added: {activity_name}")
+                    
+                    # Save to Firebase
+                    if save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities):
+                        st.success(f"Added: {activity_name}")
                 else:
                     st.error("Activity name cannot be empty!")
     
@@ -241,11 +385,30 @@ with st.sidebar:
                             "end_time": end_str,
                             "day": event_day
                         })
-                        st.success(f"Added: {event_name}")
+                        
+                        # Save to Firebase
+                        if save_to_firebase(st.session_state.user_id, 'events', st.session_state.list_of_compulsory_events):
+                            st.success(f"Added: {event_name}")
                     else:
                         st.error("End time must be after start time!")
                 else:
                     st.error("Event name cannot be empty!")
+    
+    with tab3:
+        st.subheader("Timetable History")
+        if st.button("🔄 Refresh History"):
+            st.rerun()
+        
+        history = get_timetable_history(st.session_state.user_id)
+        if history:
+            for idx, snapshot in enumerate(history):
+                with st.expander(f"Snapshot {idx + 1}"):
+                    if 'created_at' in snapshot and snapshot['created_at']:
+                        st.caption(f"Created: {snapshot['created_at']}")
+                    st.write(f"Activities: {len(snapshot.get('activities', []))}")
+                    st.write(f"Events: {len(snapshot.get('events', []))}")
+        else:
+            st.info("No history available")
 
 # Main content
 col1, col2, col3 = st.columns([2, 2, 1])
@@ -259,15 +422,30 @@ with col3:
         st.session_state.list_of_activities = []
         st.session_state.list_of_compulsory_events = []
         st.session_state.timetable = {day: [] for day in DAY_NAMES}
+        
+        # Clear from Firebase
+        save_to_firebase(st.session_state.user_id, 'activities', [])
+        save_to_firebase(st.session_state.user_id, 'events', [])
+        save_to_firebase(st.session_state.user_id, 'timetable', {day: [] for day in DAY_NAMES})
         st.rerun()
 
-# Generate button
-if st.button("🚀 Generate Timetable", type="primary", use_container_width=True):
-    if st.session_state.list_of_activities or st.session_state.list_of_compulsory_events:
-        generate_timetable()
-        st.success("✅ Timetable generated successfully!")
-    else:
-        st.warning("Please add at least one activity or event!")
+# Generate and Save buttons
+col1, col2 = st.columns(2)
+with col1:
+    if st.button("🚀 Generate Timetable", type="primary", use_container_width=True):
+        if st.session_state.list_of_activities or st.session_state.list_of_compulsory_events:
+            generate_timetable()
+            st.success("✅ Timetable generated and saved!")
+            st.rerun()
+        else:
+            st.warning("Please add at least one activity or event!")
+
+with col2:
+    if st.button("💾 Save Current Data", type="secondary", use_container_width=True):
+        save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
+        save_to_firebase(st.session_state.user_id, 'events', st.session_state.list_of_compulsory_events)
+        save_to_firebase(st.session_state.user_id, 'timetable', st.session_state.timetable)
+        st.success("💾 Data saved to Firebase!")
 
 # Display timetable
 st.header("📊 Your Weekly Timetable")
@@ -303,7 +481,6 @@ for day in DAY_NAMES:
                 }
                 emoji = type_colors.get(event["type"], "")
                 
-                # Color coding
                 if event["type"] == "COMPULSORY":
                     st.markdown(f"**{emoji} {event['start']} - {event['end']}:** :red[{event['name']}]")
                 elif event["type"] == "ACTIVITY":
@@ -324,3 +501,5 @@ with st.sidebar:
         st.subheader("🔴 Current Events")
         for i, evt in enumerate(st.session_state.list_of_compulsory_events):
             st.markdown(f"{i+1}. **{evt['event']}** - {evt['day']} {evt['start_time']}-{evt['end_time']}")
+
+this is my code. Remember it.
