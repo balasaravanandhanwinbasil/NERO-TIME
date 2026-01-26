@@ -491,73 +491,76 @@ for day in DAY_NAMES:
 # Display lists in sidebar
 with st.sidebar:
     st.divider()
-    
+
     # =========================
     # DISPLAY + EDIT ACTIVITIES
-# =========================
-if st.session_state.list_of_activities:
-    st.subheader("📝 Current Activities")
+    # =========================
+    if st.session_state.list_of_activities:
+        st.subheader("📝 Current Activities")
 
-    for idx, act in enumerate(st.session_state.list_of_activities):
+        for idx, act in enumerate(st.session_state.list_of_activities):
 
-        with st.expander(f"{idx+1}. {act['activity']} ({act['timing']}h)"):
-            st.write(f"Priority: {act['priority']} | Deadline in {act['deadline']} days")
+            with st.expander(f"{idx+1}. {act['activity']} ({act['timing']}h)"):
+                st.write(f"Priority: {act['priority']} | Deadline in {act['deadline']} days")
 
-            col1, col2 = st.columns([1, 1])
+                col1, col2 = st.columns([1, 1])
 
-            # Edit button
-            if col1.button("✏️ Edit", key=f"edit_act_{idx}"):
-                st.session_state.edit_activity_index = idx
+                # Edit button
+                if col1.button("✏️ Edit", key=f"edit_act_{idx}"):
+                    st.session_state.edit_activity_index = idx
 
-            # Delete button
-            if col2.button("🗑️ Delete", key=f"del_act_{idx}"):
-                st.session_state.list_of_activities.pop(idx)
-                save_to_firebase(st.session_state.user_id, "activities", st.session_state.list_of_activities)
-                st.success("Activity deleted!")
+                # Delete button
+                if col2.button("🗑️ Delete", key=f"del_act_{idx}"):
+                    st.session_state.list_of_activities.pop(idx)
+                    save_to_firebase(st.session_state.user_id, "activities", st.session_state.list_of_activities)
+                    st.success("Activity deleted!")
 
-            # If editing this activity, show form
-            if st.session_state.get("edit_activity_index") == idx:
-                with st.form(f"edit_activity_form_{idx}"):
-                    new_name = st.text_input("Activity Name", value=act["activity"])
-                    new_priority = st.slider("Priority", 1, 5, value=act["priority"])
-                    new_deadline = st.number_input("Deadline days", min_value=0, max_value=30, value=act["deadline"])
-                    new_timing = st.number_input("Total Hours", min_value=1, max_value=24, value=act["timing"])
+                # If editing this activity, show form
+                if st.session_state.get("edit_activity_index") == idx:
+                    with st.form(f"edit_activity_form_{idx}"):
+                        new_name = st.text_input("Activity Name", value=act["activity"])
+                        new_priority = st.slider("Priority", 1, 5, value=act["priority"])
+                        new_deadline = st.number_input("Deadline days", min_value=0, max_value=30, value=act["deadline"])
+                        new_timing = st.number_input("Total Hours", min_value=1, max_value=24, value=act["timing"])
 
-                    if st.form_submit_button("Save Changes"):
-                        st.session_state.list_of_activities[idx] = {
-                            "activity": new_name,
-                            "priority": new_priority,
-                            "deadline": new_deadline,
-                            "timing": new_timing
-                        }
-                        save_to_firebase(st.session_state.user_id, "activities", st.session_state.list_of_activities)
-                        st.success("Activity updated!")
-                        st.session_state.edit_activity_index = None
+                        if st.form_submit_button("Save Changes"):
+                            st.session_state.list_of_activities[idx] = {
+                                "activity": new_name,
+                                "priority": new_priority,
+                                "deadline": new_deadline,
+                                "timing": new_timing
+                            }
+                            save_to_firebase(st.session_state.user_id, "activities", st.session_state.list_of_activities)
+                            st.success("Activity updated!")
+                            st.session_state.edit_activity_index = None
 
 
+    # =========================
+    # DISPLAY + EDIT EVENTS
+    # =========================
     if st.session_state.list_of_compulsory_events:
         st.subheader("🔴 Current Events")
-    
+
         for idx, evt in enumerate(st.session_state.list_of_compulsory_events):
-    
+
             with st.expander(f"{idx+1}. {evt['event']} ({evt['day']} {evt['start_time']}-{evt['end_time']})"):
                 col1, col2 = st.columns([1, 1])
-    
+
                 if col1.button("✏️ Edit", key=f"edit_evt_{idx}"):
                     st.session_state.edit_event_index = idx
-    
+
                 if col2.button("🗑️ Delete", key=f"del_evt_{idx}"):
                     st.session_state.list_of_compulsory_events.pop(idx)
                     save_to_firebase(st.session_state.user_id, "events", st.session_state.list_of_compulsory_events)
                     st.success("Event deleted!")
-    
+
                 if st.session_state.get("edit_event_index") == idx:
                     with st.form(f"edit_event_form_{idx}"):
                         new_name = st.text_input("Event Name", value=evt["event"])
                         new_day = st.selectbox("Day", DAY_NAMES, index=DAY_NAMES.index(evt["day"]))
                         new_start = st.time_input("Start Time", value=datetime.strptime(evt["start_time"], "%H:%M").time())
                         new_end = st.time_input("End Time", value=datetime.strptime(evt["end_time"], "%H:%M").time())
-    
+
                         if st.form_submit_button("Save Changes"):
                             st.session_state.list_of_compulsory_events[idx] = {
                                 "event": new_name,
@@ -568,3 +571,4 @@ if st.session_state.list_of_activities:
                             save_to_firebase(st.session_state.user_id, "events", st.session_state.list_of_compulsory_events)
                             st.success("Event updated!")
                             st.session_state.edit_event_index = None
+
