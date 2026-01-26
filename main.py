@@ -332,24 +332,23 @@ if st.session_state.page == "edit_activity":
         new_deadline = st.number_input("Deadline (days left)", min_value=0, max_value=365, value=act["deadline"])
         new_timing = st.number_input("Total Hours Needed", min_value=1, max_value=24, value=act["timing"])
 
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.form_submit_button("Save Changes"):
-                st.session_state.list_of_activities[idx] = {
-                    "activity": new_name,
-                    "priority": new_priority,
-                    "deadline": new_deadline,
-                    "timing": new_timing
-                }
-                save_to_firebase(st.session_state.user_id, "activities", st.session_state.list_of_activities)
-                st.success("Activity updated!")
-                st.session_state.page = "main"
+        if st.form_submit_button("Save Changes"):
+            st.session_state.list_of_activities[idx] = {
+                "activity": new_name,
+                "priority": new_priority,
+                "deadline": new_deadline,
+                "timing": new_timing
+            }
+            save_to_firebase(st.session_state.user_id, "activities", st.session_state.list_of_activities)
+            st.success("Activity updated!")
+            st.session_state.page = "main"
 
-        with col2:
-            if st.button("⬅️ Back"):
-                st.session_state.page = "main"
+    # <-- BACK BUTTON OUTSIDE FORM
+    if st.button("⬅️ Back"):
+        st.session_state.page = "main"
 
     st.stop()
+
 
 # -------------------------------
 # Edit Event Page
@@ -366,28 +365,26 @@ if st.session_state.page == "edit_event":
         new_start = st.time_input("Start Time", value=datetime.strptime(evt["start_time"], "%H:%M").time())
         new_end = st.time_input("End Time", value=datetime.strptime(evt["end_time"], "%H:%M").time())
 
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.form_submit_button("Save Changes"):
-                start_str = new_start.strftime("%H:%M")
-                end_str = new_end.strftime("%H:%M")
+        if st.form_submit_button("Save Changes"):
+            start_str = new_start.strftime("%H:%M")
+            end_str = new_end.strftime("%H:%M")
 
-                if time_str_to_minutes(end_str) > time_str_to_minutes(start_str):
-                    st.session_state.list_of_compulsory_events[idx] = {
-                        "event": new_name,
-                        "start_time": start_str,
-                        "end_time": end_str,
-                        "day": new_day
-                    }
-                    save_to_firebase(st.session_state.user_id, "events", st.session_state.list_of_compulsory_events)
-                    st.success("Event updated!")
-                    st.session_state.page = "main"
-                else:
-                    st.error("End time must be after start time!")
-
-        with col2:
-            if st.button("⬅️ Back"):
+            if time_str_to_minutes(end_str) > time_str_to_minutes(start_str):
+                st.session_state.list_of_compulsory_events[idx] = {
+                    "event": new_name,
+                    "start_time": start_str,
+                    "end_time": end_str,
+                    "day": new_day
+                }
+                save_to_firebase(st.session_state.user_id, "events", st.session_state.list_of_compulsory_events)
+                st.success("Event updated!")
                 st.session_state.page = "main"
+            else:
+                st.error("End time must be after start time!")
+
+    # <-- BACK BUTTON OUTSIDE FORM
+    if st.button("⬅️ Back"):
+        st.session_state.page = "main"
 
     st.stop()
 
