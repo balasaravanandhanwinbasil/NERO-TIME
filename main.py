@@ -100,14 +100,14 @@ if 'list_of_compulsory_events' not in st.session_state:
 if 'data_loaded' not in st.session_state:
     st.session_state.data_loaded = False
 
+# Page control
+if 'page' not in st.session_state:
+    st.session_state.page = "main"
+
 # Edit state
-if 'editing_activity' not in st.session_state:
-    st.session_state.editing_activity = False
 if 'edit_activity_index' not in st.session_state:
     st.session_state.edit_activity_index = None
 
-if 'editing_event' not in st.session_state:
-    st.session_state.editing_event = False
 if 'edit_event_index' not in st.session_state:
     st.session_state.edit_event_index = None
 
@@ -298,7 +298,8 @@ if not st.session_state.user_id:
         if st.button("Login", type="primary", use_container_width=True):
             if user_input:
                 st.session_state.user_id = user_input
-                st.rerun()
+                st.session_state.data_loaded = False
+                st.experimental_rerun()
             else:
                 st.error("Please enter a user ID")
     st.stop()
@@ -319,18 +320,14 @@ if not st.session_state.data_loaded and st.session_state.user_id:
 
         st.session_state.data_loaded = True
 
-# Header
-st.title("📅 Smart Timetable Generator")
-st.markdown(f"**Logged in as:** {st.session_state.user_id}")
-
 # -------------------------------
-# Editing Forms
+# Edit Page
 # -------------------------------
-if st.session_state.editing_activity:
+if st.session_state.page == "edit_activity":
     idx = st.session_state.edit_activity_index
     act = st.session_state.list_of_activities[idx]
 
-    st.subheader("✏️ Edit Activity")
+    st.title("✏️ Edit Activity")
     with st.form("edit_activity_form"):
         new_name = st.text_input("Activity Name", value=act["activity"])
         new_priority = st.slider("Priority", 1, 5, value=act["priority"])
@@ -346,14 +343,18 @@ if st.session_state.editing_activity:
             }
             save_to_firebase(st.session_state.user_id, "activities", st.session_state.list_of_activities)
             st.success("Activity updated!")
-            st.session_state.editing_activity = False
-            st.experimental_rerun()
+            st.session_state.page = "main"
 
-if st.session_state.editing_event:
+    if st.button("⬅️ Back"):
+        st.session_state.page = "main"
+
+    st.stop()
+
+if st.session_state.page == "edit_event":
     idx = st.session_state.edit_event_index
     evt = st.session_state.list_of_compulsory_events[idx]
 
-    st.subheader("✏️ Edit Event")
+    st.title("✏️ Edit Event")
     with st.form("edit_event_form"):
         new_name = st.text_input("Event Name", value=evt["event"])
         new_day = st.selectbox("Day", DAY_NAMES, index=DAY_NAMES.index(evt["day"]))
@@ -373,28 +374,34 @@ if st.session_state.editing_event:
                 }
                 save_to_firebase(st.session_state.user_id, "events", st.session_state.list_of_compulsory_events)
                 st.success("Event updated!")
-                st.session_state.editing_event = False
-                st.experimental_rerun()
+                st.session_state.page = "main"
             else:
                 st.error("End time must be after start time!")
 
+    if st.button("⬅️ Back"):
+        st.session_state.page = "main"
+
+    st.stop()
+
 # -------------------------------
-# Sidebar (Add + Edit Lists)
+# Main Page
 # -------------------------------
+st.title("📅 Smart Timetable Generator")
+st.markdown(f"**Logged in as:** {st.session_state.user_id}")
+
+# Sidebar
 with st.sidebar:
     st.header("⚙️ Configuration")
 
     if st.button("🚪 Logout", type="secondary", use_container_width=True):
         st.session_state.user_id = None
         st.session_state.data_loaded = False
-        st.rerun()
+        st.experimental_rerun()
 
     st.divider()
     tab1, tab2, tab3 = st.tabs(["📝 Activity", "🔴 Event", "📜 History"])
 
-    # -------------------------------
     # Add Activity
-    # -------------------------------
     with tab1:
         st.subheader("Add Activity")
         with st.form("activity_form"):
@@ -431,18 +438,16 @@ with st.sidebar:
 
                     col1, col2 = st.columns(2)
                     with col1:
-                        if st.button(f"Edit Activity {i}", key=f"edit_act_{i}"):
+                        if st.button("Edit Activity", key=f"edit_act_{i}"):
                             st.session_state.edit_activity_index = i
-                            st.session_state.editing_activity = True
+                            st.session_state.page = "edit_activity"
                             st.experimental_rerun()
                     with col2:
-                        if st.button(f"Delete Activity {i}", key=f"del_act_{i}"):
+                        if st.button("Delete Activity", key=f"del_act_{i}"):
                             delete_item("activities", i)
                             st.experimental_rerun()
 
-    # -------------------------------
     # Add Event
-    # -------------------------------
     with tab2:
         st.subheader("Add Compulsory Event")
         with st.form("event_form"):
@@ -483,22 +488,20 @@ with st.sidebar:
 
                     col1, col2 = st.columns(2)
                     with col1:
-                        if st.button(f"Edit Event {i}", key=f"edit_evt_{i}"):
+                        if st.button("Edit Event", key=f"edit_evt_{i}"):
                             st.session_state.edit_event_index = i
-                            st.session_state.editing_event = True
+                            st.session_state.page = "edit_event"
                             st.experimental_rerun()
                     with col2:
-                        if st.button(f"Delete Event {i}", key=f"del_evt_{i}"):
+                        if st.button("Delete Event", key=f"del_evt_{i}"):
                             delete_item("events", i)
                             st.experimental_rerun()
 
-    # -------------------------------
-    # History Tab
-    # -------------------------------
+    # History
     with tab3:
         st.subheader("Timetable History")
         if st.button("🔄 Refresh History"):
-            st.rerun()
+            st.experimental_rerun()
 
         history = get_timetable_history(st.session_state.user_id)
         if history:
@@ -511,9 +514,7 @@ with st.sidebar:
         else:
             st.info("No history available")
 
-# -------------------------------
 # Main content
-# -------------------------------
 col1, col2, col3 = st.columns([2, 2, 1])
 with col1:
     st.metric("Activities Added", len(st.session_state.list_of_activities))
@@ -528,7 +529,7 @@ with col3:
         save_to_firebase(st.session_state.user_id, 'activities', [])
         save_to_firebase(st.session_state.user_id, 'events', [])
         save_to_firebase(st.session_state.user_id, 'timetable', {day: [] for day in DAY_NAMES})
-        st.rerun()
+        st.experimental_rerun()
 
 col1, col2 = st.columns(2)
 with col1:
@@ -536,7 +537,7 @@ with col1:
         if st.session_state.list_of_activities or st.session_state.list_of_compulsory_events:
             generate_timetable()
             st.success("✅ Timetable generated and saved!")
-            st.rerun()
+            st.experimental_rerun()
         else:
             st.warning("Please add at least one activity or event!")
 
@@ -547,11 +548,41 @@ with col2:
         save_to_firebase(st.session_state.user_id, 'timetable', st.session_state.timetable)
         st.success("💾 Data saved to Firebase!")
 
-# -------------------------------
 # Display timetable
-# -------------------------------
 st.header("📊 Your Weekly Timetable")
 
 if any(st.session_state.timetable[day] for day in DAY_NAMES):
     st.subheader("📈 Weekly Summary")
-    summ
+    summary_cols = st.columns(5)
+
+    for idx, day in enumerate(DAY_NAMES):
+        total_minutes = sum(
+            time_str_to_minutes(event["end"]) - time_str_to_minutes(event["start"])
+            for event in st.session_state.timetable[day]
+            if event["type"] in ["ACTIVITY", "COMPULSORY"]
+        )
+        hours = total_minutes // 60
+        minutes = total_minutes % 60
+
+        with summary_cols[idx]:
+            st.metric(day, f"{hours}h {minutes}m" if total_minutes > 0 else "Free")
+
+for day in DAY_NAMES:
+    with st.expander(f"📅 {day}", expanded=True):
+        if not st.session_state.timetable[day]:
+            st.info("No events scheduled")
+        else:
+            for event in st.session_state.timetable[day]:
+                type_colors = {
+                    "COMPULSORY": "🔴",
+                    "ACTIVITY": "🔵",
+                    "BREAK": "⚪"
+                }
+                emoji = type_colors.get(event["type"], "")
+
+                if event["type"] == "COMPULSORY":
+                    st.markdown(f"**{emoji} {event['start']} - {event['end']}:** :red[{event['name']}]")
+                elif event["type"] == "ACTIVITY":
+                    st.markdown(f"**{emoji} {event['start']} - {event['end']}:** :blue[{event['name']}]")
+                else:
+                    st.markdown(f"*{emoji} {event['start']} - {event['end']}: {event['name']}*")
