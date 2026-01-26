@@ -502,4 +502,3 @@ with st.sidebar:
         for i, evt in enumerate(st.session_state.list_of_compulsory_events):
             st.markdown(f"{i+1}. **{evt['event']}** - {evt['day']} {evt['start_time']}-{evt['end_time']}")
 
-this is my code. Remember it.
