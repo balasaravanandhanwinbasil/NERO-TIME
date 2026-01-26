@@ -1,3 +1,10 @@
+import streamlit as st
+import random
+from datetime import datetime, timedelta
+import firebase_admin
+from firebase_admin import credentials, firestore
+import json
+
 @st.cache_resource
 def init_firebase():
     """Initialize Firebase app"""
