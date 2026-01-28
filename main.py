@@ -47,6 +47,73 @@ DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 # Configuration
 break_time = 2  # hours
 
+# Custom CSS for stronger buttons
+st.markdown("""
+<style>
+    /* Stronger button styling */
+    .stButton > button {
+        font-weight: 600;
+        font-size: 15px;
+        padding: 12px 24px;
+        border-radius: 8px;
+        border: 2px solid;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Primary action buttons */
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-color: #667eea;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .stButton > button[kind="primary"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+    
+    /* Secondary buttons */
+    .stButton > button[kind="secondary"] {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        border-color: #f093fb;
+        box-shadow: 0 4px 15px rgba(240, 147, 251, 0.4);
+    }
+    
+    .stButton > button[kind="secondary"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(240, 147, 251, 0.6);
+    }
+    
+    /* Form submit buttons */
+    .stFormSubmitButton > button {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        border: 2px solid #4facfe;
+        font-weight: 600;
+        padding: 10px 20px;
+        box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+    }
+    
+    .stFormSubmitButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(79, 172, 254, 0.6);
+    }
+    
+    /* Metric styling */
+    [data-testid="stMetricValue"] {
+        font-size: 28px;
+        font-weight: 700;
+    }
+    
+    /* Expander styling */
+    .streamlit-expanderHeader {
+        font-weight: 600;
+        font-size: 15px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # Firebase helper functions
 def save_to_firebase(user_id, data_type, data):
     """Save data to Firebase"""
@@ -172,8 +239,9 @@ def get_available_days_until_deadline(deadline_days):
     return available_days
 
 def find_free_slot(day, duration_minutes, start_hour=6, end_hour=22):
-    """Find a free slot on a given day."""
+    """Find a free slot on a given day, including space for break."""
     attempts = []
+    break_minutes = break_time * 60
 
     for hour in range(start_hour, end_hour):
         for minute in [0, 15, 30, 45]:
@@ -183,7 +251,11 @@ def find_free_slot(day, duration_minutes, start_hour=6, end_hour=22):
             if time_str_to_minutes(end_time) > end_hour * 60:
                 continue
 
-            break_end = add_minutes(end_time, break_time * 60)
+            # Check if both activity AND break can fit
+            break_end = add_minutes(end_time, break_minutes)
+            if time_str_to_minutes(break_end) >= 1440:  # Past midnight
+                continue
+                
             if is_time_slot_free(day, start_time, break_end):
                 attempts.append((start_time, end_time))
 
@@ -201,8 +273,9 @@ def place_compulsory_events():
 
         add_event_to_timetable(day, start_time, end_time, event["event"], "COMPULSORY")
 
+        # Add break after compulsory event
         break_end = add_minutes(end_time, break_time * 60)
-        if time_str_to_minutes(break_end) < 1440:
+        if time_str_to_minutes(break_end) < 1440 and is_time_slot_free(day, end_time, break_end):
             add_event_to_timetable(day, end_time, break_end, "Break", "BREAK")
 
 def place_activities():
@@ -255,8 +328,9 @@ def place_activities():
 
                     add_event_to_timetable(day, start_time, end_time, activity_label, "ACTIVITY")
 
+                    # Add break after activity
                     break_end = add_minutes(end_time, break_time * 60)
-                    if time_str_to_minutes(break_end) < 1440:
+                    if time_str_to_minutes(break_end) < 1440 and is_time_slot_free(day, end_time, break_end):
                         add_event_to_timetable(day, end_time, break_end, "Break", "BREAK")
 
                     remaining_minutes -= chunk_minutes
@@ -344,7 +418,7 @@ with st.sidebar:
             deadline_date = st.date_input("Deadline", min_value=datetime.now().date())
             timing = st.number_input("Total Hours Needed", min_value=1, max_value=24, value=1)
             
-            if st.form_submit_button("Add Activity"):
+            if st.form_submit_button("➕ Add Activity", use_container_width=True):
                 if activity_name:
                     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
                     deadline_datetime = datetime.combine(deadline_date, datetime.min.time())
@@ -359,7 +433,7 @@ with st.sidebar:
                     
                     # Save to Firebase
                     if save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities):
-                        st.success(f"Added: {activity_name}")
+                        st.success(f"✅ Added: {activity_name}")
                 else:
                     st.error("Activity name cannot be empty!")
     
@@ -374,7 +448,7 @@ with st.sidebar:
             with col2:
                 end_time = st.time_input("End Time", value=datetime.strptime("10:00", "%H:%M").time())
             
-            if st.form_submit_button("Add Event"):
+            if st.form_submit_button("➕ Add Event", use_container_width=True):
                 if event_name:
                     start_str = start_time.strftime("%H:%M")
                     end_str = end_time.strftime("%H:%M")
@@ -389,7 +463,7 @@ with st.sidebar:
                         
                         # Save to Firebase
                         if save_to_firebase(st.session_state.user_id, 'events', st.session_state.list_of_compulsory_events):
-                            st.success(f"Added: {event_name}")
+                            st.success(f"✅ Added: {event_name}")
                     else:
                         st.error("End time must be after start time!")
                 else:
@@ -397,17 +471,17 @@ with st.sidebar:
     
     with tab3:
         st.subheader("Timetable History")
-        if st.button("🔄 Refresh History"):
+        if st.button("🔄 Refresh History", use_container_width=True):
             st.rerun()
         
         history = get_timetable_history(st.session_state.user_id)
         if history:
             for idx, snapshot in enumerate(history):
-                with st.expander(f"Snapshot {idx + 1}"):
+                with st.expander(f"📸 Snapshot {idx + 1}"):
                     if 'created_at' in snapshot and snapshot['created_at']:
                         st.caption(f"Created: {snapshot['created_at']}")
-                    st.write(f"Activities: {len(snapshot.get('activities', []))}")
-                    st.write(f"Events: {len(snapshot.get('events', []))}")
+                    st.write(f"📝 Activities: {len(snapshot.get('activities', []))}")
+                    st.write(f"🔴 Events: {len(snapshot.get('events', []))}")
         else:
             st.info("No history available")
 
@@ -415,11 +489,11 @@ with st.sidebar:
 col1, col2, col3 = st.columns([2, 2, 1])
 
 with col1:
-    st.metric("Activities Added", len(st.session_state.list_of_activities))
+    st.metric("📝 Activities Added", len(st.session_state.list_of_activities))
 with col2:
-    st.metric("Compulsory Events", len(st.session_state.list_of_compulsory_events))
+    st.metric("🔴 Compulsory Events", len(st.session_state.list_of_compulsory_events))
 with col3:
-    if st.button("🗑️ Clear All", type="secondary"):
+    if st.button("🗑️ Clear All", type="secondary", use_container_width=True):
         st.session_state.list_of_activities = []
         st.session_state.list_of_compulsory_events = []
         st.session_state.timetable = {day: [] for day in DAY_NAMES}
@@ -435,17 +509,20 @@ col1, col2 = st.columns(2)
 with col1:
     if st.button("🚀 Generate Timetable", type="primary", use_container_width=True):
         if st.session_state.list_of_activities or st.session_state.list_of_compulsory_events:
-            generate_timetable()
+            with st.spinner("⏳ Generating your optimized timetable..."):
+                generate_timetable()
             st.success("✅ Timetable generated and saved!")
+            st.balloons()
             st.rerun()
         else:
-            st.warning("Please add at least one activity or event!")
+            st.warning("⚠️ Please add at least one activity or event!")
 
 with col2:
     if st.button("💾 Save Current Data", type="secondary", use_container_width=True):
-        save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
-        save_to_firebase(st.session_state.user_id, 'events', st.session_state.list_of_compulsory_events)
-        save_to_firebase(st.session_state.user_id, 'timetable', st.session_state.timetable)
+        with st.spinner("Saving..."):
+            save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
+            save_to_firebase(st.session_state.user_id, 'events', st.session_state.list_of_compulsory_events)
+            save_to_firebase(st.session_state.user_id, 'timetable', st.session_state.timetable)
         st.success("💾 Data saved to Firebase!")
 
 # Display timetable
@@ -453,7 +530,7 @@ st.header("📊 Your Weekly Timetable")
 
 # Interactive Timetable Component
 if any(st.session_state.timetable[day] for day in DAY_NAMES):
-    st.info("💡 **Grid View**: Drag and drop blue activity cards to reschedule. Red compulsory events are locked. **List View**: Traditional view.")
+    st.info("💡 **Grid View**: Drag and drop 🔵 blue activity cards to reschedule (breaks follow automatically). 🔴 Red events are locked. **List View**: Traditional view of all events including breaks.")
     
     # Read the HTML component
     try:
@@ -463,7 +540,7 @@ if any(st.session_state.timetable[day] for day in DAY_NAMES):
         # Inject the timetable data - using the DATA_PLACEHOLDER marker
         timetable_json = json.dumps(st.session_state.timetable)
         html_with_data = html_content.replace(
-            '// DATA_PLACEHOLDER - will be replaced by Python\n        let timetableData = {"Monday":[],"Tuesday":[],"Wednesday":[],"Thursday":[],"Friday":[]};',
+            '// DATA_PLACEHOLDER - will be replaced by Python\n        let timetableData = {"Monday":[],"Tuesday":[],"Wednesday":[],"Friday":[]};',
             f'let timetableData = {timetable_json};'
         )
         
@@ -474,7 +551,7 @@ if any(st.session_state.timetable[day] for day in DAY_NAMES):
         st.error("⚠️ timetable_component.html not found. Falling back to standard view.")
         display_standard_timetable()
 else:
-    st.info("📝 No timetable generated yet. Add activities and events, then click 'Generate Timetable'.")
+    st.info("📝 No timetable generated yet. Add activities and events, then click '🚀 Generate Timetable'.")
 
 # Fallback standard timetable display
 def display_standard_timetable():
@@ -525,16 +602,16 @@ with st.sidebar:
 
         for idx, act in enumerate(st.session_state.list_of_activities):
             with st.expander(f"{idx+1}. {act['activity']} ({act['timing']}h)"):
-                st.write(f"Priority: {act['priority']} | Deadline in {act['deadline']} days")
+                st.write(f"⭐ Priority: {act['priority']} | ⏰ Deadline in {act['deadline']} days")
 
                 col1, col2 = st.columns([1, 1])
 
                 # Edit button
-                if col1.button("✏️ Edit", key=f"edit_act_{idx}"):
+                if col1.button("✏️ Edit", key=f"edit_act_{idx}", use_container_width=True):
                     st.session_state.edit_activity_index = idx
 
                 # Delete button
-                if col2.button("🗑️ Delete", key=f"del_act_{idx}"):
+                if col2.button("🗑️ Delete", key=f"del_act_{idx}", use_container_width=True):
                     st.session_state.list_of_activities.pop(idx)
                     save_to_firebase(st.session_state.user_id, "activities", st.session_state.list_of_activities)
                     st.success("Activity deleted!")
@@ -548,7 +625,7 @@ with st.sidebar:
                         new_deadline = st.number_input("Deadline days", min_value=0, max_value=30, value=act["deadline"])
                         new_timing = st.number_input("Total Hours", min_value=1, max_value=24, value=act["timing"])
 
-                        if st.form_submit_button("Save Changes"):
+                        if st.form_submit_button("💾 Save Changes", use_container_width=True):
                             st.session_state.list_of_activities[idx] = {
                                 "activity": new_name,
                                 "priority": new_priority,
@@ -556,7 +633,7 @@ with st.sidebar:
                                 "timing": new_timing
                             }
                             save_to_firebase(st.session_state.user_id, "activities", st.session_state.list_of_activities)
-                            st.success("Activity updated!")
+                            st.success("✅ Activity updated!")
                             st.session_state.edit_activity_index = None
                             st.rerun()
 
@@ -568,10 +645,10 @@ with st.sidebar:
             with st.expander(f"{idx+1}. {evt['event']} ({evt['day']} {evt['start_time']}-{evt['end_time']})"):
                 col1, col2 = st.columns([1, 1])
 
-                if col1.button("✏️ Edit", key=f"edit_evt_{idx}"):
+                if col1.button("✏️ Edit", key=f"edit_evt_{idx}", use_container_width=True):
                     st.session_state.edit_event_index = idx
 
-                if col2.button("🗑️ Delete", key=f"del_evt_{idx}"):
+                if col2.button("🗑️ Delete", key=f"del_evt_{idx}", use_container_width=True):
                     st.session_state.list_of_compulsory_events.pop(idx)
                     save_to_firebase(st.session_state.user_id, "events", st.session_state.list_of_compulsory_events)
                     st.success("Event deleted!")
@@ -584,7 +661,7 @@ with st.sidebar:
                         new_start = st.time_input("Start Time", value=datetime.strptime(evt["start_time"], "%H:%M").time())
                         new_end = st.time_input("End Time", value=datetime.strptime(evt["end_time"], "%H:%M").time())
 
-                        if st.form_submit_button("Save Changes"):
+                        if st.form_submit_button("💾 Save Changes", use_container_width=True):
                             st.session_state.list_of_compulsory_events[idx] = {
                                 "event": new_name,
                                 "day": new_day,
@@ -592,6 +669,6 @@ with st.sidebar:
                                 "end_time": new_end.strftime("%H:%M")
                             }
                             save_to_firebase(st.session_state.user_id, "events", st.session_state.list_of_compulsory_events)
-                            st.success("Event updated!")
+                            st.success("✅ Event updated!")
                             st.session_state.edit_event_index = None
                             st.rerun()
