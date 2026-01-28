@@ -539,10 +539,12 @@ if any(st.session_state.timetable[day] for day in DAY_NAMES):
         
         # Inject the timetable data - using the DATA_PLACEHOLDER marker
         timetable_json = json.dumps(st.session_state.timetable)
-        html_with_data = html_content.replace(
-            '// DATA_PLACEHOLDER - will be replaced by Python\n        let timetableData = {"Monday":[],"Tuesday":[],"Wednesday":[],"Friday":[]};',
-            f'let timetableData = {timetable_json};'
-        )
+        
+        # Use regex to replace data between markers
+        import re
+        pattern = r'// DATA_PLACEHOLDER_START.*?// DATA_PLACEHOLDER_END'
+        replacement = f'// DATA_PLACEHOLDER_START\n        let timetableData = {timetable_json};\n        // DATA_PLACEHOLDER_END'
+        html_with_data = re.sub(pattern, replacement, html_content, flags=re.DOTALL)
         
         # Render the component
         components.html(html_with_data, height=900, scrolling=True)
