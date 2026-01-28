@@ -111,6 +111,12 @@ st.markdown("""
         font-weight: 600;
         font-size: 15px;
     }
+    
+    /* Smaller button text in expanders */
+    div[data-testid="column"] button {
+        font-size: 13px !important;
+        padding: 8px 16px !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
