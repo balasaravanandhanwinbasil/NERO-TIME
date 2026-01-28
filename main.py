@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import random
 from datetime import datetime, timedelta
 import firebase_admin
@@ -108,7 +109,7 @@ if 'list_of_compulsory_events' not in st.session_state:
 if 'data_loaded' not in st.session_state:
     st.session_state.data_loaded = False
 
-# Helper functions (same as before)
+# Helper functions
 def time_str_to_minutes(time_str):
     """Convert HH:MM to minutes since midnight."""
     parts = time_str.split(":")
@@ -450,8 +451,35 @@ with col2:
 # Display timetable
 st.header("📊 Your Weekly Timetable")
 
-# Summary statistics
+# Interactive Timetable Component
 if any(st.session_state.timetable[day] for day in DAY_NAMES):
+    st.info("💡 **Grid View**: Drag and drop blue activity cards to reschedule. Red compulsory events are locked in place. **List View**: Traditional view with all events listed by day.")
+    
+    # Read the HTML component
+    try:
+        with open('timetable_component.html', 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        
+        # Inject the timetable data
+        timetable_json = json.dumps(st.session_state.timetable)
+        html_with_data = html_content.replace(
+            'let timetableData = {',
+            f'let timetableData = {timetable_json};\n        let originalData = {timetable_json};\n        let sampleData = {{'
+        )
+        
+        # Render the component
+        components.html(html_with_data, height=1000, scrolling=True)
+        
+    except FileNotFoundError:
+        st.error("⚠️ timetable_component.html not found. Falling back to standard view.")
+        # Fallback to original display
+        display_standard_timetable()
+else:
+    st.info("📝 No timetable generated yet. Add activities and events, then click 'Generate Timetable'.")
+
+# Fallback standard timetable display
+def display_standard_timetable():
+    """Display timetable in standard Streamlit format"""
     st.subheader("📈 Weekly Summary")
     summary_cols = st.columns(5)
     
@@ -467,39 +495,36 @@ if any(st.session_state.timetable[day] for day in DAY_NAMES):
         with summary_cols[idx]:
             st.metric(day, f"{hours}h {minutes}m" if total_minutes > 0 else "Free")
 
-# Display each day
-for day in DAY_NAMES:
-    with st.expander(f"📅 {day}", expanded=True):
-        if not st.session_state.timetable[day]:
-            st.info("No events scheduled")
-        else:
-            for event in st.session_state.timetable[day]:
-                type_colors = {
-                    "COMPULSORY": "🔴",
-                    "ACTIVITY": "🔵",
-                    "BREAK": "⚪"
-                }
-                emoji = type_colors.get(event["type"], "")
-                
-                if event["type"] == "COMPULSORY":
-                    st.markdown(f"**{emoji} {event['start']} - {event['end']}:** :red[{event['name']}]")
-                elif event["type"] == "ACTIVITY":
-                    st.markdown(f"**{emoji} {event['start']} - {event['end']}:** :blue[{event['name']}]")
-                else:
-                    st.markdown(f"*{emoji} {event['start']} - {event['end']}: {event['name']}*")
+    # Display each day
+    for day in DAY_NAMES:
+        with st.expander(f"📅 {day}", expanded=True):
+            if not st.session_state.timetable[day]:
+                st.info("No events scheduled")
+            else:
+                for event in st.session_state.timetable[day]:
+                    type_colors = {
+                        "COMPULSORY": "🔴",
+                        "ACTIVITY": "🔵",
+                        "BREAK": "⚪"
+                    }
+                    emoji = type_colors.get(event["type"], "")
+                    
+                    if event["type"] == "COMPULSORY":
+                        st.markdown(f"**{emoji} {event['start']} - {event['end']}:** :red[{event['name']}]")
+                    elif event["type"] == "ACTIVITY":
+                        st.markdown(f"**{emoji} {event['start']} - {event['end']}:** :blue[{event['name']}]")
+                    else:
+                        st.markdown(f"*{emoji} {event['start']} - {event['end']}: {event['name']}*")
 
 # Display lists in sidebar
 with st.sidebar:
     st.divider()
 
-    # =========================
     # DISPLAY + EDIT ACTIVITIES
-    # =========================
     if st.session_state.list_of_activities:
         st.subheader("📝 Current Activities")
 
         for idx, act in enumerate(st.session_state.list_of_activities):
-
             with st.expander(f"{idx+1}. {act['activity']} ({act['timing']}h)"):
                 st.write(f"Priority: {act['priority']} | Deadline in {act['deadline']} days")
 
@@ -514,6 +539,7 @@ with st.sidebar:
                     st.session_state.list_of_activities.pop(idx)
                     save_to_firebase(st.session_state.user_id, "activities", st.session_state.list_of_activities)
                     st.success("Activity deleted!")
+                    st.rerun()
 
                 # If editing this activity, show form
                 if st.session_state.get("edit_activity_index") == idx:
@@ -533,16 +559,13 @@ with st.sidebar:
                             save_to_firebase(st.session_state.user_id, "activities", st.session_state.list_of_activities)
                             st.success("Activity updated!")
                             st.session_state.edit_activity_index = None
+                            st.rerun()
 
-
-    # =========================
     # DISPLAY + EDIT EVENTS
-    # =========================
     if st.session_state.list_of_compulsory_events:
         st.subheader("🔴 Current Events")
 
         for idx, evt in enumerate(st.session_state.list_of_compulsory_events):
-
             with st.expander(f"{idx+1}. {evt['event']} ({evt['day']} {evt['start_time']}-{evt['end_time']})"):
                 col1, col2 = st.columns([1, 1])
 
@@ -553,6 +576,7 @@ with st.sidebar:
                     st.session_state.list_of_compulsory_events.pop(idx)
                     save_to_firebase(st.session_state.user_id, "events", st.session_state.list_of_compulsory_events)
                     st.success("Event deleted!")
+                    st.rerun()
 
                 if st.session_state.get("edit_event_index") == idx:
                     with st.form(f"edit_event_form_{idx}"):
@@ -571,4 +595,4 @@ with st.sidebar:
                             save_to_firebase(st.session_state.user_id, "events", st.session_state.list_of_compulsory_events)
                             st.success("Event updated!")
                             st.session_state.edit_event_index = None
-
+                            st.rerun()
