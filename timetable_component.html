@@ -132,6 +132,14 @@
             border-color: #42a5f5;
             color: #1565c0;
         }
+        
+        .event-card.activity.past-deadline {
+            background: #fff3e0;
+            border-color: #ff9800;
+            color: #e65100;
+            border-width: 2px;
+            border-style: dashed;
+        }
 
         .event-card.break {
             background: var(--break-bg, #f5f5f5);
@@ -223,6 +231,11 @@
             background: #e3f2fd;
             border-color: #42a5f5;
         }
+        
+        .event-list-item.activity.past-deadline {
+            background: #fff3e0;
+            border-color: #ff9800;
+        }
 
         .event-list-item.break {
             background: var(--break-bg, #f5f5f5);
@@ -302,8 +315,9 @@
         const TIME_SLOTS = ["06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00"];
         const BREAK_DURATION = 120; // 2 hours in minutes
 
-        // DATA_PLACEHOLDER - will be replaced by Python
+        // DATA_PLACEHOLDER_START
         let timetableData = {"Monday":[],"Tuesday":[],"Wednesday":[],"Thursday":[],"Friday":[]};
+        // DATA_PLACEHOLDER_END
         
         // Ensure all days exist in the data
         function ensureAllDays(data) {
@@ -321,6 +335,10 @@
         let draggedElement = null;
         let draggedEventData = null;
         let originalDay = null;
+        
+        // Debug: Log the timetable data
+        console.log('Timetable Data:', timetableData);
+        console.log('Total events:', Object.values(timetableData).reduce((sum, day) => sum + day.length, 0));
 
         // Extract deadline information from activity names
         function extractDeadlines() {
@@ -494,10 +512,22 @@
             card.className = `event-card ${event.type.toLowerCase()}`;
             card.draggable = event.type !== 'COMPULSORY';
 
+            // Check if activity is past its deadline
+            if (event.type === 'ACTIVITY') {
+                const baseName = event.name.replace(/ \(Session \d+\)/, '');
+                const maxDayIndex = activityDeadlines[baseName];
+                const currentDayIndex = DAY_NAMES.indexOf(day);
+                
+                if (maxDayIndex !== undefined && currentDayIndex > maxDayIndex) {
+                    card.classList.add('past-deadline');
+                }
+            }
+
             const name = document.createElement('div');
             name.className = 'event-name';
             const emoji = event.type === 'COMPULSORY' ? '🔴' : event.type === 'ACTIVITY' ? '🔵' : '⚪';
-            name.textContent = `${emoji} ${event.name}`;
+            const warningEmoji = card.classList.contains('past-deadline') ? ' ⚠️' : '';
+            name.textContent = `${emoji} ${event.name}${warningEmoji}`;
 
             const time = document.createElement('div');
             time.className = 'event-time';
@@ -630,8 +660,21 @@
                     timetableData[day].forEach(event => {
                         const item = document.createElement('div');
                         item.className = `event-list-item ${event.type.toLowerCase()}`;
+                        
+                        // Check if activity is past deadline
+                        if (event.type === 'ACTIVITY') {
+                            const baseName = event.name.replace(/ \(Session \d+\)/, '');
+                            const maxDayIndex = activityDeadlines[baseName];
+                            const currentDayIndex = DAY_NAMES.indexOf(day);
+                            
+                            if (maxDayIndex !== undefined && currentDayIndex > maxDayIndex) {
+                                item.classList.add('past-deadline');
+                            }
+                        }
+                        
                         const emoji = event.type === 'COMPULSORY' ? '🔴' : event.type === 'ACTIVITY' ? '🔵' : '⚪';
-                        item.innerHTML = `<strong>${emoji} ${event.name}</strong><span>${event.start} - ${event.end}</span>`;
+                        const warningEmoji = item.classList.contains('past-deadline') ? ' ⚠️' : '';
+                        item.innerHTML = `<strong>${emoji} ${event.name}${warningEmoji}</strong><span>${event.start} - ${event.end}</span>`;
                         dayDiv.appendChild(item);
                     });
                 }
