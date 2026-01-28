@@ -452,27 +452,29 @@ with col2:
 st.header("📊 Your Weekly Timetable")
 
 # Interactive Timetable Component
+st.header("📊 Your Weekly Timetable")
+
+# Interactive Timetable Component
 if any(st.session_state.timetable[day] for day in DAY_NAMES):
-    st.info("💡 **Grid View**: Drag and drop blue activity cards to reschedule. Red compulsory events are locked in place. **List View**: Traditional view with all events listed by day.")
+    st.info("💡 **Grid View**: Drag and drop blue activity cards to reschedule. Red compulsory events are locked. **List View**: Traditional view.")
     
     # Read the HTML component
     try:
         with open('timetable_component.html', 'r', encoding='utf-8') as f:
             html_content = f.read()
         
-        # Inject the timetable data
+        # Inject the timetable data - using the DATA_PLACEHOLDER marker
         timetable_json = json.dumps(st.session_state.timetable)
         html_with_data = html_content.replace(
-            'let timetableData = {',
-            f'let timetableData = {timetable_json};\n        let originalData = {timetable_json};\n        let sampleData = {{'
+            '// DATA_PLACEHOLDER - will be replaced by Python\n        let timetableData = {"Monday":[],"Tuesday":[],"Wednesday":[],"Thursday":[],"Friday":[]};',
+            f'let timetableData = {timetable_json};'
         )
         
         # Render the component
-        components.html(html_with_data, height=1000, scrolling=True)
+        components.html(html_with_data, height=900, scrolling=True)
         
     except FileNotFoundError:
         st.error("⚠️ timetable_component.html not found. Falling back to standard view.")
-        # Fallback to original display
         display_standard_timetable()
 else:
     st.info("📝 No timetable generated yet. Add activities and events, then click 'Generate Timetable'.")
