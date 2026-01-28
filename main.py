@@ -530,8 +530,6 @@ st.header("📊 Your Weekly Timetable")
 
 # Interactive Timetable Component
 if any(st.session_state.timetable[day] for day in DAY_NAMES):
-    st.info("💡 **Grid View**: Drag and drop 🔵 blue activity cards to reschedule (breaks follow automatically). 🔴 Red events are locked. **List View**: Traditional view of all events including breaks.")
-    
     # Read the HTML component
     try:
         with open('timetable_component.html', 'r', encoding='utf-8') as f:
