@@ -4,8 +4,7 @@ import random
 from datetime import datetime, timedelta
 import firebase_admin
 from firebase_admin import credentials, firestore
-import json, re
-import streamlit.components.v1 as components
+import json
 
 # Initialize Firebase (only once)
 @st.cache_resource
@@ -111,12 +110,6 @@ st.markdown("""
     .streamlit-expanderHeader {
         font-weight: 600;
         font-size: 15px;
-    }
-    
-    /* Smaller button text in expanders */
-    div[data-testid="column"] button {
-        font-size: 13px !important;
-        padding: 8px 16px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -541,18 +534,20 @@ if any(st.session_state.timetable[day] for day in DAY_NAMES):
     
     # Read the HTML component
     try:
-        # Load HTML template
         with open('timetable_component.html', 'r', encoding='utf-8') as f:
             html_content = f.read()
         
-        # Inject timetable JSON
+        # Inject the timetable data - using the DATA_PLACEHOLDER marker
         timetable_json = json.dumps(st.session_state.timetable)
+        
+        # Use regex to replace data between markers
+        import re
         pattern = r'// DATA_PLACEHOLDER_START.*?// DATA_PLACEHOLDER_END'
-        replacement = f'// DATA_PLACEHOLDER_START\nlet timetableData = {timetable_json};\n// DATA_PLACEHOLDER_END'
+        replacement = f'// DATA_PLACEHOLDER_START\n        let timetableData = {timetable_json};\n        // DATA_PLACEHOLDER_END'
         html_with_data = re.sub(pattern, replacement, html_content, flags=re.DOTALL)
         
-        # Render component in Streamlit
-        components.html(html_with_data, height=1200, scrolling=True)
+        # Render the component
+        components.html(html_with_data, height=900, scrolling=True)
         
     except FileNotFoundError:
         st.error("⚠️ timetable_component.html not found. Falling back to standard view.")
