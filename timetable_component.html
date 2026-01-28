@@ -145,6 +145,8 @@
             background: var(--break-bg, #f5f5f5);
             border-color: var(--break-border, #bdbdbd);
             color: var(--break-text, #616161);
+            cursor: default;
+            opacity: 0.85;
         }
 
         .event-name {
@@ -462,6 +464,17 @@
             const grid = document.getElementById('timetable');
             grid.innerHTML = '';
 
+            // Debug: Count events by type
+            let eventCounts = { COMPULSORY: 0, ACTIVITY: 0, BREAK: 0 };
+            for (let day of DAY_NAMES) {
+                if (timetableData[day]) {
+                    timetableData[day].forEach(event => {
+                        eventCounts[event.type] = (eventCounts[event.type] || 0) + 1;
+                    });
+                }
+            }
+            console.log('Event counts:', eventCounts);
+
             grid.appendChild(createTimeLabel(''));
             DAY_NAMES.forEach(day => {
                 const header = document.createElement('div');
@@ -493,10 +506,17 @@
             slot.dataset.time = time;
 
             const eventsInSlot = getEventsInSlot(day, time);
+            
+            // Only show events that START at this exact time
             eventsInSlot.forEach(event => {
                 if (timeToMinutes(event.start) === timeToMinutes(time)) {
                     const card = createEventCard(event, day);
                     slot.appendChild(card);
+                    
+                    // Debug log for breaks
+                    if (event.type === 'BREAK') {
+                        console.log(`BREAK rendered: ${day} ${time}`, event);
+                    }
                 }
             });
 
@@ -510,7 +530,8 @@
         function createEventCard(event, day) {
             const card = document.createElement('div');
             card.className = `event-card ${event.type.toLowerCase()}`;
-            card.draggable = event.type !== 'COMPULSORY';
+            // BREAK and COMPULSORY events are not draggable
+            card.draggable = (event.type !== 'COMPULSORY' && event.type !== 'BREAK');
 
             // Check if activity is past its deadline
             if (event.type === 'ACTIVITY') {
@@ -531,12 +552,21 @@
 
             const time = document.createElement('div');
             time.className = 'event-time';
-            time.textContent = `${event.start} - ${event.end}`;
+            
+            // Calculate duration
+            const startMins = timeToMinutes(event.start);
+            const endMins = timeToMinutes(event.end);
+            const durationMins = endMins - startMins;
+            const hours = Math.floor(durationMins / 60);
+            const mins = durationMins % 60;
+            const durationStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+            
+            time.textContent = `${event.start} - ${event.end} (${durationStr})`;
 
             card.appendChild(name);
             card.appendChild(time);
 
-            if (event.type !== 'COMPULSORY') {
+            if (event.type !== 'COMPULSORY' && event.type !== 'BREAK') {
                 card.addEventListener('dragstart', (e) => handleDragStart(e, event, day));
                 card.addEventListener('dragend', handleDragEnd);
             }
@@ -545,6 +575,10 @@
         }
 
         function handleDragStart(e, event, day) {
+            if (event.type === 'BREAK' || event.type === 'COMPULSORY') {
+                e.preventDefault();
+                return;
+            }
             draggedElement = e.target;
             draggedEventData = {...event};
             originalDay = day;
@@ -672,9 +706,17 @@
                             }
                         }
                         
+                        // Calculate duration
+                        const startMins = timeToMinutes(event.start);
+                        const endMins = timeToMinutes(event.end);
+                        const durationMins = endMins - startMins;
+                        const hours = Math.floor(durationMins / 60);
+                        const mins = durationMins % 60;
+                        const durationStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+                        
                         const emoji = event.type === 'COMPULSORY' ? '🔴' : event.type === 'ACTIVITY' ? '🔵' : '⚪';
                         const warningEmoji = item.classList.contains('past-deadline') ? ' ⚠️' : '';
-                        item.innerHTML = `<strong>${emoji} ${event.name}${warningEmoji}</strong><span>${event.start} - ${event.end}</span>`;
+                        item.innerHTML = `<strong>${emoji} ${event.name}${warningEmoji}</strong><span>${event.start} - ${event.end} • ${durationStr}</span>`;
                         dayDiv.appendChild(item);
                     });
                 }
