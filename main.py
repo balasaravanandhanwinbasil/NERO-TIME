@@ -452,9 +452,6 @@ with col2:
 st.header("📊 Your Weekly Timetable")
 
 # Interactive Timetable Component
-st.header("📊 Your Weekly Timetable")
-
-# Interactive Timetable Component
 if any(st.session_state.timetable[day] for day in DAY_NAMES):
     st.info("💡 **Grid View**: Drag and drop blue activity cards to reschedule. Red compulsory events are locked. **List View**: Traditional view.")
     
