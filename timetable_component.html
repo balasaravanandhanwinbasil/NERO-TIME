@@ -29,12 +29,13 @@
 
         .tab-button {
             padding: 8px 16px;
-            border: 1px solid #e0e0e0;
-            background: white;
+            border: 1px solid var(--border-color, #e0e0e0);
+            background: var(--bg-secondary, white);
             border-radius: 4px;
             font-size: 14px;
             cursor: pointer;
             transition: all 0.2s;
+            color: var(--text-primary, #000);
         }
 
         .tab-button.active {
@@ -55,10 +56,10 @@
             display: grid;
             grid-template-columns: 70px repeat(5, 1fr);
             gap: 8px;
-            background: white;
+            background: transparent;
             padding: 16px;
             border-radius: 8px;
-            border: 1px solid #e0e0e0;
+            border: 1px solid var(--border-color, #e0e0e0);
         }
 
         .time-label {
@@ -67,30 +68,32 @@
             align-items: center;
             justify-content: center;
             font-size: 12px;
-            color: #666;
+            color: var(--text-secondary, #666);
             font-weight: 500;
         }
 
         .day-header {
-            background: #f8f9fa;
-            border: 1px solid #e0e0e0;
+            background: var(--bg-tertiary, #f8f9fa);
+            border: 1px solid var(--border-color, #e0e0e0);
             padding: 10px;
             text-align: center;
             font-weight: 600;
             border-radius: 4px;
             font-size: 14px;
+            color: var(--text-primary, #000);
         }
 
         .time-slot {
             min-height: 50px;
-            border: 1px dashed #ddd;
+            border: 1px dashed var(--border-light, #ddd);
             border-radius: 4px;
             padding: 4px;
             transition: all 0.2s;
+            background: var(--bg-primary, transparent);
         }
 
         .time-slot:hover {
-            background: #f8f9fa;
+            background: var(--bg-hover, #f8f9fa);
             border-color: #0066cc;
         }
 
@@ -131,9 +134,9 @@
         }
 
         .event-card.break {
-            background: #f5f5f5;
-            border-color: #bdbdbd;
-            color: #616161;
+            background: var(--break-bg, #f5f5f5);
+            border-color: var(--break-border, #bdbdbd);
+            color: var(--break-text, #616161);
         }
 
         .event-name {
@@ -154,16 +157,17 @@
 
         button {
             padding: 8px 16px;
-            border: 1px solid #e0e0e0;
+            border: 1px solid var(--border-color, #e0e0e0);
             border-radius: 4px;
             font-size: 13px;
             cursor: pointer;
-            background: white;
+            background: var(--bg-secondary, white);
             transition: all 0.2s;
+            color: var(--text-primary, #000);
         }
 
         button:hover {
-            background: #f8f9fa;
+            background: var(--bg-hover, #f8f9fa);
         }
 
         .btn-save {
@@ -187,8 +191,8 @@
         }
 
         .day-list {
-            background: white;
-            border: 1px solid #e0e0e0;
+            background: var(--bg-secondary, white);
+            border: 1px solid var(--border-color, #e0e0e0);
             border-radius: 8px;
             padding: 16px;
             margin-bottom: 12px;
@@ -199,7 +203,8 @@
             font-weight: 600;
             margin-bottom: 12px;
             padding-bottom: 8px;
-            border-bottom: 2px solid #e0e0e0;
+            border-bottom: 2px solid var(--border-color, #e0e0e0);
+            color: var(--text-primary, #000);
         }
 
         .event-list-item {
@@ -220,27 +225,46 @@
         }
 
         .event-list-item.break {
-            background: #f5f5f5;
-            border-color: #bdbdbd;
+            background: var(--break-bg, #f5f5f5);
+            border-color: var(--break-border, #bdbdbd);
         }
 
         .event-list-item strong {
             font-size: 14px;
             display: block;
             margin-bottom: 4px;
+            color: var(--text-primary, #000);
         }
 
         .event-list-item span {
             font-size: 12px;
-            color: #666;
+            color: var(--text-secondary, #666);
         }
 
         .empty-day {
-            color: #999;
+            color: var(--text-muted, #999);
             font-style: italic;
             padding: 12px;
             text-align: center;
             font-size: 13px;
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-primary: transparent;
+                --bg-secondary: #1e1e1e;
+                --bg-tertiary: #2d2d2d;
+                --bg-hover: #2d2d2d;
+                --text-primary: #e0e0e0;
+                --text-secondary: #a0a0a0;
+                --text-muted: #666;
+                --border-color: #404040;
+                --border-light: #404040;
+                --break-bg: #2d2d2d;
+                --break-border: #505050;
+                --break-text: #a0a0a0;
+            }
         }
 
         @media (max-width: 1200px) {
@@ -276,13 +300,50 @@
     <script>
         const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
         const TIME_SLOTS = ["06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00"];
+        const BREAK_DURATION = 120; // 2 hours in minutes
 
         // DATA_PLACEHOLDER - will be replaced by Python
         let timetableData = {"Monday":[],"Tuesday":[],"Wednesday":[],"Thursday":[],"Friday":[]};
+        
+        // Ensure all days exist in the data
+        function ensureAllDays(data) {
+            for (let day of DAY_NAMES) {
+                if (!data[day] || !Array.isArray(data[day])) {
+                    data[day] = [];
+                }
+            }
+            return data;
+        }
+        
+        timetableData = ensureAllDays(timetableData);
         let originalData = JSON.parse(JSON.stringify(timetableData));
+        let activityDeadlines = {}; // Store deadlines for activities
         let draggedElement = null;
         let draggedEventData = null;
         let originalDay = null;
+
+        // Extract deadline information from activity names
+        function extractDeadlines() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            for (let day of DAY_NAMES) {
+                if (!timetableData[day] || !Array.isArray(timetableData[day])) {
+                    continue;
+                }
+                for (let event of timetableData[day]) {
+                    if (event.type === 'ACTIVITY') {
+                        // Store the day index this activity appears on
+                        const dayIndex = DAY_NAMES.indexOf(day);
+                        const baseName = event.name.replace(/ \(Session \d+\)/, '');
+                        
+                        if (!activityDeadlines[baseName] || dayIndex > activityDeadlines[baseName]) {
+                            activityDeadlines[baseName] = dayIndex;
+                        }
+                    }
+                }
+            }
+        }
 
         function switchTab(tab) {
             document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
@@ -310,6 +371,9 @@
         }
 
         function getEventsInSlot(day, time) {
+            if (!timetableData[day] || !Array.isArray(timetableData[day])) {
+                return [];
+            }
             const timeMinutes = timeToMinutes(time);
             return timetableData[day].filter(event => {
                 const startMinutes = timeToMinutes(event.start);
@@ -318,7 +382,65 @@
             });
         }
 
+        function findBreakAfterEvent(day, eventEndTime) {
+            if (!timetableData[day] || !Array.isArray(timetableData[day])) {
+                return null;
+            }
+            const endMinutes = timeToMinutes(eventEndTime);
+            return timetableData[day].find(event => 
+                event.type === 'BREAK' && timeToMinutes(event.start) === endMinutes
+            );
+        }
+
+        function removeBreakAfterEvent(day, eventEndTime) {
+            if (!timetableData[day] || !Array.isArray(timetableData[day])) {
+                return;
+            }
+            const breakEvent = findBreakAfterEvent(day, eventEndTime);
+            if (breakEvent) {
+                const index = timetableData[day].indexOf(breakEvent);
+                if (index > -1) {
+                    timetableData[day].splice(index, 1);
+                }
+            }
+        }
+
+        function addBreakAfterEvent(day, eventEndTime) {
+            if (!timetableData[day]) {
+                timetableData[day] = [];
+            }
+            
+            const endMinutes = timeToMinutes(eventEndTime);
+            const breakEndMinutes = endMinutes + BREAK_DURATION;
+            
+            if (breakEndMinutes >= 1440) return; // Don't add break past midnight
+            
+            const breakEnd = minutesToTime(breakEndMinutes);
+            
+            // Check if there's already a break at this time
+            const existingBreak = findBreakAfterEvent(day, eventEndTime);
+            if (existingBreak) return;
+            
+            // Check for conflicts
+            const hasConflict = timetableData[day].some(event => {
+                const eventStart = timeToMinutes(event.start);
+                const eventEnd = timeToMinutes(event.end);
+                return !(breakEndMinutes <= eventStart || endMinutes >= eventEnd);
+            });
+            
+            if (!hasConflict) {
+                timetableData[day].push({
+                    start: eventEndTime,
+                    end: breakEnd,
+                    name: "Break",
+                    type: "BREAK"
+                });
+                timetableData[day].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+            }
+        }
+
         function renderTimetable() {
+            extractDeadlines();
             const grid = document.getElementById('timetable');
             grid.innerHTML = '';
 
@@ -417,39 +539,70 @@
             e.currentTarget.classList.remove('drag-over');
 
             if (!draggedEventData || draggedEventData.type === 'COMPULSORY') return;
+            
+            // Ensure arrays exist
+            if (!timetableData[targetDay]) timetableData[targetDay] = [];
+            if (!timetableData[originalDay]) timetableData[originalDay] = [];
+
+            // Check deadline constraint
+            const baseName = draggedEventData.name.replace(/ \(Session \d+\)/, '');
+            const maxDayIndex = activityDeadlines[baseName];
+            const targetDayIndex = DAY_NAMES.indexOf(targetDay);
+            
+            if (maxDayIndex !== undefined && targetDayIndex > maxDayIndex) {
+                alert('⚠️ Cannot move activity past its deadline!');
+                return;
+            }
 
             const duration = timeToMinutes(draggedEventData.end) - timeToMinutes(draggedEventData.start);
             const newStartMinutes = timeToMinutes(targetTime);
             const newEndMinutes = newStartMinutes + duration;
+            const breakEndMinutes = newEndMinutes + BREAK_DURATION;
+            
             const newStart = minutesToTime(newStartMinutes);
             const newEnd = minutesToTime(newEndMinutes);
+            const breakEnd = minutesToTime(breakEndMinutes);
 
+            // Check for conflicts with both activity and break
             const conflict = timetableData[targetDay].some(event => {
                 const eventStart = timeToMinutes(event.start);
                 const eventEnd = timeToMinutes(event.end);
                 const isSameEvent = event.name === draggedEventData.name && event.start === draggedEventData.start;
                 if (isSameEvent) return false;
-                return !(newEndMinutes <= eventStart || newStartMinutes >= eventEnd);
+                
+                // Check if activity or its break would conflict
+                return !(breakEndMinutes <= eventStart || newStartMinutes >= eventEnd);
             });
 
             if (conflict) {
-                alert('⚠️ Time slot is occupied!');
+                alert('⚠️ Time slot is occupied (including break time)!');
                 return;
             }
 
+            // Remove old break
+            removeBreakAfterEvent(originalDay, draggedEventData.end);
+
+            // Remove the activity from original day
             const eventIndex = timetableData[originalDay].findIndex(
-                event => event.name === draggedEventData.name && event.start === draggedEventData.start && event.type === draggedEventData.type
+                event => event.name === draggedEventData.name && 
+                         event.start === draggedEventData.start && 
+                         event.type === draggedEventData.type
             );
             
             if (eventIndex !== -1) {
                 timetableData[originalDay].splice(eventIndex, 1);
             }
 
+            // Add activity to new location
             timetableData[targetDay].push({
                 ...draggedEventData,
                 start: newStart,
                 end: newEnd
             });
+
+            // Add break after activity in new location
+            addBreakAfterEvent(targetDay, newEnd);
+
             timetableData[targetDay].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
 
             renderTimetable();
@@ -468,7 +621,7 @@
                 title.textContent = `📅 ${day}`;
                 dayDiv.appendChild(title);
 
-                if (timetableData[day].length === 0) {
+                if (!timetableData[day] || !Array.isArray(timetableData[day]) || timetableData[day].length === 0) {
                     const empty = document.createElement('div');
                     empty.className = 'empty-day';
                     empty.textContent = 'No events scheduled';
