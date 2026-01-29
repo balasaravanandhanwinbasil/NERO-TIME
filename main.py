@@ -8,8 +8,7 @@ import json
 
 # Initialize Firebase (only once)
 @st.cache_resource
-def init_firebase():
-    from Main Code Folder import Firebase Function
+
 
 # Initialize Firestore client
 db = init_firebase()
