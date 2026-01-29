@@ -7,7 +7,7 @@ from firebase_admin import credentials, firestore
 import json
 
 # Initialize Firebase (only once)
-from Firebase_Function import init_firebase()
+from Firebase_Function import init_firebase,save_to_firebase,load_from_firebase,save_timetable_snapshot,get_timetable_history
 @st.cache_resource
 
 
@@ -88,11 +88,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Firebase helper functions
-from Firebase_Function.py import save_to_firebase(user_id, data_type, data)
-from Firebase_Function.py import load_from_firebase(user_id, data_type)
-from Firebase_Function.py import save_timetable_snapshot(user_id, timetable, activities, events)
-from Firebase_Function.py import get_timetable_history(user_id, limit=10)
 
 
 # Initialize session state
