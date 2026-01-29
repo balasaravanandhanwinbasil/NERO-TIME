@@ -7,6 +7,7 @@ from firebase_admin import credentials, firestore
 import json
 
 # Initialize Firebase (only once)
+from Firebase Function import init_firebase()
 @st.cache_resource
 
 
