@@ -7,7 +7,7 @@ from firebase_admin import credentials, firestore
 import json
 
 # Initialize Firebase (only once)
-from Firebase_Function import (init_firebase,save_to_firebase,load_from_firebase,save_timetable_snapshot,get_timetable_history)
+from Main_Code_Folder/Firebase_Function import (init_firebase,save_to_firebase,load_from_firebase,save_timetable_snapshot,get_timetable_history)
 @st.cache_resource
 
 
