@@ -12,7 +12,8 @@ from Firebase_Function import (init_firebase,save_to_firebase,load_from_firebase
 
 
 # Initialize Firestore client
-db = init_firebase()
+def get_db():
+    return init_firebase()
 
 # Constants
 VALID_SUBJECTS = ["Math", "English", "Mother Tongue", "Cygames Glazing"]
