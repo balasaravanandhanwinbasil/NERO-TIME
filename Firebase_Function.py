@@ -1,14 +1,14 @@
 def init_firebase():
     """Initialize Firebase app"""
-        try:
+    try:
             # Check if already initialized
             firebase_admin.get_app()
-        except ValueError:
+    except ValueError:
             # Try to use JSON file first (for local development)
-            try:
+        try:
                 cred = credentials.Certificate('firebase-credentials.json')
                 firebase_admin.initialize_app(cred)
-            except FileNotFoundError:
+        except FileNotFoundError:
                 # Fall back to Streamlit secrets (for cloud deployment)
                 cred_dict = {
                     "type": st.secrets["firebase"]["type"],
@@ -25,7 +25,7 @@ def init_firebase():
                 cred = credentials.Certificate(cred_dict)
                 firebase_admin.initialize_app(cred)
         
-        return firestore.client()
+    return firestore.client()
 
 def save_to_firebase(user_id, data_type, data):
     """Save data to Firebase"""
