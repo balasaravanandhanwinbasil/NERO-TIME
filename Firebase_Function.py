@@ -1,3 +1,5 @@
+import streamlit
+
 def init_firebase():
     """Initialize Firebase app"""
     try:
