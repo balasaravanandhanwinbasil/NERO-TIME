@@ -1,4 +1,4 @@
-import streamlit
+import streamlit as st
 
 def init_firebase():
     """Initialize Firebase app"""
