@@ -1,3 +1,13 @@
+import streamlit as st
+from datetime import datetime
+import random
+
+# Constants
+DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+
+# Import Firebase functions
+from Firebase_Function import save_to_firebase, save_timetable_snapshot
+
 def time_str_to_minutes(time_str):
     """Convert HH:MM to minutes since midnight."""
     parts = time_str.split(":")
@@ -59,7 +69,7 @@ def get_available_days_until_deadline(deadline_days):
             available_days.append(DAY_NAMES[day_index])
     return available_days
 
-def find_free_slot(day, duration_minutes, start_hour=6, end_hour=22):
+def find_free_slot(day, duration_minutes, start_hour=6, end_hour=22, break_time=2):
     """Find a free slot on a given day, including space for break."""
     attempts = []
     break_minutes = break_time * 60
@@ -85,7 +95,7 @@ def find_free_slot(day, duration_minutes, start_hour=6, end_hour=22):
         return attempts[0]
     return None
 
-def place_compulsory_events():
+def place_compulsory_events(break_time=2):
     """Place compulsory events in the timetable."""
     for event in st.session_state.list_of_compulsory_events:
         day = event["day"]
@@ -99,7 +109,7 @@ def place_compulsory_events():
         if time_str_to_minutes(break_end) < 1440 and is_time_slot_free(day, end_time, break_end):
             add_event_to_timetable(day, end_time, break_end, "Break", "BREAK")
 
-def place_activities():
+def place_activities(break_time=2):
     """Place activities in the timetable."""
     MAX_ACTIVITY_MINUTES_PER_DAY = 6 * 60
 
@@ -139,7 +149,7 @@ def place_activities():
                 if current_minutes + chunk_minutes > MAX_ACTIVITY_MINUTES_PER_DAY:
                     continue
 
-                slot = find_free_slot(day, chunk_minutes)
+                slot = find_free_slot(day, chunk_minutes, break_time=break_time)
 
                 if slot:
                     start_time, end_time = slot
@@ -162,6 +172,47 @@ def place_activities():
             if not placed:
                 st.warning(f"Could not place {chunk_minutes} minutes of '{activity['activity']}'")
                 break
+
+def check_expired_activities():
+    """Check for activities past their deadline and prompt for verification."""
+    now = datetime.now()
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    # Initialize pending verifications if not exists
+    if 'pending_verifications' not in st.session_state:
+        st.session_state.pending_verifications = []
+    
+    expired_activities = []
+    
+    for activity in st.session_state.list_of_activities:
+        deadline_date = today + datetime.timedelta(days=activity['deadline'])
+        
+        # Check if deadline has passed
+        if now > deadline_date:
+            activity_name = activity['activity']
+            completed_hours = st.session_state.activity_progress.get(activity_name, 0)
+            total_hours = activity['timing']
+            
+            # Only add to pending if not fully completed and not already pending
+            if completed_hours < total_hours:
+                if activity_name not in st.session_state.pending_verifications:
+                    expired_activities.append({
+                        'name': activity_name,
+                        'completed': completed_hours,
+                        'total': total_hours,
+                        'deadline': activity['deadline']
+                    })
+                    st.session_state.pending_verifications.append(activity_name)
+    
+    return expired_activities
+
+def remove_activity_from_timetable(activity_name):
+    """Remove all sessions of an activity from the timetable."""
+    for day in DAY_NAMES:
+        st.session_state.timetable[day] = [
+            event for event in st.session_state.timetable[day]
+            if not (event['type'] == 'ACTIVITY' and event['name'].startswith(activity_name))
+        ]
 
 def generate_timetable():
     """Generate the complete timetable."""
