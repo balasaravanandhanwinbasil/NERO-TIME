@@ -134,6 +134,11 @@ st.markdown("""
         border-left: 5px solid #c77dff;
         color: #3a1c52;
     }
+
+    /* Warning/Alert boxes */
+    .stAlert {
+        border-radius: 10px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -153,13 +158,16 @@ if 'current_page' not in st.session_state:
     st.session_state.current_page = 'dashboard'
 if 'activity_progress' not in st.session_state:
     st.session_state.activity_progress = {}  # {activity_name: hours_completed}
+if 'pending_verifications' not in st.session_state:
+    st.session_state.pending_verifications = []
 
 # Import helper functions
 from Timetable_Generation import (time_str_to_minutes, minutes_to_time_str, add_minutes,
                                    is_time_slot_free, add_event_to_timetable, 
                                    get_day_activity_minutes, find_free_slot,
                                    place_compulsory_events, place_activities, 
-                                   generate_timetable)
+                                   generate_timetable, check_expired_activities,
+                                   remove_activity_from_timetable)
 
 def get_current_time_slot():
     """Get current day and time slot"""
@@ -223,6 +231,7 @@ if not st.session_state.data_loaded and st.session_state.user_id:
         loaded_events = load_from_firebase(st.session_state.user_id, 'events')
         loaded_timetable = load_from_firebase(st.session_state.user_id, 'timetable')
         loaded_progress = load_from_firebase(st.session_state.user_id, 'activity_progress')
+        loaded_pending = load_from_firebase(st.session_state.user_id, 'pending_verifications')
         
         if loaded_activities:
             st.session_state.list_of_activities = loaded_activities
@@ -232,8 +241,103 @@ if not st.session_state.data_loaded and st.session_state.user_id:
             st.session_state.timetable = loaded_timetable
         if loaded_progress:
             st.session_state.activity_progress = loaded_progress
+        if loaded_pending:
+            st.session_state.pending_verifications = loaded_pending
         
         st.session_state.data_loaded = True
+
+# Check for expired activities and show verification prompts
+expired_activities = check_expired_activities()
+if expired_activities:
+    st.warning("⚠️ **Some activities have passed their deadline!**")
+    
+    for activity in expired_activities:
+        with st.expander(f"🔔 Verify: {activity['name']} (Deadline passed)", expanded=True):
+            st.write(f"**Progress:** {activity['completed']:.1f}h / {activity['total']}h completed")
+            st.write(f"**Deadline was:** {activity['deadline']} days ago")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                if st.button("✅ Completed", key=f"complete_{activity['name']}", use_container_width=True):
+                    # Mark as 100% complete
+                    st.session_state.activity_progress[activity['name']] = activity['total']
+                    
+                    # Remove from pending verifications
+                    if activity['name'] in st.session_state.pending_verifications:
+                        st.session_state.pending_verifications.remove(activity['name'])
+                    
+                    # Remove activity from list
+                    st.session_state.list_of_activities = [
+                        a for a in st.session_state.list_of_activities 
+                        if a['activity'] != activity['name']
+                    ]
+                    
+                    # Remove from timetable
+                    remove_activity_from_timetable(activity['name'])
+                    
+                    # Save everything
+                    save_to_firebase(st.session_state.user_id, 'activity_progress', st.session_state.activity_progress)
+                    save_to_firebase(st.session_state.user_id, 'pending_verifications', st.session_state.pending_verifications)
+                    save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
+                    save_to_firebase(st.session_state.user_id, 'timetable', st.session_state.timetable)
+                    
+                    st.success(f"🎉 {activity['name']} marked as complete!")
+                    st.rerun()
+            
+            with col2:
+                if st.button("📝 Update Progress", key=f"update_{activity['name']}", use_container_width=True):
+                    st.session_state[f'updating_{activity["name"]}'] = True
+                    st.rerun()
+            
+            with col3:
+                if st.button("🔄 Recalibrate", key=f"recal_{activity['name']}", use_container_width=True):
+                    # Remove from pending
+                    if activity['name'] in st.session_state.pending_verifications:
+                        st.session_state.pending_verifications.remove(activity['name'])
+                    
+                    # Extend deadline by 7 days
+                    for act in st.session_state.list_of_activities:
+                        if act['activity'] == activity['name']:
+                            act['deadline'] = 7
+                            break
+                    
+                    # Remove from timetable to regenerate
+                    remove_activity_from_timetable(activity['name'])
+                    
+                    # Save and regenerate
+                    save_to_firebase(st.session_state.user_id, 'pending_verifications', st.session_state.pending_verifications)
+                    save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
+                    
+                    st.info(f"🔄 {activity['name']} deadline extended by 7 days. Please regenerate timetable.")
+                    st.rerun()
+            
+            # Show update progress form if button was clicked
+            if st.session_state.get(f'updating_{activity["name"]}', False):
+                new_hours = st.number_input(
+                    "Hours completed", 
+                    min_value=0.0, 
+                    max_value=float(activity['total']),
+                    value=float(activity['completed']),
+                    step=0.5,
+                    key=f"hours_{activity['name']}"
+                )
+                
+                if st.button("Save Progress", key=f"save_prog_{activity['name']}"):
+                    st.session_state.activity_progress[activity['name']] = new_hours
+                    save_to_firebase(st.session_state.user_id, 'activity_progress', st.session_state.activity_progress)
+                    
+                    # Remove from pending if now complete
+                    if new_hours >= activity['total']:
+                        if activity['name'] in st.session_state.pending_verifications:
+                            st.session_state.pending_verifications.remove(activity['name'])
+                        save_to_firebase(st.session_state.user_id, 'pending_verifications', st.session_state.pending_verifications)
+                    
+                    st.session_state[f'updating_{activity["name"]}'] = False
+                    st.success("Progress updated!")
+                    st.rerun()
+    
+    st.divider()
 
 # Header
 col1, col2 = st.columns([3, 1])
@@ -291,6 +395,7 @@ if st.session_state.current_page == 'dashboard':
             save_to_firebase(st.session_state.user_id, 'events', st.session_state.list_of_compulsory_events)
             save_to_firebase(st.session_state.user_id, 'timetable', st.session_state.timetable)
             save_to_firebase(st.session_state.user_id, 'activity_progress', st.session_state.activity_progress)
+            save_to_firebase(st.session_state.user_id, 'pending_verifications', st.session_state.pending_verifications)
             st.success("💾 Saved!")
     
     st.divider()
@@ -422,9 +527,12 @@ elif st.session_state.current_page == 'activities':
                     # Remove from progress tracking too
                     if act['activity'] in st.session_state.activity_progress:
                         del st.session_state.activity_progress[act['activity']]
+                    if act['activity'] in st.session_state.pending_verifications:
+                        st.session_state.pending_verifications.remove(act['activity'])
                     st.session_state.list_of_activities.pop(idx)
                     save_to_firebase(st.session_state.user_id, "activities", st.session_state.list_of_activities)
                     save_to_firebase(st.session_state.user_id, "activity_progress", st.session_state.activity_progress)
+                    save_to_firebase(st.session_state.user_id, "pending_verifications", st.session_state.pending_verifications)
                     st.success("Deleted!")
                     st.rerun()
                 
@@ -548,11 +656,13 @@ elif st.session_state.current_page == 'settings':
             st.session_state.list_of_compulsory_events = []
             st.session_state.timetable = {day: [] for day in DAY_NAMES}
             st.session_state.activity_progress = {}
+            st.session_state.pending_verifications = []
             
             save_to_firebase(st.session_state.user_id, 'activities', [])
             save_to_firebase(st.session_state.user_id, 'events', [])
             save_to_firebase(st.session_state.user_id, 'timetable', {day: [] for day in DAY_NAMES})
             save_to_firebase(st.session_state.user_id, 'activity_progress', {})
+            save_to_firebase(st.session_state.user_id, 'pending_verifications', [])
             
             st.warning("All data cleared!")
             st.rerun()
