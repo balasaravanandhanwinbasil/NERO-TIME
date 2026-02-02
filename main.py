@@ -495,7 +495,7 @@ if st.session_state.current_page == 'dashboard':
     
     if st.session_state.timetable:
         # Group by week
-        month_days = get_current_month_days(st.session_state.current_year, st.session_state.current_month)
+        month_days = get_current_month_days()
         
         for day_info in month_days:
             day_display = day_info['display']
