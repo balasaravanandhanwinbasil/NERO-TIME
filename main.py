@@ -15,120 +15,129 @@ from Firebase_Function import (init_firebase, save_to_firebase, load_from_fireba
 DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 break_time = 2  # hours
 
-# Enhanced CSS
+# 🌸 PURPLE / PINK THEME CSS
 st.markdown("""
 <style>
     /* Hide default streamlit elements */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    
-    /* Custom navigation tabs */
+
+    /* Base text readability */
+    html, body, [class*="css"] {
+        color: #2d1b3d;
+    }
+
+    /* Navigation container */
     .nav-container {
         display: flex;
-        gap: 4px;
+        gap: 6px;
         margin-bottom: 20px;
-        background: #f8f9fa;
+        background: linear-gradient(135deg, #f8e8ff, #fde2f3);
         padding: 8px;
-        border-radius: 12px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        border-radius: 14px;
+        box-shadow: 0 4px 10px rgba(180, 120, 200, 0.15);
     }
-    
+
     .nav-tab {
         flex: 1;
         padding: 10px 16px;
         text-align: center;
         background: transparent;
         border: none;
-        border-radius: 8px;
+        border-radius: 10px;
         cursor: pointer;
         font-size: 14px;
-        font-weight: 500;
-        color: #666;
-        transition: all 0.2s;
+        font-weight: 600;
+        color: #6b3a8f;
+        transition: all 0.2s ease;
     }
-    
+
     .nav-tab:hover {
-        background: #e9ecef;
-        color: #333;
+        background: rgba(255, 255, 255, 0.7);
+        color: #4b216a;
     }
-    
+
     .nav-tab.active {
         background: white;
-        color: #0066cc;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        color: #8a2be2;
+        box-shadow: 0 3px 8px rgba(138, 43, 226, 0.25);
     }
-    
-    /* Compact buttons */
+
+    /* Buttons */
     .stButton > button {
         font-size: 13px;
         padding: 8px 16px;
-        border-radius: 6px;
-        border: 1px solid #e0e0e0;
-        background: white;
-        color: #333;
-        font-weight: 500;
-        transition: all 0.2s;
+        border-radius: 10px;
+        border: 1px solid #e6c7f2;
+        background: #fff;
+        color: #5a2b7a;
+        font-weight: 600;
+        transition: all 0.2s ease;
     }
-    
+
     .stButton > button:hover {
-        background: #f8f9fa;
-        border-color: #0066cc;
-        color: #0066cc;
+        background: #f6e6ff;
+        border-color: #c77dff;
+        color: #6a1bb9;
     }
-    
+
     .stButton > button[kind="primary"] {
-        background: #0066cc;
+        background: linear-gradient(135deg, #c77dff, #ff8dc7);
         color: white;
-        border-color: #0066cc;
+        border: none;
     }
-    
+
     .stButton > button[kind="primary"]:hover {
-        background: #0052a3;
-        border-color: #0052a3;
+        filter: brightness(0.95);
     }
-    
+
     /* Progress bars */
     .stProgress > div > div {
-        background: linear-gradient(90deg, #0066cc 0%, #00c9ff 100%);
+        background: linear-gradient(90deg, #c77dff 0%, #ff8dc7 100%);
     }
-    
+
     /* Metrics */
     [data-testid="stMetricValue"] {
         font-size: 24px;
-        font-weight: 600;
+        font-weight: 700;
+        color: #6a1bb9;
     }
-    
+
     /* Cards */
     .element-container {
-        background: white;
-        border-radius: 8px;
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(180, 120, 200, 0.12);
     }
-    
+
     /* Expanders */
     .streamlit-expanderHeader {
         font-size: 14px;
-        font-weight: 500;
-        background: #f8f9fa;
-        border-radius: 6px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #f8e8ff, #fde2f3);
+        border-radius: 10px;
         padding: 8px 12px;
+        color: #4b216a;
     }
-    
-    /* Time highlight */
+
+    /* Current time highlight */
     .current-time-highlight {
-        background: #fff9c4 !important;
-        border: 2px solid #fbc02d !important;
+        background: #ffe4f2 !important;
+        border: 2px solid #ff8dc7 !important;
     }
-    
+
     /* Activity progress card */
     .activity-progress {
-        background: #f8f9fa;
+        background: #fdf1ff;
         padding: 12px;
-        border-radius: 8px;
+        border-radius: 10px;
         margin: 8px 0;
-        border-left: 4px solid #0066cc;
+        border-left: 5px solid #c77dff;
+        color: #3a1c52;
     }
 </style>
 """, unsafe_allow_html=True)
+
 
 # Initialize session state
 if 'user_id' not in st.session_state:
