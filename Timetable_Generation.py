@@ -3,7 +3,23 @@ from datetime import datetime, timedelta
 import random
 
 # Constants
-DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+def get_month_days(year, month):
+    """Get all days in a month with their weekday names."""
+    from calendar import monthrange
+    num_days = monthrange(year, month)[1]
+    days = []
+    for day in range(1, num_days + 1):
+        date = datetime(year, month, day)
+        if date.weekday() < 7:  # All days of the week
+            day_name = WEEKDAY_NAMES[date.weekday()]
+            days.append({
+                'date': date,
+                'day_name': day_name,
+                'display': f"{day_name} {date.strftime('%d/%m')}"
+            })
+    return days
 
 # Import Firebase functions
 from Firebase_Function import save_to_firebase, save_timetable_snapshot
@@ -58,15 +74,16 @@ def get_day_activity_minutes(day):
             total_minutes += (end_mins - start_mins)
     return total_minutes
 
-def get_available_days_until_deadline(deadline_days):
-    """Get list of available weekdays until deadline."""
+def get_available_days_until_deadline(deadline_days, month_days):
+    """Get list of available days until deadline from month_days."""
     available_days = []
-    current_day_index = datetime.now().weekday()
-
-    for day_offset in range(deadline_days + 1):
-        day_index = (current_day_index + day_offset) % 7
-        if day_index < 5:
-            available_days.append(DAY_NAMES[day_index])
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    deadline = today + timedelta(days=deadline_days)
+    
+    for day_info in month_days:
+        if today <= day_info['date'] <= deadline:
+            available_days.append(day_info['display'])
+    
     return available_days
 
 def find_free_slot(day, duration_minutes, start_hour=6, end_hour=22, break_time=2):
@@ -109,9 +126,14 @@ def place_compulsory_events(break_time=2):
         if time_str_to_minutes(break_end) < 1440 and is_time_slot_free(day, end_time, break_end):
             add_event_to_timetable(day, end_time, break_end, "Break", "BREAK")
 
-def place_activities(break_time=2):
-    """Place activities in the timetable."""
+def place_activities(break_time=2, month_days=None, min_session_minutes=30, max_session_minutes=120):
+    """Place activities in the timetable with customizable session lengths."""
     MAX_ACTIVITY_MINUTES_PER_DAY = 6 * 60
+    
+    if month_days is None:
+        # Fallback to current month if not provided
+        now = datetime.now()
+        month_days = get_month_days(now.year, now.month)
 
     randomized_activities = st.session_state.list_of_activities.copy()
     random.shuffle(randomized_activities)
@@ -119,11 +141,15 @@ def place_activities(break_time=2):
     for activity in randomized_activities:
         total_duration_hours = activity["timing"]
         deadline_days = activity["deadline"]
+        
+        # Get custom session length if set
+        custom_session_min = activity.get('min_session_minutes', min_session_minutes)
+        custom_session_max = activity.get('max_session_minutes', max_session_minutes)
 
         if total_duration_hours == 0:
             continue
 
-        available_days = get_available_days_until_deadline(deadline_days)
+        available_days = get_available_days_until_deadline(deadline_days, month_days)
         if not available_days:
             st.warning(f"Activity '{activity['activity']}' has no available days before deadline.")
             continue
@@ -133,11 +159,11 @@ def place_activities(break_time=2):
         session_number = 1
 
         while remaining_minutes > 0:
-            if remaining_minutes <= 60:
+            if remaining_minutes <= custom_session_min:
                 chunk_minutes = remaining_minutes
             else:
-                chunk_minutes = random.randint(45, 60)
-                if remaining_minutes - chunk_minutes < 30:
+                chunk_minutes = random.randint(custom_session_min, min(custom_session_max, remaining_minutes))
+                if remaining_minutes - chunk_minutes < custom_session_min and remaining_minutes - chunk_minutes > 0:
                     chunk_minutes = remaining_minutes
 
             placed = False
@@ -214,15 +240,29 @@ def remove_activity_from_timetable(activity_name):
             if not (event['type'] == 'ACTIVITY' and event['name'].startswith(activity_name))
         ]
 
-def generate_timetable():
-    """Generate the complete timetable."""
-    st.session_state.timetable = {day: [] for day in DAY_NAMES}
+def generate_timetable(year=None, month=None):
+    """Generate the complete timetable for a given month."""
+    if year is None or month is None:
+        now = datetime.now()
+        year = now.year
+        month = now.month
+    
+    # Get all days in the month
+    month_days = get_month_days(year, month)
+    
+    # Initialize timetable with all days in the month
+    st.session_state.timetable = {day['display']: [] for day in month_days}
+    st.session_state.current_month = month
+    st.session_state.current_year = year
+    
     place_compulsory_events()
-    place_activities()
+    place_activities(month_days=month_days)
     
     # Auto-save to Firebase after generation
     if st.session_state.user_id:
         save_to_firebase(st.session_state.user_id, 'timetable', st.session_state.timetable)
+        save_to_firebase(st.session_state.user_id, 'current_month', month)
+        save_to_firebase(st.session_state.user_id, 'current_year', year)
         save_timetable_snapshot(
             st.session_state.user_id,
             st.session_state.timetable,
