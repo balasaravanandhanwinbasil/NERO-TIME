@@ -105,9 +105,9 @@ st.markdown("""
 
     /* Cards */
     .element-container {
-        background: #ffffff;
-        border-radius: 12px;
-        box-shadow: 0 4px 10px rgba(180, 120, 200, 0.12);
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
     }
 
     /* Expanders */
