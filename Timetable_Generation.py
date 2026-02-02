@@ -1,5 +1,5 @@
 import streamlit as st
-from datetime import datetime
+from datetime import datetime, timedelta
 import random
 
 # Constants
@@ -185,7 +185,7 @@ def check_expired_activities():
     expired_activities = []
     
     for activity in st.session_state.list_of_activities:
-        deadline_date = today + datetime.timedelta(days=activity['deadline'])
+        deadline_date = today + timedelta(days=activity['deadline'])
         
         # Check if deadline has passed
         if now > deadline_date:
