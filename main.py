@@ -12,8 +12,26 @@ from Firebase_Function import (init_firebase, save_to_firebase, load_from_fireba
                                 save_timetable_snapshot, get_timetable_history)
 
 # Constants
-DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 break_time = 2  # hours
+
+# Helper function to get current month days
+def get_current_month_days():
+    """Get days for current selected month."""
+    from calendar import monthrange
+    year = st.session_state.get('current_year', datetime.now().year)
+    month = st.session_state.get('current_month', datetime.now().month)
+    num_days = monthrange(year, month)[1]
+    days = []
+    for day in range(1, num_days + 1):
+        date = datetime(year, month, day)
+        day_name = WEEKDAY_NAMES[date.weekday()]
+        days.append({
+            'date': date,
+            'day_name': day_name,
+            'display': f"{day_name} {date.strftime('%d/%m')}"
+        })
+    return days
 
 st.markdown("""
 <style>
@@ -146,8 +164,12 @@ st.markdown("""
 # Initialize session state
 if 'user_id' not in st.session_state:
     st.session_state.user_id = None
+if 'current_year' not in st.session_state:
+    st.session_state.current_year = datetime.now().year
+if 'current_month' not in st.session_state:
+    st.session_state.current_month = datetime.now().month
 if 'timetable' not in st.session_state:
-    st.session_state.timetable = {day: [] for day in DAY_NAMES}
+    st.session_state.timetable = {}
 if 'list_of_activities' not in st.session_state:
     st.session_state.list_of_activities = []
 if 'list_of_compulsory_events' not in st.session_state:
@@ -167,17 +189,16 @@ from Timetable_Generation import (time_str_to_minutes, minutes_to_time_str, add_
                                    get_day_activity_minutes, find_free_slot,
                                    place_compulsory_events, place_activities, 
                                    generate_timetable, check_expired_activities,
-                                   remove_activity_from_timetable)
+                                   remove_activity_from_timetable, get_month_days,
+                                   WEEKDAY_NAMES)
 
 def get_current_time_slot():
     """Get current day and time slot"""
     now = datetime.now()
-    day_index = now.weekday()
-    if day_index < 5:  # Monday to Friday
-        current_day = DAY_NAMES[day_index]
-        current_time = now.strftime("%H:%M")
-        return current_day, current_time
-    return None, None
+    day_name = WEEKDAY_NAMES[now.weekday()]
+    current_display = f"{day_name} {now.strftime('%d/%m')}"
+    current_time = now.strftime("%H:%M")
+    return current_display, current_time
 
 def update_activity_progress(activity_name, hours_to_add):
     """Update hours completed for an activity"""
@@ -191,18 +212,27 @@ def get_activity_progress_percent(activity_name, total_hours):
     completed = st.session_state.activity_progress.get(activity_name, 0)
     return min(completed / total_hours, 1.0) if total_hours > 0 else 0
 
-def can_verify_event(event, day):
+def can_verify_event(event, day_display):
     """Check if event time has passed"""
     now = datetime.now()
-    day_index = DAY_NAMES.index(day)
-    current_day_index = now.weekday()
     
-    # Event must be on a past day or earlier today
-    if day_index < current_day_index:
-        return True
-    elif day_index == current_day_index:
-        event_end = datetime.strptime(event['end'], "%H:%M").time()
-        return now.time() > event_end
+    # Parse the day display to get the actual date
+    try:
+        # Extract date from "Monday 01/02" format
+        date_part = day_display.split()[-1]  # Get "01/02"
+        day, month = map(int, date_part.split('/'))
+        year = st.session_state.current_year
+        event_date = datetime(year, month, day)
+        
+        # Event must be on a past day or earlier today
+        if event_date.date() < now.date():
+            return True
+        elif event_date.date() == now.date():
+            event_end = datetime.strptime(event['end'], "%H:%M").time()
+            return now.time() > event_end
+    except:
+        return False
+    
     return False
 
 # Streamlit UI
@@ -232,6 +262,8 @@ if not st.session_state.data_loaded and st.session_state.user_id:
         loaded_timetable = load_from_firebase(st.session_state.user_id, 'timetable')
         loaded_progress = load_from_firebase(st.session_state.user_id, 'activity_progress')
         loaded_pending = load_from_firebase(st.session_state.user_id, 'pending_verifications')
+        loaded_month = load_from_firebase(st.session_state.user_id, 'current_month')
+        loaded_year = load_from_firebase(st.session_state.user_id, 'current_year')
         
         if loaded_activities:
             st.session_state.list_of_activities = loaded_activities
@@ -243,6 +275,10 @@ if not st.session_state.data_loaded and st.session_state.user_id:
             st.session_state.activity_progress = loaded_progress
         if loaded_pending:
             st.session_state.pending_verifications = loaded_pending
+        if loaded_month:
+            st.session_state.current_month = loaded_month
+        if loaded_year:
+            st.session_state.current_year = loaded_year
         
         st.session_state.data_loaded = True
 
@@ -376,100 +412,156 @@ st.divider()
 
 # ==================== DASHBOARD PAGE ====================
 if st.session_state.current_page == 'dashboard':
+    # Month navigation
+    col1, col2, col3, col4, col5 = st.columns([1, 2, 1, 1, 1])
+    
+    with col1:
+        if st.button("◀️ Prev", use_container_width=True):
+            if st.session_state.current_month == 1:
+                st.session_state.current_month = 12
+                st.session_state.current_year -= 1
+            else:
+                st.session_state.current_month -= 1
+            st.rerun()
+    
+    with col2:
+        from calendar import month_name
+        current_month_name = month_name[st.session_state.current_month]
+        st.markdown(f"### 📅 {current_month_name} {st.session_state.current_year}")
+    
+    with col3:
+        if st.button("Next ▶️", use_container_width=True):
+            if st.session_state.current_month == 12:
+                st.session_state.current_month = 1
+                st.session_state.current_year += 1
+            else:
+                st.session_state.current_month += 1
+            st.rerun()
+    
+    with col4:
+        if st.button("📍 Today", use_container_width=True):
+            now = datetime.now()
+            st.session_state.current_month = now.month
+            st.session_state.current_year = now.year
+            st.rerun()
+    
+    st.divider()
+    
     # Quick actions
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("🚀 Generate Timetable", type="primary", use_container_width=True):
-            if st.session_state.list_of_activities or st.session_state.list_of_compulsory_events:
-                with st.spinner("Generating..."):
-                    generate_timetable()
-                st.success("✅ Timetable generated!")
-                st.balloons()
-                st.rerun()
-            else:
-                st.warning("Add activities or events first")
+        with st.expander("🚀 Generate Timetable", expanded=True):
+            st.write("**Customization Options:**")
+            
+            col_a, col_b = st.columns(2)
+            with col_a:
+                min_session = st.number_input("Min session (minutes)", 15, 180, 30, 15)
+            with col_b:
+                max_session = st.number_input("Max session (minutes)", 30, 240, 120, 15)
+            
+            # Store these in session state
+            st.session_state.min_session_minutes = min_session
+            st.session_state.max_session_minutes = max_session
+            
+            if st.button("🚀 Generate", type="primary", use_container_width=True):
+                if st.session_state.list_of_activities or st.session_state.list_of_compulsory_events:
+                    with st.spinner("Generating..."):
+                        generate_timetable(st.session_state.current_year, st.session_state.current_month)
+                    st.success("✅ Timetable generated!")
+                    st.balloons()
+                    st.rerun()
+                else:
+                    st.warning("Add activities or events first")
     
     with col2:
-        if st.button("💾 Save Data", use_container_width=True):
+        if st.button("💾 Save Data", use_container_width=True, type="primary"):
             save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
             save_to_firebase(st.session_state.user_id, 'events', st.session_state.list_of_compulsory_events)
             save_to_firebase(st.session_state.user_id, 'timetable', st.session_state.timetable)
             save_to_firebase(st.session_state.user_id, 'activity_progress', st.session_state.activity_progress)
             save_to_firebase(st.session_state.user_id, 'pending_verifications', st.session_state.pending_verifications)
+            save_to_firebase(st.session_state.user_id, 'current_month', st.session_state.current_month)
+            save_to_firebase(st.session_state.user_id, 'current_year', st.session_state.current_year)
             st.success("💾 Saved!")
     
     st.divider()
     
     # Display Timetable with current time highlight
-    st.header("📊 Your Weekly Timetable")
+    st.header("📊 Your Monthly Timetable")
     
     current_day, current_time = get_current_time_slot()
     
-    if any(st.session_state.timetable[day] for day in DAY_NAMES):
-        for day in DAY_NAMES:
-            is_current_day = (day == current_day)
-            with st.expander(f"{'🟢 ' if is_current_day else ''}📅 {day}", expanded=is_current_day):
-                if not st.session_state.timetable[day]:
-                    st.info("No events scheduled")
-                else:
-                    for idx, event in enumerate(st.session_state.timetable[day]):
-                        # Check if this is the current time slot
-                        is_current_slot = False
-                        if is_current_day and current_time:
-                            event_start = time_str_to_minutes(event['start'])
-                            event_end = time_str_to_minutes(event['end'])
-                            current_minutes = time_str_to_minutes(current_time)
-                            is_current_slot = event_start <= current_minutes < event_end
-                        
-                        if event["type"] == "ACTIVITY":
-                            # Extract base activity name (remove "Session X")
-                            activity_name = event['name'].split(' (Session')[0]
+    if st.session_state.timetable:
+        # Group by week
+        month_days = get_month_days(st.session_state.current_year, st.session_state.current_month)
+        
+        for day_info in month_days:
+            day_display = day_info['display']
+            is_current_day = (day_display == current_day)
+            
+            if day_display in st.session_state.timetable:
+                with st.expander(f"{'🟢 ' if is_current_day else ''}📅 {day_display}", expanded=is_current_day):
+                    if not st.session_state.timetable[day_display]:
+                        st.info("No events scheduled")
+                    else:
+                        for idx, event in enumerate(st.session_state.timetable[day_display]):
+                            # Check if this is the current time slot
+                            is_current_slot = False
+                            if is_current_day and current_time:
+                                event_start = time_str_to_minutes(event['start'])
+                                event_end = time_str_to_minutes(event['end'])
+                                current_minutes = time_str_to_minutes(current_time)
+                                is_current_slot = event_start <= current_minutes < event_end
                             
-                            # Find total hours for this activity
-                            activity_data = next((a for a in st.session_state.list_of_activities 
-                                                 if a['activity'] == activity_name), None)
+                            if event["type"] == "ACTIVITY":
+                                # Extract base activity name (remove "Session X")
+                                activity_name = event['name'].split(' (Session')[0]
+                                
+                                # Find total hours for this activity
+                                activity_data = next((a for a in st.session_state.list_of_activities 
+                                                     if a['activity'] == activity_name), None)
+                                
+                                if activity_data:
+                                    total_hours = activity_data['timing']
+                                    completed_hours = st.session_state.activity_progress.get(activity_name, 0)
+                                    
+                                    # Calculate session duration
+                                    session_duration = (time_str_to_minutes(event['end']) - 
+                                                      time_str_to_minutes(event['start'])) / 60
+                                    
+                                    can_verify = can_verify_event(event, day_display)
+                                    
+                                    # Highlight current time slot
+                                    if is_current_slot:
+                                        st.markdown(f"**🟢 HAPPENING NOW**")
+                                    
+                                    col1, col2 = st.columns([0.85, 0.15])
+                                    with col1:
+                                        st.markdown(f"**🔵 {event['start']} - {event['end']}:** {event['name']}")
+                                        
+                                        # Progress bar for this activity
+                                        progress = min(completed_hours / total_hours, 1.0)
+                                        st.progress(progress)
+                                        st.caption(f"{completed_hours:.1f}h / {total_hours}h completed")
+                                    
+                                    with col2:
+                                        if can_verify:
+                                            if st.button("✓", key=f"verify_{day_display}_{idx}", use_container_width=True):
+                                                update_activity_progress(activity_name, session_duration)
+                                                st.success(f"Added {session_duration:.1f}h")
+                                                st.rerun()
+                                        else:
+                                            st.caption("⏳ Not yet")
                             
-                            if activity_data:
-                                total_hours = activity_data['timing']
-                                completed_hours = st.session_state.activity_progress.get(activity_name, 0)
-                                
-                                # Calculate session duration
-                                session_duration = (time_str_to_minutes(event['end']) - 
-                                                  time_str_to_minutes(event['start'])) / 60
-                                
-                                can_verify = can_verify_event(event, day)
-                                
-                                # Highlight current time slot
+                            elif event["type"] == "COMPULSORY":
                                 if is_current_slot:
                                     st.markdown(f"**🟢 HAPPENING NOW**")
-                                
-                                col1, col2 = st.columns([0.85, 0.15])
-                                with col1:
-                                    st.markdown(f"**🔵 {event['start']} - {event['end']}:** {event['name']}")
-                                    
-                                    # Progress bar for this activity
-                                    progress = min(completed_hours / total_hours, 1.0)
-                                    st.progress(progress)
-                                    st.caption(f"{completed_hours:.1f}h / {total_hours}h completed")
-                                
-                                with col2:
-                                    if can_verify:
-                                        if st.button("✓", key=f"verify_{day}_{idx}", use_container_width=True):
-                                            update_activity_progress(activity_name, session_duration)
-                                            st.success(f"Added {session_duration:.1f}h")
-                                            st.rerun()
-                                    else:
-                                        st.caption("⏳ Not yet")
-                        
-                        elif event["type"] == "COMPULSORY":
-                            if is_current_slot:
-                                st.markdown(f"**🟢 HAPPENING NOW**")
-                            st.markdown(f"**🔴 {event['start']} - {event['end']}:** {event['name']}")
-                        
-                        else:  # BREAK
-                            if is_current_slot:
-                                st.markdown(f"**🟢 BREAK TIME**")
-                            st.markdown(f"*⚪ {event['start']} - {event['end']}: {event['name']}*")
+                                st.markdown(f"**🔴 {event['start']} - {event['end']}:** {event['name']}")
+                            
+                            else:  # BREAK
+                                if is_current_slot:
+                                    st.markdown(f"**🟢 BREAK TIME**")
+                                st.markdown(f"*⚪ {event['start']} - {event['end']}: {event['name']}*")
     else:
         st.info("No timetable generated yet")
 
@@ -486,7 +578,14 @@ elif st.session_state.current_page == 'activities':
                 priority = st.slider("Priority", 1, 5, 3)
                 deadline_date = st.date_input("Deadline", min_value=datetime.now().date())
             with col2:
-                timing = st.number_input("Total Hours", min_value=1, max_value=24, value=1)
+                timing = st.number_input("Total Hours", min_value=1, max_value=100, value=1)
+            
+            st.write("**Session Timing Preferences (Optional)**")
+            col3, col4 = st.columns(2)
+            with col3:
+                min_session_min = st.number_input("Min session (minutes)", 15, 180, 30, 15, key="add_min_session")
+            with col4:
+                max_session_min = st.number_input("Max session (minutes)", 30, 240, 120, 15, key="add_max_session")
             
             if st.form_submit_button("Add Activity", use_container_width=True):
                 if activity_name:
@@ -498,7 +597,9 @@ elif st.session_state.current_page == 'activities':
                         "activity": activity_name,
                         "priority": priority,
                         "deadline": days_left,
-                        "timing": timing
+                        "timing": timing,
+                        "min_session_minutes": min_session_min,
+                        "max_session_minutes": max_session_min
                     })
                     
                     save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
@@ -517,10 +618,14 @@ elif st.session_state.current_page == 'activities':
                 st.progress(progress)
                 st.write(f"⭐ Priority: {act['priority']} | ⏰ Deadline: {act['deadline']} days")
                 
-                col1, col2, col3 = st.columns(3)
+                # Show session preferences if set
+                if 'min_session_minutes' in act and 'max_session_minutes' in act:
+                    st.caption(f"📊 Session length: {act['min_session_minutes']}-{act['max_session_minutes']} minutes")
+                
+                col1, col2, col3, col4 = st.columns(4)
                 
                 if col1.button("✏️ Edit", key=f"edit_act_{idx}", use_container_width=True):
-                    st.session_state.edit_activity_index = idx
+                    st.session_state[f'editing_activity_{idx}'] = True
                     st.rerun()
                 
                 if col2.button("🗑️ Delete", key=f"del_act_{idx}", use_container_width=True):
@@ -541,6 +646,39 @@ elif st.session_state.current_page == 'activities':
                     save_to_firebase(st.session_state.user_id, "activity_progress", st.session_state.activity_progress)
                     st.success("Reset!")
                     st.rerun()
+                
+                if col4.button("⚙️ Sessions", key=f"sessions_{idx}", use_container_width=True):
+                    st.session_state[f'edit_sessions_{idx}'] = not st.session_state.get(f'edit_sessions_{idx}', False)
+                    st.rerun()
+                
+                # Edit session timings
+                if st.session_state.get(f'edit_sessions_{idx}', False):
+                    st.write("**Customize Session Timings:**")
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        new_min = st.number_input(
+                            "Min (minutes)", 
+                            15, 180, 
+                            act.get('min_session_minutes', 30), 
+                            15, 
+                            key=f"min_sess_{idx}"
+                        )
+                    with col_b:
+                        new_max = st.number_input(
+                            "Max (minutes)", 
+                            30, 240, 
+                            act.get('max_session_minutes', 120), 
+                            15, 
+                            key=f"max_sess_{idx}"
+                        )
+                    
+                    if st.button("Save Session Preferences", key=f"save_sess_{idx}"):
+                        st.session_state.list_of_activities[idx]['min_session_minutes'] = new_min
+                        st.session_state.list_of_activities[idx]['max_session_minutes'] = new_max
+                        save_to_firebase(st.session_state.user_id, "activities", st.session_state.list_of_activities)
+                        st.session_state[f'edit_sessions_{idx}'] = False
+                        st.success("Session preferences updated!")
+                        st.rerun()
     else:
         st.info("No activities added yet")
 
@@ -552,11 +690,18 @@ elif st.session_state.current_page == 'events':
     with st.expander("➕ Add New Event", expanded=True):
         with st.form("new_event_form"):
             event_name = st.text_input("Event Name")
-            event_day = st.selectbox("Day", DAY_NAMES)
+            
             col1, col2 = st.columns(2)
             with col1:
-                start_time = st.time_input("Start Time", value=datetime.strptime("09:00", "%H:%M").time())
+                event_date = st.date_input("Event Date", min_value=datetime.now().date())
             with col2:
+                event_day = WEEKDAY_NAMES[event_date.weekday()]
+                st.text_input("Day", value=event_day, disabled=True)
+            
+            col3, col4 = st.columns(2)
+            with col3:
+                start_time = st.time_input("Start Time", value=datetime.strptime("09:00", "%H:%M").time())
+            with col4:
                 end_time = st.time_input("End Time", value=datetime.strptime("10:00", "%H:%M").time())
             
             if st.form_submit_button("Add Event", use_container_width=True):
@@ -565,33 +710,45 @@ elif st.session_state.current_page == 'events':
                     end_str = end_time.strftime("%H:%M")
                     
                     if time_str_to_minutes(end_str) > time_str_to_minutes(start_str):
+                        # Create display format for the day
+                        day_display = f"{event_day} {event_date.strftime('%d/%m')}"
+                        
                         st.session_state.list_of_compulsory_events.append({
                             "event": event_name,
                             "start_time": start_str,
                             "end_time": end_str,
-                            "day": event_day
+                            "day": day_display,
+                            "date": event_date.isoformat()  # Store actual date
                         })
                         
                         save_to_firebase(st.session_state.user_id, 'events', st.session_state.list_of_compulsory_events)
                         st.success(f"✅ Added: {event_name}")
                         st.rerun()
+                    else:
+                        st.error("End time must be after start time")
     
     st.divider()
     
     # List events
     if st.session_state.list_of_compulsory_events:
-        for idx, evt in enumerate(st.session_state.list_of_compulsory_events):
-            with st.expander(f"{idx+1}. {evt['event']} - {evt['day']}"):
+        # Sort by date
+        sorted_events = sorted(
+            enumerate(st.session_state.list_of_compulsory_events),
+            key=lambda x: x[1].get('date', '9999-12-31')
+        )
+        
+        for original_idx, evt in sorted_events:
+            with st.expander(f"{original_idx+1}. {evt['event']} - {evt['day']}"):
                 st.write(f"🕐 {evt['start_time']} - {evt['end_time']}")
                 
                 col1, col2 = st.columns(2)
                 
-                if col1.button("✏️ Edit", key=f"edit_evt_{idx}", use_container_width=True):
-                    st.session_state.edit_event_index = idx
+                if col1.button("✏️ Edit", key=f"edit_evt_{original_idx}", use_container_width=True):
+                    st.session_state.edit_event_index = original_idx
                     st.rerun()
                 
-                if col2.button("🗑️ Delete", key=f"del_evt_{idx}", use_container_width=True):
-                    st.session_state.list_of_compulsory_events.pop(idx)
+                if col2.button("🗑️ Delete", key=f"del_evt_{original_idx}", use_container_width=True):
+                    st.session_state.list_of_compulsory_events.pop(original_idx)
                     save_to_firebase(st.session_state.user_id, "events", st.session_state.list_of_compulsory_events)
                     st.success("Deleted!")
                     st.rerun()
@@ -654,13 +811,13 @@ elif st.session_state.current_page == 'settings':
         if st.button("⚠️ Clear All Data", use_container_width=True):
             st.session_state.list_of_activities = []
             st.session_state.list_of_compulsory_events = []
-            st.session_state.timetable = {day: [] for day in DAY_NAMES}
+            st.session_state.timetable = {}
             st.session_state.activity_progress = {}
             st.session_state.pending_verifications = []
             
             save_to_firebase(st.session_state.user_id, 'activities', [])
             save_to_firebase(st.session_state.user_id, 'events', [])
-            save_to_firebase(st.session_state.user_id, 'timetable', {day: [] for day in DAY_NAMES})
+            save_to_firebase(st.session_state.user_id, 'timetable', {})
             save_to_firebase(st.session_state.user_id, 'activity_progress', {})
             save_to_firebase(st.session_state.user_id, 'pending_verifications', [])
             
