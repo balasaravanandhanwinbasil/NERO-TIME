@@ -5,290 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interactive Timetable</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: transparent;
-            padding: 10px;
-        }
-
-        .container {
-            max-width: 100%;
-        }
-
-        .tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-
-        .tab-button {
-            padding: 8px 16px;
-            border: 1px solid var(--border-color, #e0e0e0);
-            background: var(--bg-secondary, white);
-            border-radius: 4px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.2s;
-            color: var(--text-primary, #000);
-        }
-
-        .tab-button.active {
-            background: #0066cc;
-            color: white;
-            border-color: #0066cc;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        .timetable-grid {
-            display: grid;
-            grid-template-columns: 70px repeat(5, 1fr);
-            gap: 8px;
-            background: transparent;
-            padding: 16px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color, #e0e0e0);
-        }
-
-        .time-label {
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            color: var(--text-secondary, #666);
-            font-weight: 500;
-        }
-
-        .day-header {
-            background: var(--bg-tertiary, #f8f9fa);
-            border: 1px solid var(--border-color, #e0e0e0);
-            padding: 10px;
-            text-align: center;
-            font-weight: 600;
-            border-radius: 4px;
-            font-size: 14px;
-            color: var(--text-primary, #000);
-        }
-
-        .time-slot {
-            min-height: 50px;
-            border: 1px dashed var(--border-light, #ddd);
-            border-radius: 4px;
-            padding: 4px;
-            transition: all 0.2s;
-            background: var(--bg-primary, transparent);
-        }
-
-        .time-slot:hover {
-            background: var(--bg-hover, #f8f9fa);
-            border-color: #0066cc;
-        }
-
-        .time-slot.drag-over {
-            background: #e3f2fd;
-            border-color: #0066cc;
-            border-style: solid;
-        }
-
-        .event-card {
-            padding: 8px;
-            border-radius: 4px;
-            cursor: move;
-            font-size: 12px;
-            margin-bottom: 4px;
-            border: 1px solid;
-        }
-
-        .event-card:hover {
-            opacity: 0.9;
-        }
-
-        .event-card.dragging {
-            opacity: 0.4;
-        }
-
-        .event-card.compulsory {
-            background: #ffebee;
-            border-color: #ef5350;
-            color: black !important;
-            cursor: not-allowed;
-        }
-
-        .event-card.activity {
-            background:#e3f2fd;
-            border-color: #42a5f5;
-            color: black !important;
-        }
-        
-        .event-card.activity.past-deadline {
-            background: #fff3e0;
-            border-color: #ff9800;
-            color: #e65100;
-            border-width: 2px;
-            border-style: dashed;
-        }
-
-        .event-card.break {
-            background: var(--break-bg, #f5f5f5);
-            border-color: var(--break-border, #bdbdbd);
-            color: var(--break-text, #616161);
-            cursor: default;
-            opacity: 0.85;
-        }
-
-        .event-name {
-            font-weight: 600;
-            margin-bottom: 2px;
-        }
-
-        .event-time {
-            font-size: 11px;
-            opacity: 0.8;
-        }
-
-        .controls {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-
-        button {
-            padding: 8px 16px;
-            border: 1px solid var(--border-color, #e0e0e0);
-            border-radius: 4px;
-            font-size: 13px;
-            cursor: pointer;
-            background: var(--bg-secondary, white);
-            transition: all 0.2s;
-            color: var(--text-primary, #000);
-        }
-
-        button:hover {
-            background: var(--bg-hover, #f8f9fa);
-        }
-
-        .btn-save {
-            background: #4caf50;
-            color: white;
-            border-color: #4caf50;
-        }
-
-        .btn-save:hover {
-            background: #43a047;
-        }
-
-        .btn-reset {
-            background: #ff9800;
-            color: white;
-            border-color: #ff9800;
-        }
-
-        .btn-reset:hover {
-            background: #fb8c00;
-        }
-
-        .day-list {
-            background: var(--bg-secondary, white);
-            border: 1px solid var(--border-color, #e0e0e0);
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 12px;
-        }
-
-        .day-title {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 12px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid var(--border-color, #e0e0e0);
-            color: var(--text-primary, #000);
-        }
-
-        .event-list-item {
-            padding: 10px;
-            margin-bottom: 6px;
-            border-radius: 4px;
-            border-left: 3px solid;
-        }
-
-        .event-list-item.compulsory {
-            background: var(--break-bg, #f5f5f5);
-            border-color: #ef5350;
-        }
-
-        .event-list-item.activity {
-            background: var(--break-bg, #f5f5f5);
-            border-color: #42a5f5;
-        }
-        
-        .event-list-item.activity.past-deadline {
-            background: #fff3e0;
-            border-color: #ff9800;
-        }
-
-        .event-list-item.break {
-            background: var(--break-bg, #f5f5f5);
-            border-color: var(--break-border, #bdbdbd);
-        }
-
-        .event-list-item strong {
-            font-size: 14px;
-            display: block;
-            margin-bottom: 4px;
-            color: var(--text-primary, #000);
-        }
-
-        .event-list-item span {
-            font-size: 12px;
-            color: var(--text-secondary, #666);
-        }
-
-        .empty-day {
-            color: var(--text-muted, #999);
-            font-style: italic;
-            padding: 12px;
-            text-align: center;
-            font-size: 13px;
-        }
-
-        /* Dark mode support */
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg-primary: transparent;
-                --bg-secondary: #1e1e1e;
-                --bg-tertiary: #2d2d2d;
-                --bg-hover: #2d2d2d;
-                --text-primary: #e0e0e0;
-                --text-secondary: #a0a0a0;
-                --text-muted: #666;
-                --border-color: #404040;
-                --border-light: #404040;
-                --break-bg: #2d2d2d;
-                --break-border: #505050;
-                --break-text: #a0a0a0;
-            }
-        }
-
-        @media (max-width: 1200px) {
-            .timetable-grid {
-                grid-template-columns: 60px repeat(5, 1fr);
-                gap: 6px;
-                padding: 12px;
-            }
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: transparent; padding: 10px; }
+        .container { max-width: 100%; }
+        .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+        .tab-button { padding: 8px 16px; border: 1px solid #e0e0e0; background: white; border-radius: 4px; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+        .tab-button.active { background: #0066cc; color: white; border-color: #0066cc; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .timetable-grid { display: grid; grid-template-columns: 70px repeat(5, 1fr); gap: 8px; background: white; padding: 16px; border-radius: 8px; border: 1px solid #e0e0e0; }
+        .time-label { height: 50px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #666; font-weight: 500; }
+        .day-header { background: #f8f9fa; border: 1px solid #e0e0e0; padding: 10px; text-align: center; font-weight: 600; border-radius: 4px; font-size: 14px; }
+        .time-slot { min-height: 50px; border: 1px dashed #ddd; border-radius: 4px; padding: 4px; transition: all 0.2s; }
+        .time-slot:hover { background: #f8f9fa; border-color: #0066cc; }
+        .time-slot.drag-over { background: #e3f2fd; border-color: #0066cc; border-style: solid; }
+        .event-card { padding: 8px; border-radius: 4px; cursor: move; font-size: 12px; margin-bottom: 4px; border: 1px solid; }
+        .event-card:hover { opacity: 0.9; }
+        .event-card.dragging { opacity: 0.4; }
+        .event-card.compulsory { background: #ffebee; border-color: #ef5350; color: #c62828; cursor: not-allowed; }
+        .event-card.activity { background: #e3f2fd; border-color: #42a5f5; color: #1565c0; }
+        .event-card.break { background: #f5f5f5; border-color: #bdbdbd; color: #616161; }
+        .event-name { font-weight: 600; margin-bottom: 2px; }
+        .event-time { font-size: 11px; opacity: 0.8; }
+        .controls { display: flex; gap: 8px; margin-bottom: 16px; }
+        button { padding: 8px 16px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 13px; cursor: pointer; background: white; transition: all 0.2s; }
+        button:hover { background: #f8f9fa; }
+        .btn-save { background: #4caf50; color: white; border-color: #4caf50; }
+        .btn-save:hover { background: #43a047; }
+        .day-list { background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+        .day-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #e0e0e0; }
+        .event-list-item { padding: 10px; margin-bottom: 6px; border-radius: 4px; border-left: 3px solid; }
+        .event-list-item.compulsory { background: #ffebee; border-color: #ef5350; }
+        .event-list-item.activity { background: #e3f2fd; border-color: #42a5f5; }
+        .event-list-item.break { background: #f5f5f5; border-color: #bdbdbd; }
+        .event-list-item strong { font-size: 14px; display: block; margin-bottom: 4px; }
+        .event-list-item span { font-size: 12px; color: #666; }
+        .empty-day { color: #999; font-style: italic; padding: 12px; text-align: center; font-size: 13px; }
     </style>
 </head>
 <body>
@@ -301,9 +53,7 @@
         <div id="grid-tab" class="tab-content active">
             <div class="controls">
                 <button class="btn-save" onclick="saveTimetable()">💾 Save Changes</button>
-                <button class="btn-reset" onclick="resetTimetable()">🔄 Reset</button>
             </div>
-
             <div class="timetable-grid" id="timetable"></div>
         </div>
 
@@ -315,55 +65,15 @@
     <script>
         const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
         const TIME_SLOTS = ["06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00"];
-        const BREAK_DURATION = 120; // 2 hours in minutes
 
         // DATA_PLACEHOLDER_START
         let timetableData = {"Monday":[],"Tuesday":[],"Wednesday":[],"Thursday":[],"Friday":[]};
         // DATA_PLACEHOLDER_END
         
-        // Ensure all days exist in the data
-        function ensureAllDays(data) {
-            for (let day of DAY_NAMES) {
-                if (!data[day] || !Array.isArray(data[day])) {
-                    data[day] = [];
-                }
-            }
-            return data;
-        }
-        
-        timetableData = ensureAllDays(timetableData);
         let originalData = JSON.parse(JSON.stringify(timetableData));
-        let activityDeadlines = {}; // Store deadlines for activities
         let draggedElement = null;
         let draggedEventData = null;
         let originalDay = null;
-        
-        // Debug: Log the timetable data
-        console.log('Timetable Data:', timetableData);
-        console.log('Total events:', Object.values(timetableData).reduce((sum, day) => sum + day.length, 0));
-
-        // Extract deadline information from activity names
-        function extractDeadlines() {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            for (let day of DAY_NAMES) {
-                if (!timetableData[day] || !Array.isArray(timetableData[day])) {
-                    continue;
-                }
-                for (let event of timetableData[day]) {
-                    if (event.type === 'ACTIVITY') {
-                        // Store the day index this activity appears on
-                        const dayIndex = DAY_NAMES.indexOf(day);
-                        const baseName = event.name.replace(/ \(Session \d+\)/, '');
-                        
-                        if (!activityDeadlines[baseName] || dayIndex > activityDeadlines[baseName]) {
-                            activityDeadlines[baseName] = dayIndex;
-                        }
-                    }
-                }
-            }
-        }
 
         function switchTab(tab) {
             document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
@@ -391,9 +101,7 @@
         }
 
         function getEventsInSlot(day, time) {
-            if (!timetableData[day] || !Array.isArray(timetableData[day])) {
-                return [];
-            }
+            if (!timetableData[day]) return [];
             const timeMinutes = timeToMinutes(time);
             return timetableData[day].filter(event => {
                 const startMinutes = timeToMinutes(event.start);
@@ -402,78 +110,9 @@
             });
         }
 
-        function findBreakAfterEvent(day, eventEndTime) {
-            if (!timetableData[day] || !Array.isArray(timetableData[day])) {
-                return null;
-            }
-            const endMinutes = timeToMinutes(eventEndTime);
-            return timetableData[day].find(event => 
-                event.type === 'BREAK' && timeToMinutes(event.start) === endMinutes
-            );
-        }
-
-        function removeBreakAfterEvent(day, eventEndTime) {
-            if (!timetableData[day] || !Array.isArray(timetableData[day])) {
-                return;
-            }
-            const breakEvent = findBreakAfterEvent(day, eventEndTime);
-            if (breakEvent) {
-                const index = timetableData[day].indexOf(breakEvent);
-                if (index > -1) {
-                    timetableData[day].splice(index, 1);
-                }
-            }
-        }
-
-        function addBreakAfterEvent(day, eventEndTime) {
-            if (!timetableData[day]) {
-                timetableData[day] = [];
-            }
-            
-            const endMinutes = timeToMinutes(eventEndTime);
-            const breakEndMinutes = endMinutes + BREAK_DURATION;
-            
-            if (breakEndMinutes >= 1440) return; // Don't add break past midnight
-            
-            const breakEnd = minutesToTime(breakEndMinutes);
-            
-            // Check if there's already a break at this time
-            const existingBreak = findBreakAfterEvent(day, eventEndTime);
-            if (existingBreak) return;
-            
-            // Check for conflicts
-            const hasConflict = timetableData[day].some(event => {
-                const eventStart = timeToMinutes(event.start);
-                const eventEnd = timeToMinutes(event.end);
-                return !(breakEndMinutes <= eventStart || endMinutes >= eventEnd);
-            });
-            
-            if (!hasConflict) {
-                timetableData[day].push({
-                    start: eventEndTime,
-                    end: breakEnd,
-                    name: "Break",
-                    type: "BREAK"
-                });
-                timetableData[day].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
-            }
-        }
-
         function renderTimetable() {
-            extractDeadlines();
             const grid = document.getElementById('timetable');
             grid.innerHTML = '';
-
-            // Debug: Count events by type
-            let eventCounts = { COMPULSORY: 0, ACTIVITY: 0, BREAK: 0 };
-            for (let day of DAY_NAMES) {
-                if (timetableData[day]) {
-                    timetableData[day].forEach(event => {
-                        eventCounts[event.type] = (eventCounts[event.type] || 0) + 1;
-                    });
-                }
-            }
-            console.log('Event counts:', eventCounts);
 
             grid.appendChild(createTimeLabel(''));
             DAY_NAMES.forEach(day => {
@@ -506,17 +145,10 @@
             slot.dataset.time = time;
 
             const eventsInSlot = getEventsInSlot(day, time);
-            
-            // Only show events that START at this exact time
             eventsInSlot.forEach(event => {
                 if (timeToMinutes(event.start) === timeToMinutes(time)) {
                     const card = createEventCard(event, day);
                     slot.appendChild(card);
-                    
-                    // Debug log for breaks
-                    if (event.type === 'BREAK') {
-                        console.log(`BREAK rendered: ${day} ${time}`, event);
-                    }
                 }
             });
 
@@ -530,43 +162,21 @@
         function createEventCard(event, day) {
             const card = document.createElement('div');
             card.className = `event-card ${event.type.toLowerCase()}`;
-            // BREAK and COMPULSORY events are not draggable
-            card.draggable = (event.type !== 'COMPULSORY' && event.type !== 'BREAK');
-
-            // Check if activity is past its deadline
-            if (event.type === 'ACTIVITY') {
-                const baseName = event.name.replace(/ \(Session \d+\)/, '');
-                const maxDayIndex = activityDeadlines[baseName];
-                const currentDayIndex = DAY_NAMES.indexOf(day);
-                
-                if (maxDayIndex !== undefined && currentDayIndex > maxDayIndex) {
-                    card.classList.add('past-deadline');
-                }
-            }
+            card.draggable = event.type !== 'COMPULSORY';
 
             const name = document.createElement('div');
             name.className = 'event-name';
             const emoji = event.type === 'COMPULSORY' ? '🔴' : event.type === 'ACTIVITY' ? '🔵' : '⚪';
-            const warningEmoji = card.classList.contains('past-deadline') ? ' ⚠️' : '';
-            name.textContent = `${emoji} ${event.name}${warningEmoji}`;
+            name.textContent = `${emoji} ${event.name}`;
 
             const time = document.createElement('div');
             time.className = 'event-time';
-            
-            // Calculate duration
-            const startMins = timeToMinutes(event.start);
-            const endMins = timeToMinutes(event.end);
-            const durationMins = endMins - startMins;
-            const hours = Math.floor(durationMins / 60);
-            const mins = durationMins % 60;
-            const durationStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-            
-            time.textContent = `${event.start} - ${event.end} (${durationStr})`;
+            time.textContent = `${event.start} - ${event.end}`;
 
             card.appendChild(name);
             card.appendChild(time);
 
-            if (event.type !== 'COMPULSORY' && event.type !== 'BREAK') {
+            if (event.type !== 'COMPULSORY') {
                 card.addEventListener('dragstart', (e) => handleDragStart(e, event, day));
                 card.addEventListener('dragend', handleDragEnd);
             }
@@ -575,10 +185,6 @@
         }
 
         function handleDragStart(e, event, day) {
-            if (event.type === 'BREAK' || event.type === 'COMPULSORY') {
-                e.preventDefault();
-                return;
-            }
             draggedElement = e.target;
             draggedEventData = {...event};
             originalDay = day;
@@ -603,70 +209,39 @@
             e.currentTarget.classList.remove('drag-over');
 
             if (!draggedEventData || draggedEventData.type === 'COMPULSORY') return;
-            
-            // Ensure arrays exist
-            if (!timetableData[targetDay]) timetableData[targetDay] = [];
-            if (!timetableData[originalDay]) timetableData[originalDay] = [];
-
-            // Check deadline constraint
-            const baseName = draggedEventData.name.replace(/ \(Session \d+\)/, '');
-            const maxDayIndex = activityDeadlines[baseName];
-            const targetDayIndex = DAY_NAMES.indexOf(targetDay);
-            
-            if (maxDayIndex !== undefined && targetDayIndex > maxDayIndex) {
-                alert('⚠️ Cannot move activity past its deadline!');
-                return;
-            }
 
             const duration = timeToMinutes(draggedEventData.end) - timeToMinutes(draggedEventData.start);
             const newStartMinutes = timeToMinutes(targetTime);
             const newEndMinutes = newStartMinutes + duration;
-            const breakEndMinutes = newEndMinutes + BREAK_DURATION;
-            
             const newStart = minutesToTime(newStartMinutes);
             const newEnd = minutesToTime(newEndMinutes);
-            const breakEnd = minutesToTime(breakEndMinutes);
 
-            // Check for conflicts with both activity and break
             const conflict = timetableData[targetDay].some(event => {
                 const eventStart = timeToMinutes(event.start);
                 const eventEnd = timeToMinutes(event.end);
                 const isSameEvent = event.name === draggedEventData.name && event.start === draggedEventData.start;
                 if (isSameEvent) return false;
-                
-                // Check if activity or its break would conflict
-                return !(breakEndMinutes <= eventStart || newStartMinutes >= eventEnd);
+                return !(newEndMinutes <= eventStart || newStartMinutes >= eventEnd);
             });
 
             if (conflict) {
-                alert('⚠️ Time slot is occupied (including break time)!');
+                alert('⚠️ Time slot is occupied!');
                 return;
             }
 
-            // Remove old break
-            removeBreakAfterEvent(originalDay, draggedEventData.end);
-
-            // Remove the activity from original day
             const eventIndex = timetableData[originalDay].findIndex(
-                event => event.name === draggedEventData.name && 
-                         event.start === draggedEventData.start && 
-                         event.type === draggedEventData.type
+                event => event.name === draggedEventData.name && event.start === draggedEventData.start && event.type === draggedEventData.type
             );
             
             if (eventIndex !== -1) {
                 timetableData[originalDay].splice(eventIndex, 1);
             }
 
-            // Add activity to new location
             timetableData[targetDay].push({
                 ...draggedEventData,
                 start: newStart,
                 end: newEnd
             });
-
-            // Add break after activity in new location
-            addBreakAfterEvent(targetDay, newEnd);
-
             timetableData[targetDay].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
 
             renderTimetable();
@@ -685,7 +260,7 @@
                 title.textContent = `📅 ${day}`;
                 dayDiv.appendChild(title);
 
-                if (!timetableData[day] || !Array.isArray(timetableData[day]) || timetableData[day].length === 0) {
+                if (!timetableData[day] || timetableData[day].length === 0) {
                     const empty = document.createElement('div');
                     empty.className = 'empty-day';
                     empty.textContent = 'No events scheduled';
@@ -694,29 +269,8 @@
                     timetableData[day].forEach(event => {
                         const item = document.createElement('div');
                         item.className = `event-list-item ${event.type.toLowerCase()}`;
-                        
-                        // Check if activity is past deadline
-                        if (event.type === 'ACTIVITY') {
-                            const baseName = event.name.replace(/ \(Session \d+\)/, '');
-                            const maxDayIndex = activityDeadlines[baseName];
-                            const currentDayIndex = DAY_NAMES.indexOf(day);
-                            
-                            if (maxDayIndex !== undefined && currentDayIndex > maxDayIndex) {
-                                item.classList.add('past-deadline');
-                            }
-                        }
-                        
-                        // Calculate duration
-                        const startMins = timeToMinutes(event.start);
-                        const endMins = timeToMinutes(event.end);
-                        const durationMins = endMins - startMins;
-                        const hours = Math.floor(durationMins / 60);
-                        const mins = durationMins % 60;
-                        const durationStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-                        
                         const emoji = event.type === 'COMPULSORY' ? '🔴' : event.type === 'ACTIVITY' ? '🔵' : '⚪';
-                        const warningEmoji = item.classList.contains('past-deadline') ? ' ⚠️' : '';
-                        item.innerHTML = `<strong>${emoji} ${event.name}${warningEmoji}</strong><span>${event.start} - ${event.end} • ${durationStr}</span>`;
+                        item.innerHTML = `<strong>${emoji} ${event.name}</strong><span>${event.start} - ${event.end}</span>`;
                         dayDiv.appendChild(item);
                     });
                 }
@@ -727,20 +281,13 @@
 
         function saveTimetable() {
             console.log('Timetable saved:', timetableData);
-            alert('✅ Timetable saved!');
+            alert('✅ Timetable changes saved!');
         }
 
-        function resetTimetable() {
-            if (confirm('Reset timetable to original?')) {
-                timetableData = JSON.parse(JSON.stringify(originalData));
-                renderTimetable();
-                if (document.getElementById('list-tab').classList.contains('active')) {
-                    renderListView();
-                }
-            }
-        }
-
-        renderTimetable();
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            renderTimetable();
+        });
     </script>
 </body>
 </html>
