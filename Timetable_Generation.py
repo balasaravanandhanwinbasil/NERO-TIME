@@ -161,4 +161,20 @@ def place_activities():
 
             if not placed:
                 st.warning(f"Could not place {chunk_minutes} minutes of '{activity['activity']}'")
+                break
 
+def generate_timetable():
+    """Generate the complete timetable."""
+    st.session_state.timetable = {day: [] for day in DAY_NAMES}
+    place_compulsory_events()
+    place_activities()
+    
+    # Auto-save to Firebase after generation
+    if st.session_state.user_id:
+        save_to_firebase(st.session_state.user_id, 'timetable', st.session_state.timetable)
+        save_timetable_snapshot(
+            st.session_state.user_id,
+            st.session_state.timetable,
+            st.session_state.list_of_activities,
+            st.session_state.list_of_compulsory_events
+        )
