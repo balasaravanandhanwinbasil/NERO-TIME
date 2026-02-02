@@ -184,13 +184,15 @@ if 'pending_verifications' not in st.session_state:
     st.session_state.pending_verifications = []
 
 # Import helper functions
-from Timetable_Generation import (time_str_to_minutes, minutes_to_time_str, add_minutes,
-                                   is_time_slot_free, add_event_to_timetable, 
-                                   get_day_activity_minutes, find_free_slot,
-                                   place_compulsory_events, place_activities, 
-                                   generate_timetable, check_expired_activities,
-                                   remove_activity_from_timetable, get_month_days,
-                                   WEEKDAY_NAMES)
+from Timetable_Generation import (
+    time_str_to_minutes, minutes_to_time_str, add_minutes,
+    is_time_slot_free, add_event_to_timetable,
+    get_day_activity_minutes, find_free_slot,
+    place_compulsory_events, place_activities,
+    generate_timetable, check_expired_activities,
+    remove_activity_from_timetable,
+    WEEKDAY_NAMES
+)
 
 def get_current_time_slot():
     """Get current day and time slot"""
@@ -493,7 +495,7 @@ if st.session_state.current_page == 'dashboard':
     
     if st.session_state.timetable:
         # Group by week
-        month_days = get_month_days(st.session_state.current_year, st.session_state.current_month)
+        month_days = get_current_month_days(st.session_state.current_year, st.session_state.current_month)
         
         for day_info in month_days:
             day_display = day_info['display']
