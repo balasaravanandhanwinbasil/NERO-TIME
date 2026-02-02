@@ -238,7 +238,7 @@ if not st.session_state.data_loaded and st.session_state.user_id:
 # Header
 col1, col2 = st.columns([3, 1])
 with col1:
-    st.title("📅 Timetable Manager")
+    st.title("🕛 NERO-Time")
     st.caption(f"Logged in as: {st.session_state.user_id}")
 
 # Navigation
