@@ -15,7 +15,6 @@ from Firebase_Function import (init_firebase, save_to_firebase, load_from_fireba
 DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 break_time = 2  # hours
 
-# 🌸 PURPLE / PINK THEME CSS
 st.markdown("""
 <style>
     /* Hide default streamlit elements */
@@ -199,7 +198,7 @@ def can_verify_event(event, day):
     return False
 
 # Streamlit UI
-st.set_page_config(page_title="Timetable Manager", page_icon="📅", layout="wide")
+st.set_page_config(page_title="NERO-TIME", page_icon="🕛", layout="wide")
 
 # User authentication
 if not st.session_state.user_id:
