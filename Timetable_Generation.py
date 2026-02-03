@@ -10,7 +10,7 @@ EntireYear = {}
 Weeklimits = 1
 WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 def yearaccess(typeAccess):
-    
+    print("hi")
 def get_month_days(year, month):
     """Get all days in a month with their weekday names."""
     from calendar import monthrange
