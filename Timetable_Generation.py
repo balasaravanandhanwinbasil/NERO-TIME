@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, date
 import streamlit as st
+import random
 
 current_year = datetime.now().year
 LastDayOfYear = date(current_year, 12, 31).weekday()
