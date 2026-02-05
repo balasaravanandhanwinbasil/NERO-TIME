@@ -1,388 +1,492 @@
 """
-ALL LOGIC GOES HERE. DO NOT PUT INSIDE THE UI OR ELSE.
+NERO-Time Backend Logic (Streamlit Version)
+All business logic separated from UI
 """
 
 import streamlit as st
-from datetime import datetime
-from nero_logic import NeroTimeLogic
-from Firebase_Function import load_from_firebase
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
+import json
 
-# Page configuration
-st.set_page_config(page_title="NERO-TIME", page_icon="🕛", layout="wide")
+# Import from existing files
+from Firebase_Function import (
+    save_to_firebase, 
+    load_from_firebase,
+    save_timetable_snapshot, 
+    get_timetable_history
+)
 
-# Custom CSS
-st.markdown("""
-<style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    
-    .stButton > button {
-        font-size: 13px;
-        padding: 8px 16px;
-        border-radius: 10px;
-        border: 1px solid #e6c7f2;
-        background: #fff;
-        color: #5a2b7a;
-        font-weight: 600;
-    }
-    
-    .stButton > button:hover {
-        background: #f6e6ff;
-        border-color: #c77dff;
-    }
-    
-    .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #c77dff, #ff8dc7);
-        color: white;
-        border: none;
-    }
-    
-    [data-testid="stMetricValue"] {
-        font-size: 24px;
-        font-weight: 700;
-        color: #6a1bb9;
-    }
-</style>
-""", unsafe_allow_html=True)
+from Timetable_Generation import (
+    time_str_to_minutes,
+    minutes_to_time_str,
+    add_minutes,
+    is_time_slot_free,
+    add_event_to_timetable,
+    get_day_activity_minutes,
+    find_free_slot,
+    place_compulsory_events,
+    place_activities,
+    generate_timetable as generate_tt,
+    check_expired_activities,
+    remove_activity_from_timetable,
+    WEEKDAY_NAMES,
+    get_month_days
+)
 
-# Initialize session state
-NeroTimeLogic.initialize_session_state()
 
-# Load data from Firebase if not loaded
-if not st.session_state.data_loaded and st.session_state.user_id:
-    with st.spinner("Loading..."):
-        loaded_activities = load_from_firebase(st.session_state.user_id, 'activities')
-        loaded_events = load_from_firebase(st.session_state.user_id, 'events')
-        loaded_timetable = load_from_firebase(st.session_state.user_id, 'timetable')
-        loaded_progress = load_from_firebase(st.session_state.user_id, 'activity_progress')
-        loaded_pending = load_from_firebase(st.session_state.user_id, 'pending_verifications')
-        loaded_month = load_from_firebase(st.session_state.user_id, 'current_month')
-        loaded_year = load_from_firebase(st.session_state.user_id, 'current_year')
+class NeroTimeLogic:
+    """
+    Backend logic class for NERO-Time
+    Handles all data operations and business logic
+    """
+    
+    @staticmethod
+    def initialize_session_state():
+        """Initialize all session state variables"""
+        if 'user_id' not in st.session_state:
+            st.session_state.user_id = None
+        if 'current_year' not in st.session_state:
+            st.session_state.current_year = datetime.now().year
+        if 'current_month' not in st.session_state:
+            st.session_state.current_month = datetime.now().month
+        if 'timetable' not in st.session_state:
+            st.session_state.timetable = {}
+        if 'list_of_activities' not in st.session_state:
+            st.session_state.list_of_activities = []
+        if 'list_of_compulsory_events' not in st.session_state:
+            st.session_state.list_of_compulsory_events = []
+        if 'data_loaded' not in st.session_state:
+            st.session_state.data_loaded = False
+        if 'current_page' not in st.session_state:
+            st.session_state.current_page = 'dashboard'
+        if 'activity_progress' not in st.session_state:
+            st.session_state.activity_progress = {}
+        if 'pending_verifications' not in st.session_state:
+            st.session_state.pending_verifications = []
+    
+    @staticmethod
+    def login_user(user_id: str) -> Dict:
+        """Login user and load their data"""
+        if not user_id:
+            return {"success": False, "message": "User ID is required"}
         
-        if loaded_activities:
-            st.session_state.list_of_activities = loaded_activities
-        if loaded_events:
-            st.session_state.list_of_compulsory_events = loaded_events
-        if loaded_timetable:
-            st.session_state.timetable = loaded_timetable
-        if loaded_progress:
-            st.session_state.activity_progress = loaded_progress
-        if loaded_pending:
-            st.session_state.pending_verifications = loaded_pending
-        if loaded_month:
-            st.session_state.current_month = loaded_month
-        if loaded_year:
-            st.session_state.current_year = loaded_year
+        st.session_state.user_id = user_id
+        
+        # Load all user data from Firebase
+        st.session_state.list_of_activities = load_from_firebase(user_id, 'activities') or []
+        st.session_state.list_of_compulsory_events = load_from_firebase(user_id, 'events') or []
+        st.session_state.timetable = load_from_firebase(user_id, 'timetable') or {}
+        st.session_state.activity_progress = load_from_firebase(user_id, 'activity_progress') or {}
+        st.session_state.pending_verifications = load_from_firebase(user_id, 'pending_verifications') or []
+        
+        month = load_from_firebase(user_id, 'current_month')
+        year = load_from_firebase(user_id, 'current_year')
+        
+        if month:
+            st.session_state.current_month = month
+        if year:
+            st.session_state.current_year = year
         
         st.session_state.data_loaded = True
-
-
-# ==================== LOGIN SCREEN ====================
-if not st.session_state.user_id:
-    st.title("🔐 Welcome to NERO-Time")
-    st.markdown("Please enter your user ID to continue")
+        
+        return {"success": True, "message": f"Logged in as {user_id}"}
     
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        user_input = st.text_input("User ID", placeholder="email@example.com")
-        if st.button("Login", type="primary", use_container_width=True):
-            if user_input:
-                result = NeroTimeLogic.login_user(user_input)
-                if result["success"]:
-                    st.success(result["message"])
-                    st.rerun()
-                else:
-                    st.error(result["message"])
-            else:
-                st.error("Please enter a user ID")
-    st.stop()
-
-
-# ==================== MAIN APP ====================
-st.title("🕛 NERO-Time")
-st.caption(f"Logged in as: {st.session_state.user_id}")
-
-# Navigation
-tab1, tab2, tab3, tab4 = st.tabs(["🏠 Dashboard", "📝 Activities", "🔴 Events", "⚙️ Settings"])
-
-
-# ==================== DASHBOARD TAB ====================
-with tab1:
-    # Get dashboard data from logic layer
-    dashboard_data = NeroTimeLogic.get_dashboard_data()
+    @staticmethod
+    def get_dashboard_data() -> Dict:
+        """Get all data needed for dashboard"""
+        month_days = get_month_days(st.session_state.current_year, st.session_state.current_month)
+        current_day, current_time = NeroTimeLogic._get_current_time_slot()
+        
+        # Enrich timetable with verification status and progress
+        enriched_timetable = {}
+        for day_display, events in st.session_state.timetable.items():
+            enriched_events = []
+            for event in events:
+                enriched_event = event.copy()
+                if event['type'] == 'ACTIVITY':
+                    activity_name = event['name'].split(' (Session')[0]
+                    enriched_event['can_verify'] = NeroTimeLogic._can_verify_event(event, day_display)
+                    enriched_event['activity_name'] = activity_name
+                    enriched_event['progress'] = NeroTimeLogic._get_activity_progress_data(activity_name)
+                    enriched_event['session_duration'] = (
+                        time_str_to_minutes(event['end']) - time_str_to_minutes(event['start'])
+                    ) / 60
+                enriched_events.append(enriched_event)
+            enriched_timetable[day_display] = enriched_events
+        
+        return {
+            "month_name": datetime(st.session_state.current_year, st.session_state.current_month, 1).strftime("%B"),
+            "year": st.session_state.current_year,
+            "month": st.session_state.current_month,
+            "month_days": month_days,
+            "timetable": enriched_timetable,
+            "current_day": current_day,
+            "current_time": current_time,
+            "expired_activities": NeroTimeLogic._get_expired_activities()
+        }
     
-    # Month navigation
-    col1, col2, col3, col4, col5 = st.columns([1, 2, 1, 1, 1])
+    @staticmethod
+    def get_activities_data() -> Dict:
+        """Get activities with progress data"""
+        enriched_activities = []
+        for activity in st.session_state.list_of_activities:
+            enriched = activity.copy()
+            enriched['progress'] = NeroTimeLogic._get_activity_progress_data(activity['activity'])
+            enriched_activities.append(enriched)
+        
+        return {"activities": enriched_activities}
     
-    with col1:
-        if st.button("◀️ Prev", use_container_width=True):
-            result = NeroTimeLogic.navigate_month("prev")
-            if result["success"]:
-                st.rerun()
+    @staticmethod
+    def get_events_data() -> Dict:
+        """Get events sorted by date"""
+        sorted_events = sorted(
+            st.session_state.list_of_compulsory_events,
+            key=lambda x: x.get('date', '9999-12-31')
+        )
+        return {"events": sorted_events}
     
-    with col2:
-        st.markdown(f"### 📅 {dashboard_data['month_name']} {dashboard_data['year']}")
-    
-    with col3:
-        if st.button("Next ▶️", use_container_width=True):
-            result = NeroTimeLogic.navigate_month("next")
-            if result["success"]:
-                st.rerun()
-    
-    with col4:
-        if st.button("📍 Today", use_container_width=True):
-            result = NeroTimeLogic.navigate_month("today")
-            if result["success"]:
-                st.rerun()
-    
-    st.divider()
-    
-    # Quick actions
-    col1, col2 = st.columns(2)
-    with col1:
-        with st.expander("🚀 Generate Timetable", expanded=True):
-            col_a, col_b = st.columns(2)
-            with col_a:
-                min_session = st.number_input("Min session (minutes)", 15, 180, 30, 15)
-            with col_b:
-                max_session = st.number_input("Max session (minutes)", 30, 240, 120, 15)
+    @staticmethod
+    def add_activity(name: str, priority: int, deadline_date: str, total_hours: int, 
+                     min_session: int = 30, max_session: int = 120) -> Dict:
+        """Add a new activity"""
+        try:
+            if not name:
+                return {"success": False, "message": "Activity name is required"}
             
-            if st.button("🚀 Generate", type="primary", use_container_width=True):
-                if st.session_state.list_of_activities or st.session_state.list_of_compulsory_events:
-                    with st.spinner("Generating..."):
-                        result = NeroTimeLogic.generate_timetable(min_session, max_session)
-                    if result["success"]:
-                        st.success(result["message"])
-                        st.balloons()
-                        st.rerun()
-                    else:
-                        st.error(result["message"])
-                else:
-                    st.warning("Add activities or events first")
-    
-    with col2:
-        if st.button("💾 Save Data", use_container_width=True, type="primary"):
-            result = NeroTimeLogic.save_all_data()
-            if result["success"]:
-                st.success(result["message"])
-            else:
-                st.error(result["message"])
-    
-    st.divider()
-    
-    # Display Timetable
-    st.header("📊 Your Monthly Timetable")
-    
-    if dashboard_data['timetable']:
-        for day_info in dashboard_data['month_days']:
-            day_display = day_info['display']
+            deadline_dt = datetime.fromisoformat(deadline_date)
+            today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            days_left = (deadline_dt.replace(hour=0, minute=0, second=0, microsecond=0) - today).days
             
-            if day_display in dashboard_data['timetable']:
-                is_current_day = (day_display == dashboard_data['current_day'])
-                events = dashboard_data['timetable'][day_display]
-                
-                if not events:
-                    continue
-                
-                with st.expander(f"{'🟢 ' if is_current_day else ''}📅 {day_display}", expanded=is_current_day):
-                    for idx, event in enumerate(events):
-                        # Check if current time slot
-                        is_current_slot = False
-                        if is_current_day and dashboard_data['current_time']:
-                            from Timetable_Generation import time_str_to_minutes
-                            event_start = time_str_to_minutes(event['start'])
-                            event_end = time_str_to_minutes(event['end'])
-                            current_minutes = time_str_to_minutes(dashboard_data['current_time'])
-                            is_current_slot = event_start <= current_minutes < event_end
-                        
-                        if event["type"] == "ACTIVITY":
-                            activity_name = event['name'].split(' (Session')[0]
-                            progress = event['progress']
-                            session_duration = event['session_duration']
-                            can_verify = event['can_verify']
-                            
-                            if is_current_slot:
-                                st.markdown("**🟢 HAPPENING NOW**")
-                            
-                            col1, col2 = st.columns([0.85, 0.15])
-                            with col1:
-                                st.markdown(f"**🔵 {event['start']} - {event['end']}:** {event['name']}")
-                                st.progress(progress['percentage'] / 100)
-                                st.caption(f"{progress['completed']:.1f}h / {progress['total']}h completed")
-                            
-                            with col2:
-                                if can_verify:
-                                    if st.button("✓", key=f"verify_{day_display}_{idx}", use_container_width=True):
-                                        result = NeroTimeLogic.verify_session(day_display, idx)
-                                        if result["success"]:
-                                            st.success(result["message"])
-                                            st.rerun()
-                                        else:
-                                            st.error(result["message"])
-                                else:
-                                    st.caption("⏳ Not yet")
-                        
-                        elif event["type"] == "COMPULSORY":
-                            if is_current_slot:
-                                st.markdown("**🟢 HAPPENING NOW**")
-                            st.markdown(f"**🔴 {event['start']} - {event['end']}:** {event['name']}")
-                        
-                        else:  # BREAK
-                            if is_current_slot:
-                                st.markdown("**🟢 BREAK TIME**")
-                            st.markdown(f"*⚪ {event['start']} - {event['end']}: {event['name']}*")
-    else:
-        st.info("No timetable generated yet")
-
-
-# ==================== ACTIVITIES TAB ====================
-with tab2:
-    st.header("📝 Manage Activities")
-    
-    # Add new activity
-    with st.expander("➕ Add New Activity", expanded=True):
-        activity_name = st.text_input("Activity Name")
-        col1, col2 = st.columns(2)
-        with col1:
-            priority = st.slider("Priority", 1, 5, 3)
-            deadline_date = st.date_input("Deadline", min_value=datetime.now().date())
-        with col2:
-            timing = st.number_input("Total Hours", min_value=1, max_value=100, value=1)
-        
-        st.write("**Session Timing Preferences (Optional)**")
-        col3, col4 = st.columns(2)
-        with col3:
-            min_session_min = st.number_input("Min session (minutes)", 15, 180, 30, 15, key="add_min_session")
-        with col4:
-            max_session_min = st.number_input("Max session (minutes)", 30, 240, 120, 15, key="add_max_session")
-        
-        if st.button("Add Activity", use_container_width=True, type="primary"):
-            if activity_name:
-                result = NeroTimeLogic.add_activity(
-                    activity_name, priority, deadline_date.isoformat(), 
-                    timing, min_session_min, max_session_min
-                )
-                if result["success"]:
-                    st.success(result["message"])
-                    st.rerun()
-                else:
-                    st.error(result["message"])
-    
-    st.divider()
-    
-    # List activities
-    activities_data = NeroTimeLogic.get_activities_data()
-    
-    if activities_data['activities']:
-        for idx, act in enumerate(activities_data['activities']):
-            progress = act['progress']
+            new_activity = {
+                "activity": name,
+                "priority": priority,
+                "deadline": days_left,
+                "timing": total_hours,
+                "min_session_minutes": min_session,
+                "max_session_minutes": max_session
+            }
             
-            with st.expander(f"{idx+1}. {act['activity']} ({progress['completed']:.1f}h / {act['timing']}h)"):
-                st.progress(progress['percentage'] / 100)
-                st.write(f"⭐ Priority: {act['priority']} | ⏰ Deadline: {act['deadline']} days")
+            st.session_state.list_of_activities.append(new_activity)
+            save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
+            
+            return {"success": True, "message": f"Activity '{name}' added successfully"}
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
+    @staticmethod
+    def delete_activity(index: int) -> Dict:
+        """Delete an activity"""
+        try:
+            if 0 <= index < len(st.session_state.list_of_activities):
+                activity_name = st.session_state.list_of_activities[index]['activity']
                 
-                if 'min_session_minutes' in act and 'max_session_minutes' in act:
-                    st.caption(f"📊 Session length: {act['min_session_minutes']}-{act['max_session_minutes']} minutes")
+                # Remove from progress and pending
+                if activity_name in st.session_state.activity_progress:
+                    del st.session_state.activity_progress[activity_name]
+                if activity_name in st.session_state.pending_verifications:
+                    st.session_state.pending_verifications.remove(activity_name)
                 
-                col1, col2, col3 = st.columns(3)
+                st.session_state.list_of_activities.pop(index)
                 
-                if col1.button("🗑️ Delete", key=f"del_act_{idx}", use_container_width=True):
-                    result = NeroTimeLogic.delete_activity(idx)
-                    if result["success"]:
-                        st.success(result["message"])
-                        st.rerun()
-                    else:
-                        st.error(result["message"])
+                save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
+                save_to_firebase(st.session_state.user_id, 'activity_progress', st.session_state.activity_progress)
+                save_to_firebase(st.session_state.user_id, 'pending_verifications', st.session_state.pending_verifications)
                 
-                if col2.button("🔄 Reset Progress", key=f"reset_{idx}", use_container_width=True):
-                    result = NeroTimeLogic.reset_activity_progress(act['activity'])
-                    if result["success"]:
-                        st.success(result["message"])
-                        st.rerun()
-                    else:
-                        st.error(result["message"])
-    else:
-        st.info("No activities added yet")
-
-
-# ==================== EVENTS TAB ====================
-with tab3:
-    st.header("🔴 Manage Compulsory Events")
-    
-    # Add new event
-    with st.expander("➕ Add New Event", expanded=True):
-        event_name = st.text_input("Event Name")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            event_date = st.date_input("Event Date", min_value=datetime.now().date())
-        with col2:
-            from Timetable_Generation import WEEKDAY_NAMES
-            event_day = WEEKDAY_NAMES[event_date.weekday()]
-            st.text_input("Day", value=event_day, disabled=True)
-        
-        col3, col4 = st.columns(2)
-        with col3:
-            start_time = st.time_input("Start Time")
-        with col4:
-            end_time = st.time_input("End Time")
-        
-        if st.button("Add Event", use_container_width=True, type="primary"):
-            if event_name:
-                result = NeroTimeLogic.add_event(
-                    event_name, 
-                    event_date.isoformat(),
-                    start_time.strftime("%H:%M"),
-                    end_time.strftime("%H:%M")
-                )
-                if result["success"]:
-                    st.success(result["message"])
-                    st.rerun()
-                else:
-                    st.error(result["message"])
-    
-    st.divider()
-    
-    # List events
-    events_data = NeroTimeLogic.get_events_data()
-    
-    if events_data['events']:
-        for idx, evt in enumerate(events_data['events']):
-            with st.expander(f"{idx+1}. {evt['event']} - {evt['day']}"):
-                st.write(f"🕐 {evt['start_time']} - {evt['end_time']}")
-                
-                if st.button("🗑️ Delete", key=f"del_evt_{idx}", use_container_width=True):
-                    result = NeroTimeLogic.delete_event(idx)
-                    if result["success"]:
-                        st.success(result["message"])
-                        st.rerun()
-                    else:
-                        st.error(result["message"])
-    else:
-        st.info("No events added yet")
-
-
-# ==================== SETTINGS TAB ====================
-with tab4:
-    st.header("⚙️ Settings")
-    
-    st.subheader("Account Settings")
-    st.write(f"**User ID:** {st.session_state.user_id}")
-    
-    st.divider()
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🚪 Logout", type="primary", use_container_width=True):
-            st.session_state.user_id = None
-            st.session_state.data_loaded = False
-            st.rerun()
-    
-    with col2:
-        if st.button("⚠️ Clear All Data", use_container_width=True):
-            result = NeroTimeLogic.clear_all_data()
-            if result["success"]:
-                st.warning(result["message"])
-                st.rerun()
+                return {"success": True, "message": f"Activity '{activity_name}' deleted"}
             else:
-                st.error(result["message"])
+                return {"success": False, "message": "Invalid activity index"}
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
+    @staticmethod
+    def reset_activity_progress(activity_name: str) -> Dict:
+        """Reset progress for an activity"""
+        try:
+            st.session_state.activity_progress[activity_name] = 0
+            save_to_firebase(st.session_state.user_id, 'activity_progress', st.session_state.activity_progress)
+            return {"success": True, "message": f"Progress reset for '{activity_name}'"}
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
+    @staticmethod
+    def add_event(name: str, event_date: str, start_time: str, end_time: str) -> Dict:
+        """Add a new compulsory event"""
+        try:
+            if not name:
+                return {"success": False, "message": "Event name is required"}
+            
+            event_dt = datetime.fromisoformat(event_date)
+            
+            if time_str_to_minutes(end_time) <= time_str_to_minutes(start_time):
+                return {"success": False, "message": "End time must be after start time"}
+            
+            day_name = WEEKDAY_NAMES[event_dt.weekday()]
+            day_display = f"{day_name} {event_dt.strftime('%d/%m')}"
+            
+            new_event = {
+                "event": name,
+                "start_time": start_time,
+                "end_time": end_time,
+                "day": day_display,
+                "date": event_dt.isoformat()
+            }
+            
+            st.session_state.list_of_compulsory_events.append(new_event)
+            save_to_firebase(st.session_state.user_id, 'events', st.session_state.list_of_compulsory_events)
+            
+            return {"success": True, "message": f"Event '{name}' added successfully"}
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
+    @staticmethod
+    def delete_event(index: int) -> Dict:
+        """Delete an event"""
+        try:
+            if 0 <= index < len(st.session_state.list_of_compulsory_events):
+                event_name = st.session_state.list_of_compulsory_events[index]['event']
+                st.session_state.list_of_compulsory_events.pop(index)
+                save_to_firebase(st.session_state.user_id, 'events', st.session_state.list_of_compulsory_events)
+                return {"success": True, "message": f"Event '{event_name}' deleted"}
+            else:
+                return {"success": False, "message": "Invalid event index"}
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
+    @staticmethod
+    def generate_timetable(min_session: int = 30, max_session: int = 120) -> Dict:
+        """Generate timetable for current month"""
+        try:
+            st.session_state.min_session_minutes = min_session
+            st.session_state.max_session_minutes = max_session
+            
+            generate_tt(st.session_state.current_year, st.session_state.current_month)
+            
+            return {"success": True, "message": "Timetable generated successfully"}
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
+    @staticmethod
+    def navigate_month(direction: str) -> Dict:
+        """Navigate to previous, next, or current month"""
+        try:
+            if direction == "prev":
+                if st.session_state.current_month == 1:
+                    st.session_state.current_month = 12
+                    st.session_state.current_year -= 1
+                else:
+                    st.session_state.current_month -= 1
+            elif direction == "next":
+                if st.session_state.current_month == 12:
+                    st.session_state.current_month = 1
+                    st.session_state.current_year += 1
+                else:
+                    st.session_state.current_month += 1
+            elif direction == "today":
+                now = datetime.now()
+                st.session_state.current_month = now.month
+                st.session_state.current_year = now.year
+            
+            save_to_firebase(st.session_state.user_id, 'current_month', st.session_state.current_month)
+            save_to_firebase(st.session_state.user_id, 'current_year', st.session_state.current_year)
+            
+            return {"success": True, "message": "Month updated"}
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
+    @staticmethod
+    def verify_session(day_display: str, event_index: int) -> Dict:
+        """Mark an activity session as completed"""
+        try:
+            if day_display in st.session_state.timetable and event_index < len(st.session_state.timetable[day_display]):
+                event = st.session_state.timetable[day_display][event_index]
+                
+                if event['type'] == 'ACTIVITY':
+                    activity_name = event['name'].split(' (Session')[0]
+                    session_duration = (time_str_to_minutes(event['end']) - 
+                                      time_str_to_minutes(event['start'])) / 60
+                    
+                    if activity_name not in st.session_state.activity_progress:
+                        st.session_state.activity_progress[activity_name] = 0
+                    st.session_state.activity_progress[activity_name] += session_duration
+                    
+                    save_to_firebase(st.session_state.user_id, 'activity_progress', st.session_state.activity_progress)
+                    
+                    return {"success": True, "message": f"Added {session_duration:.1f}h to '{activity_name}'"}
+                else:
+                    return {"success": False, "message": "Event is not an activity"}
+            else:
+                return {"success": False, "message": "Invalid event reference"}
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
+    @staticmethod
+    def save_all_data() -> Dict:
+        """Save all data to Firebase"""
+        try:
+            save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
+            save_to_firebase(st.session_state.user_id, 'events', st.session_state.list_of_compulsory_events)
+            save_to_firebase(st.session_state.user_id, 'timetable', st.session_state.timetable)
+            save_to_firebase(st.session_state.user_id, 'activity_progress', st.session_state.activity_progress)
+            save_to_firebase(st.session_state.user_id, 'pending_verifications', st.session_state.pending_verifications)
+            save_to_firebase(st.session_state.user_id, 'current_month', st.session_state.current_month)
+            save_to_firebase(st.session_state.user_id, 'current_year', st.session_state.current_year)
+            
+            return {"success": True, "message": "All data saved successfully"}
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
+    @staticmethod
+    def clear_all_data() -> Dict:
+        """Clear all user data"""
+        try:
+            st.session_state.list_of_activities = []
+            st.session_state.list_of_compulsory_events = []
+            st.session_state.timetable = {}
+            st.session_state.activity_progress = {}
+            st.session_state.pending_verifications = []
+            
+            save_to_firebase(st.session_state.user_id, 'activities', [])
+            save_to_firebase(st.session_state.user_id, 'events', [])
+            save_to_firebase(st.session_state.user_id, 'timetable', {})
+            save_to_firebase(st.session_state.user_id, 'activity_progress', {})
+            save_to_firebase(st.session_state.user_id, 'pending_verifications', [])
+            
+            return {"success": True, "message": "All data cleared"}
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
+    @staticmethod
+    def handle_expired_activity(activity_name: str, action: str, new_hours: Optional[float] = None) -> Dict:
+        """Handle expired activity verification"""
+        try:
+            if action == 'complete':
+                activity = next((a for a in st.session_state.list_of_activities 
+                               if a['activity'] == activity_name), None)
+                if activity:
+                    st.session_state.activity_progress[activity_name] = activity['timing']
+                    
+                    if activity_name in st.session_state.pending_verifications:
+                        st.session_state.pending_verifications.remove(activity_name)
+                    st.session_state.list_of_activities = [
+                        a for a in st.session_state.list_of_activities 
+                        if a['activity'] != activity_name
+                    ]
+                    
+                    remove_activity_from_timetable(activity_name)
+                    
+                    save_to_firebase(st.session_state.user_id, 'activity_progress', st.session_state.activity_progress)
+                    save_to_firebase(st.session_state.user_id, 'pending_verifications', st.session_state.pending_verifications)
+                    save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
+                    save_to_firebase(st.session_state.user_id, 'timetable', st.session_state.timetable)
+                    
+                    return {"success": True, "message": f"'{activity_name}' marked as complete!"}
+            
+            elif action == 'update' and new_hours is not None:
+                st.session_state.activity_progress[activity_name] = new_hours
+                
+                activity = next((a for a in st.session_state.list_of_activities 
+                               if a['activity'] == activity_name), None)
+                if activity and new_hours >= activity['timing']:
+                    if activity_name in st.session_state.pending_verifications:
+                        st.session_state.pending_verifications.remove(activity_name)
+                    save_to_firebase(st.session_state.user_id, 'pending_verifications', st.session_state.pending_verifications)
+                
+                save_to_firebase(st.session_state.user_id, 'activity_progress', st.session_state.activity_progress)
+                
+                return {"success": True, "message": "Progress updated"}
+            
+            elif action == 'recalibrate':
+                if activity_name in st.session_state.pending_verifications:
+                    st.session_state.pending_verifications.remove(activity_name)
+                
+                for activity in st.session_state.list_of_activities:
+                    if activity['activity'] == activity_name:
+                        activity['deadline'] = 7
+                        break
+                
+                remove_activity_from_timetable(activity_name)
+                
+                save_to_firebase(st.session_state.user_id, 'pending_verifications', st.session_state.pending_verifications)
+                save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
+                save_to_firebase(st.session_state.user_id, 'timetable', st.session_state.timetable)
+                
+                return {"success": True, "message": f"'{activity_name}' deadline extended by 7 days"}
+            
+            return {"success": False, "message": "Invalid action"}
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
+    # ==================== PRIVATE HELPER METHODS ====================
+    
+    @staticmethod
+    def _get_current_time_slot() -> Tuple[str, str]:
+        """Get current day and time slot"""
+        now = datetime.now()
+        day_name = WEEKDAY_NAMES[now.weekday()]
+        current_display = f"{day_name} {now.strftime('%d/%m')}"
+        current_time = now.strftime("%H:%M")
+        return current_display, current_time
+    
+    @staticmethod
+    def _can_verify_event(event: Dict, day_display: str) -> bool:
+        """Check if event time has passed"""
+        now = datetime.now()
+        
+        try:
+            date_part = day_display.split()[-1]
+            day, month = map(int, date_part.split('/'))
+            year = st.session_state.current_year
+            event_date = datetime(year, month, day)
+            
+            if event_date.date() < now.date():
+                return True
+            elif event_date.date() == now.date():
+                event_end = datetime.strptime(event['end'], "%H:%M").time()
+                return now.time() > event_end
+        except:
+            return False
+        
+        return False
+    
+    @staticmethod
+    def _get_activity_progress_data(activity_name: str) -> Dict:
+        """Get progress data for an activity"""
+        activity = next((a for a in st.session_state.list_of_activities 
+                        if a['activity'] == activity_name), None)
+        if not activity:
+            return {"completed": 0, "total": 0, "percentage": 0}
+        
+        completed = st.session_state.activity_progress.get(activity_name, 0)
+        total = activity['timing']
+        percentage = min(completed / total * 100, 100) if total > 0 else 0
+        
+        return {
+            "completed": completed,
+            "total": total,
+            "percentage": percentage
+        }
+    
+    @staticmethod
+    def _get_expired_activities() -> List[Dict]:
+        """Get list of expired activities"""
+        now = datetime.now()
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        expired = []
+        for activity in st.session_state.list_of_activities:
+            deadline_date = today + timedelta(days=activity['deadline'])
+            
+            if now > deadline_date:
+                activity_name = activity['activity']
+                completed_hours = st.session_state.activity_progress.get(activity_name, 0)
+                total_hours = activity['timing']
+                
+                if completed_hours < total_hours:
+                    expired.append({
+                        'name': activity_name,
+                        'completed': completed_hours,
+                        'total': total_hours,
+                        'deadline': activity['deadline']
+                    })
+        
+        return expired
