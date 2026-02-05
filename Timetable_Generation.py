@@ -1,14 +1,12 @@
-import streamlit as st
-from datetime
-import random
+from datetime import datetime, timedelta, date
 
-# Constants
 current_year = datetime.now().year
-LastDayOfYear = datetime.date(current_year, 12, 31).weekday()
-ExtraDayOfYear = 6-LastDayOfYear
+LastDayOfYear = date(current_year, 12, 31).weekday()
+ExtraDayOfYear = 6 - LastDayOfYear
 EntireYear = {}
 Weeklimits = 1
 WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
 def yearaccess(typeAccess):
     print("hi")
 def get_month_days(year, month):
