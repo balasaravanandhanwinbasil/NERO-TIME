@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import random
 
 # Constants
-current_year = datetime.datetime.now().year
+current_year = datetime.now().year
 LastDayOfYear = datetime.date(current_year, 12, 31).weekday()
 ExtraDayOfYear = 6-LastDayOfYear
 EntireYear = {}
