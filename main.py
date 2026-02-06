@@ -283,7 +283,7 @@ with tab2:
                 st.write(f"⭐ Priority: {act['priority']} | ⏰ Deadline: {act['deadline']} days")
                 
                 if 'min_session_minutes' in act and 'max_session_minutes' in act:
-                    st.caption(f"📊 Session length: {act['min_session_minutes']}-{act['max_session_minutes']} minutes")
+                    st.caption(f"📊 Session length: {act['min_session_minutes']}-{act['max_session_minutes']} minutes, Session Amounts: {act['sessions']}")
                 
                 col1, col2, col3 = st.columns(3)
                 
