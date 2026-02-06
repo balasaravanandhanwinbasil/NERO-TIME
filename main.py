@@ -248,6 +248,7 @@ with tab2:
             deadline_date = st.date_input("Deadline", min_value=datetime.now().date())
         with col2:
             timing = st.number_input("Total Hours", min_value=1, max_value=100, value=1)
+            sessions = st.number_input("Sessions", min_value=1, max_value=100, value=1)
         
         st.write("**Session Timing Preferences (Optional)**")
         col3, col4 = st.columns(2)
