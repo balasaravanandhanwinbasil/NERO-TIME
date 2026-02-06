@@ -146,6 +146,7 @@ tab1, tab2, tab3, tab4 = st.tabs(["Dashboard", "Activities", "Events", "Settings
 # ==================== DASHBOARD TAB ====================
 with tab1:
 # Month navigation - Centered layout
+    dashboard_data = NeroTimeLogic.get_dashboard_data()
     col1, col2, col3, col4, col5, col6 = st.columns([2, 1, 2, 1, 2, 1])
     
     with col2:
