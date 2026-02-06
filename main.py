@@ -121,7 +121,7 @@ with tab1:
                 st.rerun()
     
     with col2:
-        st.markdown(f"###{dashboard_data['month_name']} {dashboard_data['year']}")
+        st.markdown(f"{dashboard_data['month_name']} {dashboard_data['year']}")
     
     with col3:
         if st.button("Next▶️", use_container_width=True):
