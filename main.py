@@ -1,7 +1,7 @@
 """
 ui only
 """
-
+import random
 import streamlit as st
 from datetime import datetime
 from nero_logic import NeroTimeLogic
