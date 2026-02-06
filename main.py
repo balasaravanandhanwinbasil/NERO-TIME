@@ -340,7 +340,9 @@ with tab2:
             min_session_min = st.number_input("Min session (minutes)", 15, 180, 30, 15, key="add_min_session")
         with col4:
             max_session_min = st.number_input("Max session (minutes)", 30, 240, 120, 15, key="add_max_session")
-            sessions = timing/(random.randint(min_session_min, max_session_min))
+            if max_session_min > timing:
+                max_session_min = timing
+            sessions = timing/(random.randint(min_session_min*60, max_session_min*60))
         
         if st.button("Add Activity", use_container_width=True, type="primary"):
             if activity_name:
