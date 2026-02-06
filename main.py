@@ -146,6 +146,7 @@ with tab1:
                 min_session = st.number_input("Min session (minutes)", 15, 180, 30, 15)
             with col_b:
                 max_session = st.number_input("Max session (minutes)", 30, 240, 120, 15)
+                
             
             if st.button("Generate", type="primary", use_container_width=True):
                 if st.session_state.list_of_activities or st.session_state.list_of_compulsory_events:
@@ -256,12 +257,13 @@ with tab2:
             min_session_min = st.number_input("Min session (minutes)", 15, 180, 30, 15, key="add_min_session")
         with col4:
             max_session_min = st.number_input("Max session (minutes)", 30, 240, 120, 15, key="add_max_session")
+            sessions = timing/(random.randint(min_session_min, max_session_min))
         
         if st.button("Add Activity", use_container_width=True, type="primary"):
             if activity_name:
                 result = NeroTimeLogic.add_activity(
                     activity_name, priority, deadline_date.isoformat(), 
-                    timing, min_session_min, max_session_min
+                    timing, min_session_min, max_session_min,sessions
                 )
                 if result["success"]:
                     st.success(result["message"])
@@ -282,7 +284,7 @@ with tab2:
                 st.progress(progress['percentage'] / 100)
                 st.write(f"⭐ Priority: {act['priority']} | ⏰ Deadline: {act['deadline']} days")
                 
-                if 'min_session_minutes' in act and 'max_session_minutes' in act:
+                if 'min_session_minutes' in act and 'max_session_minutes' in act and 'sessions' in act:
                     st.caption(f"📊 Session length: {act['min_session_minutes']}-{act['max_session_minutes']} minutes, Session Amounts: {act['sessions']}")
                 
                 col1, col2, col3 = st.columns(3)
