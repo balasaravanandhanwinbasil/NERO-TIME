@@ -1,6 +1,7 @@
 """
 ui only
 """
+import math
 import random
 import streamlit as st
 from datetime import datetime
@@ -342,7 +343,7 @@ with tab2:
             max_session_min = st.number_input("Max session (minutes)", 30, 240, 120, 15, key="add_max_session")
             if max_session_min > timing*60:
                 max_session_min = timing*60
-            sessions = timing*60/(random.randint(min_session_min, max_session_min))
+            sessions = math.ciel(timing*60/(random.randint(min_session_min, max_session_min)))
         
         if st.button("Add Activity", use_container_width=True, type="primary"):
             if activity_name:
