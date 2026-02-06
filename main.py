@@ -263,7 +263,7 @@ with tab2:
             if activity_name:
                 result = NeroTimeLogic.add_activity(
                     activity_name, priority, deadline_date.isoformat(), 
-                    timing, min_session_min, max_session_min,sessions
+                    timing, min_session_min, max_session_min,sesssions
                 )
                 if result["success"]:
                     st.success(result["message"])
