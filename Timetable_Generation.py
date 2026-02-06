@@ -151,7 +151,6 @@ def place_activities(break_time=2, month_days=None, min_session_minutes=30, max_
         # Get custom session length if set
         custom_session_min = activity.get('min_session_minutes', min_session_minutes)
         custom_session_max = activity.get('max_session_minutes', max_session_minutes)
-        sessions = total_duration_hours/(random.randint(custom_session_min,custom_session_max))
 
         if total_duration_hours == 0:
             continue
