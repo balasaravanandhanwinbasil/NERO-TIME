@@ -114,28 +114,77 @@ with tab1:
     # Month navigation
     col1, col2, col3, col4, col5 = st.columns([1, 2, 1, 1, 1])
     
-    with col1:
-        if st.button("◀️Prev", use_container_width=True):
+    with col_prev:
+        if st.button("◀ Prev", use_container_width=True):
             result = NeroTimeLogic.navigate_month("prev")
             if result["success"]:
                 st.rerun()
     
-    with col2:
-        st.markdown(f"{dashboard_data['month_name']} {dashboard_data['year']}")
+    with col_month:
+        # Month display with calendar popup
+        import calendar
+        cal = calendar.monthcalendar(dashboard_data['year'], dashboard_data['current_month'])
+        
+        # Create calendar HTML
+        calendar_html = f"""
+        <div style='text-align: center; color: #4a0080; font-weight: 600; margin-bottom: 8px;'>
+            {dashboard_data['month_name']} {dashboard_data['year']}
+        </div>
+        <table style='width: 100%; border-collapse: collapse; font-size: 12px;'>
+            <tr>
+                <th style='padding: 5px; color: #6a1bb9;'>Su</th>
+                <th style='padding: 5px; color: #6a1bb9;'>Mo</th>
+                <th style='padding: 5px; color: #6a1bb9;'>Tu</th>
+                <th style='padding: 5px; color: #6a1bb9;'>We</th>
+                <th style='padding: 5px; color: #6a1bb9;'>Th</th>
+                <th style='padding: 5px; color: #6a1bb9;'>Fr</th>
+                <th style='padding: 5px; color: #6a1bb9;'>Sa</th>
+            </tr>
+        """
+        
+        current_day = datetime.now().day if (dashboard_data['current_month'] == datetime.now().month and 
+                                            dashboard_data['year'] == datetime.now().year) else None
+        
+        for week in cal:
+            calendar_html += "<tr>"
+            for day in week:
+                if day == 0:
+                    calendar_html += "<td style='padding: 5px;'></td>"
+                else:
+                    bg_color = "background: #c77dff; color: white; border-radius: 50%;" if day == current_day else ""
+                    calendar_html += f"<td style='padding: 5px; text-align: center; {bg_color}'>{day}</td>"
+            calendar_html += "</tr>"
+        
+        calendar_html += "</table>"
+        
+        # Display month button with popup
+        st.markdown(f"""
+        <div class="month-display" style="position: relative;">
+            <div style="text-align: center; padding: 10px; background: linear-gradient(135deg, #e0c3fc, #d0a4f7); 
+                        border: 2px solid #c77dff; border-radius: 10px; color: #4a0080; font-weight: 700; 
+                        font-size: 16px; cursor: pointer;">
+                📅 {dashboard_data['month_name']} {dashboard_data['year']}
+            </div>
+            <div class="calendar-popup">
+                {calendar_html}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     
-    with col3:
-        if st.button("Next▶️", use_container_width=True):
+    with col_next:
+        if st.button("Next ▶", use_container_width=True):
             result = NeroTimeLogic.navigate_month("next")
             if result["success"]:
                 st.rerun()
     
-    with col4:
+    with col_today:
         if st.button("Today", use_container_width=True):
             result = NeroTimeLogic.navigate_month("today")
             if result["success"]:
                 st.rerun()
     
     st.divider()
+    
     
     # Quick actions
     col1, col2 = st.columns(2)
