@@ -158,7 +158,7 @@ with tab1:
     with col3:
         # Month display with calendar popup
         import calendar
-        cal = calendar.monthcalendar(dashboard_data['year'], dashboard_data['current_month'])
+        cal = calendar.monthcalendar(dashboard_data['year'], st.session_state.current_month)
         
         # Create calendar HTML
         calendar_html = f"""
@@ -177,7 +177,7 @@ with tab1:
             </tr>
         """
         
-        current_day = datetime.now().day if (dashboard_data['current_month'] == datetime.now().month and 
+        current_day = datetime.now().day if (st.session_state.current_month == datetime.now().month and 
                                             dashboard_data['year'] == datetime.now().year) else None
         
         for week in cal:
@@ -205,7 +205,7 @@ with tab1:
             </div>
         </div>
         """, unsafe_allow_html=True)
-    
+        
     with col4:
         if st.button("Next ▶", use_container_width=True):
             result = NeroTimeLogic.navigate_month("next")
