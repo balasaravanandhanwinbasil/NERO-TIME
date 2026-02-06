@@ -147,7 +147,7 @@ class NeroTimeLogic:
     
     @staticmethod
     def add_activity(name: str, priority: int, deadline_date: str, total_hours: int, 
-                     min_session: int = 30, max_session: int = 120) -> Dict:
+                     min_session: int = 30, max_session: int = 120, sessions: int = 1) -> Dict:
         """Add a new activity"""
         try:
             if not name:
@@ -163,7 +163,8 @@ class NeroTimeLogic:
                 "deadline": days_left,
                 "timing": total_hours,
                 "min_session_minutes": min_session,
-                "max_session_minutes": max_session
+                "max_session_minutes": max_session,
+                "sessions": sessions
             }
             
             st.session_state.list_of_activities.append(new_activity)
