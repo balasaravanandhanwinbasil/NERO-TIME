@@ -26,6 +26,43 @@ st.markdown("""
         font-weight: 600;
     }
     
+    .month-display button {
+        background: linear-gradient(135deg, #e0c3fc, #d0a4f7) !important;
+        color: #4a0080 !important;
+        font-weight: 700 !important;
+        font-size: 16px !important;
+        border: 2px solid #c77dff !important;
+        cursor: pointer !important;
+        position: relative;
+    }
+    
+    .month-display button:hover {
+        background: linear-gradient(135deg, #c77dff, #b895f0) !important;
+        border-color: #a855f7 !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(167, 85, 247, 0.3);
+    }
+    
+    .calendar-popup {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        margin-top: 10px;
+        background: white;
+        border: 2px solid #c77dff;
+        border-radius: 10px;
+        padding: 15px;
+        box-shadow: 0 8px 24px rgba(167, 85, 247, 0.3);
+        z-index: 1000;
+        min-width: 250px;
+    }
+    
+    .month-display:hover .calendar-popup {
+        display: block;
+    }
+    
     .stButton > button:hover {
         background: #f6e6ff;
         border-color: #c77dff;
@@ -108,19 +145,16 @@ tab1, tab2, tab3, tab4 = st.tabs(["Dashboard", "Activities", "Events", "Settings
 
 # ==================== DASHBOARD TAB ====================
 with tab1:
-    # Get dashboard data from logic layer
-    dashboard_data = NeroTimeLogic.get_dashboard_data()
+# Month navigation - Centered layout
+    col1, col2, col3, col4, col5, col6 = st.columns([2, 1, 2, 1, 2, 1])
     
-    # Month navigation
-    col1, col2, col3, col4, col5 = st.columns([1, 2, 1, 1, 1])
-    
-    with col_prev:
+    with col2:
         if st.button("◀ Prev", use_container_width=True):
             result = NeroTimeLogic.navigate_month("prev")
             if result["success"]:
                 st.rerun()
     
-    with col_month:
+    with col3:
         # Month display with calendar popup
         import calendar
         cal = calendar.monthcalendar(dashboard_data['year'], dashboard_data['current_month'])
@@ -171,13 +205,13 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
     
-    with col_next:
+    with col4:
         if st.button("Next ▶", use_container_width=True):
             result = NeroTimeLogic.navigate_month("next")
             if result["success"]:
                 st.rerun()
     
-    with col_today:
+    with col6:
         if st.button("Today", use_container_width=True):
             result = NeroTimeLogic.navigate_month("today")
             if result["success"]:
