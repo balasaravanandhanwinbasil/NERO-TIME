@@ -79,7 +79,7 @@ if not st.session_state.data_loaded and st.session_state.user_id:
 
 # ==================== LOGIN SCREEN ====================
 if not st.session_state.user_id:
-    st.title("🔐 Welcome to NERO-Time")
+    st.title("Welcome to NERO-Time")
     st.markdown("Please enter your user ID to continue")
     
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -99,11 +99,11 @@ if not st.session_state.user_id:
 
 
 # ==================== MAIN APP ====================
-st.title("🕛 NERO-Time")
+st.title("NERO-Time")
 st.caption(f"Logged in as: {st.session_state.user_id}")
 
 # Navigation
-tab1, tab2, tab3, tab4 = st.tabs(["🏠 Dashboard", "📝 Activities", "🔴 Events", "⚙️ Settings"])
+tab1, tab2, tab3, tab4 = st.tabs(["Dashboard", "Activities", "Events", "Settings"])
 
 
 # ==================== DASHBOARD TAB ====================
@@ -115,22 +115,22 @@ with tab1:
     col1, col2, col3, col4, col5 = st.columns([1, 2, 1, 1, 1])
     
     with col1:
-        if st.button("◀️ Prev", use_container_width=True):
+        if st.button("◀️Prev", use_container_width=True):
             result = NeroTimeLogic.navigate_month("prev")
             if result["success"]:
                 st.rerun()
     
     with col2:
-        st.markdown(f"### 📅 {dashboard_data['month_name']} {dashboard_data['year']}")
+        st.markdown(f"###{dashboard_data['month_name']} {dashboard_data['year']}")
     
     with col3:
-        if st.button("Next ▶️", use_container_width=True):
+        if st.button("Next▶️", use_container_width=True):
             result = NeroTimeLogic.navigate_month("next")
             if result["success"]:
                 st.rerun()
     
     with col4:
-        if st.button("📍 Today", use_container_width=True):
+        if st.button("Today", use_container_width=True):
             result = NeroTimeLogic.navigate_month("today")
             if result["success"]:
                 st.rerun()
@@ -140,14 +140,14 @@ with tab1:
     # Quick actions
     col1, col2 = st.columns(2)
     with col1:
-        with st.expander("🚀 Generate Timetable", expanded=True):
+        with st.expander("Generate Timetable", expanded=True):
             col_a, col_b = st.columns(2)
             with col_a:
                 min_session = st.number_input("Min session (minutes)", 15, 180, 30, 15)
             with col_b:
                 max_session = st.number_input("Max session (minutes)", 30, 240, 120, 15)
             
-            if st.button("🚀 Generate", type="primary", use_container_width=True):
+            if st.button("Generate", type="primary", use_container_width=True):
                 if st.session_state.list_of_activities or st.session_state.list_of_compulsory_events:
                     with st.spinner("Generating..."):
                         result = NeroTimeLogic.generate_timetable(min_session, max_session)
@@ -171,7 +171,7 @@ with tab1:
     st.divider()
     
     # Display Timetable
-    st.header("📊 Your Monthly Timetable")
+    st.header("📊Your Monthly Timetable")
     
     if dashboard_data['timetable']:
         for day_info in dashboard_data['month_days']:
