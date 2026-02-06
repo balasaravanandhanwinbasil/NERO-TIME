@@ -228,7 +228,8 @@ class NeroTimeLogic:
                 "start_time": start_time,
                 "end_time": end_time,
                 "day": day_display,
-                "date": event_dt.isoformat()
+                "date": event_dt.isoformat(),
+                "sessions": sessions,
             }
             
             st.session_state.list_of_compulsory_events.append(new_event)
