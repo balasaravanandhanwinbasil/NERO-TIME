@@ -4,7 +4,7 @@ ui only
 import math
 import random
 import streamlit as st
-from datetime import datetime
+from datetime import datetime, time
 from nero_logic import NeroTimeLogic
 from Firebase_Function import load_from_firebase
 
@@ -80,6 +80,16 @@ st.markdown("""
         font-weight: 700;
         color: #6a1bb9;
     }
+    
+    .user-edited-badge {
+        background-color: #0dcaf0;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: bold;
+        margin-right: 8px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -91,9 +101,12 @@ if not st.session_state.data_loaded and st.session_state.user_id:
     with st.spinner("Loading..."):
         loaded_activities = load_from_firebase(st.session_state.user_id, 'activities')
         loaded_events = load_from_firebase(st.session_state.user_id, 'events')
+        loaded_school = load_from_firebase(st.session_state.user_id, 'school_schedule')  # NEW
         loaded_timetable = load_from_firebase(st.session_state.user_id, 'timetable')
         loaded_progress = load_from_firebase(st.session_state.user_id, 'activity_progress')
+        loaded_sessions = load_from_firebase(st.session_state.user_id, 'session_completion')  # NEW
         loaded_pending = load_from_firebase(st.session_state.user_id, 'pending_verifications')
+        loaded_edits = load_from_firebase(st.session_state.user_id, 'user_edits')  # NEW
         loaded_month = load_from_firebase(st.session_state.user_id, 'current_month')
         loaded_year = load_from_firebase(st.session_state.user_id, 'current_year')
         
@@ -101,12 +114,18 @@ if not st.session_state.data_loaded and st.session_state.user_id:
             st.session_state.list_of_activities = loaded_activities
         if loaded_events:
             st.session_state.list_of_compulsory_events = loaded_events
+        if loaded_school:  # NEW
+            st.session_state.school_schedule = loaded_school
         if loaded_timetable:
             st.session_state.timetable = loaded_timetable
         if loaded_progress:
             st.session_state.activity_progress = loaded_progress
+        if loaded_sessions:  # NEW
+            st.session_state.session_completion = loaded_sessions
         if loaded_pending:
             st.session_state.pending_verifications = loaded_pending
+        if loaded_edits:  # NEW
+            st.session_state.user_edits = loaded_edits
         if loaded_month:
             st.session_state.current_month = loaded_month
         if loaded_year:
@@ -140,8 +159,8 @@ if not st.session_state.user_id:
 st.title("NERO-Time")
 st.caption(f"Logged in as: {st.session_state.user_id}")
 
-# Navigation
-tab1, tab2, tab3, tab4 = st.tabs(["Dashboard", "Activities", "Events", "Settings"])
+# Navigation - MODIFIED: Added School Schedule tab
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["Dashboard", "Activities", "Events", "School Schedule", "Settings"])
 
 
 # ==================== DASHBOARD TAB ====================
@@ -234,7 +253,8 @@ with tab1:
                 
             
             if st.button("Generate", type="primary", use_container_width=True):
-                if st.session_state.list_of_activities or st.session_state.list_of_compulsory_events:
+                # MODIFIED: Added school schedule check
+                if st.session_state.list_of_activities or st.session_state.list_of_compulsory_events or st.session_state.school_schedule:
                     with st.spinner("Generating..."):
                         result = NeroTimeLogic.generate_timetable(min_session, max_session)
                     if result["success"]:
@@ -244,7 +264,7 @@ with tab1:
                     else:
                         st.error(result["message"])
                 else:
-                    st.warning("Add activities or events first")
+                    st.warning("Add activities, events, or school schedule first")
     
     with col2:
         if st.button("💾 Save Data", use_container_width=True, type="primary"):
@@ -286,18 +306,33 @@ with tab1:
                             progress = event['progress']
                             session_duration = event['session_duration']
                             can_verify = event['can_verify']
+                            # NEW: Get completion and edit status
+                            is_completed = event.get('is_completed', False)
+                            is_user_edited = event.get('is_user_edited', False)
                             
                             if is_current_slot:
                                 st.markdown("**🟢 HAPPENING NOW**")
                             
                             col1, col2 = st.columns([0.85, 0.15])
                             with col1:
-                                st.markdown(f"**🔵 {event['start']} - {event['end']}:** {event['name']}")
+                                # NEW: Show edit badge
+                                if is_user_edited:
+                                    st.markdown("<span class='user-edited-badge'>✏️ EDITED</span>", unsafe_allow_html=True)
+                                
+                                # NEW: Show completion status
+                                if is_completed:
+                                    st.markdown(f"**✅ {event['start']} - {event['end']}:** {event['name']} (Completed)")
+                                else:
+                                    st.markdown(f"**🔵 {event['start']} - {event['end']}:** {event['name']}")
+                                
                                 st.progress(progress['percentage'] / 100)
                                 st.caption(f"{progress['completed']:.1f}h / {progress['total']}h completed")
                             
                             with col2:
-                                if can_verify:
+                                # NEW: Show done or verify button based on completion
+                                if is_completed:
+                                    st.markdown("✓ Done")
+                                elif can_verify:
                                     if st.button("✓", key=f"verify_{day_display}_{idx}", use_container_width=True):
                                         result = NeroTimeLogic.verify_session(day_display, idx)
                                         if result["success"]:
@@ -307,6 +342,12 @@ with tab1:
                                             st.error(result["message"])
                                 else:
                                     st.caption("⏳ Not yet")
+                        
+                        # NEW: Handle SCHOOL event type
+                        elif event["type"] == "SCHOOL":
+                            if is_current_slot:
+                                st.markdown("**🟢 HAPPENING NOW**")
+                            st.markdown(f"**🏫 {event['start']} - {event['end']}:** {event['name']}")
                         
                         elif event["type"] == "COMPULSORY":
                             if is_current_slot:
@@ -345,11 +386,22 @@ with tab2:
                 max_session_min = timing*60
             sessions = math.ceil(timing*60/(random.randint(min_session_min, max_session_min)))
         
+        # NEW: Add day preferences
+        st.write("**Day Preferences (Optional)**")
+        from Timetable_Generation import WEEKDAY_NAMES
+        allowed_days = st.multiselect(
+            "Which days can this activity be scheduled?",
+            options=WEEKDAY_NAMES,
+            default=WEEKDAY_NAMES,
+            help="Select which weekdays this activity can be scheduled on"
+        )
+        
         if st.button("Add Activity", use_container_width=True, type="primary"):
             if activity_name:
+                # MODIFIED: Added allowed_days parameter
                 result = NeroTimeLogic.add_activity(
                     activity_name, priority, deadline_date.isoformat(), 
-                    timing, min_session_min, max_session_min,sessions
+                    timing, min_session_min, max_session_min, sessions, allowed_days
                 )
                 if result["success"]:
                     st.success(result["message"])
@@ -365,13 +417,121 @@ with tab2:
     if activities_data['activities']:
         for idx, act in enumerate(activities_data['activities']):
             progress = act['progress']
+            # NEW: Get session data
+            sessions_data = act.get('sessions_data', [])
             
             with st.expander(f"{idx+1}. {act['activity']} ({progress['completed']:.1f}h / {act['timing']}h)"):
                 st.progress(progress['percentage'] / 100)
                 st.write(f"⭐ Priority: {act['priority']} | ⏰ Deadline: {act['deadline']} days")
                 
-                if 'min_session_minutes' in act and 'max_session_minutes' in act and 'sessions' in act:
-                    st.caption(f"📊 Session length: {act['min_session_minutes']}-{act['max_session_minutes']} minutes, Session Amounts: {act['sessions']}")
+                if 'min_session_minutes' in act and 'max_session_minutes' in act and 'num_sessions' in act:
+                    st.caption(f"📊 Session length: {act['min_session_minutes']}-{act['max_session_minutes']} minutes, Sessions: {act['num_sessions']}")
+                
+                # NEW: Show allowed days
+                allowed_days = act.get('allowed_days', WEEKDAY_NAMES)
+                st.caption(f"📅 Allowed days: {', '.join(allowed_days)}")
+                
+                # NEW: Edit allowed days
+                if st.checkbox("Edit allowed days", key=f"edit_days_{idx}"):
+                    new_allowed = st.multiselect(
+                        "Select days",
+                        options=WEEKDAY_NAMES,
+                        default=allowed_days,
+                        key=f"days_{idx}"
+                    )
+                    if st.button("Update Days", key=f"update_days_{idx}"):
+                        result = NeroTimeLogic.update_allowed_days(act['activity'], new_allowed)
+                        if result["success"]:
+                            st.success(result["message"])
+                            st.rerun()
+                
+                # NEW: Show sessions
+                if sessions_data:
+                    st.write("**Sessions:**")
+                    for sess_idx, session in enumerate(sessions_data):
+                        is_completed = session.get('is_completed', False)
+                        is_locked = session.get('is_locked', False)
+                        
+                        with st.container():
+                            col_s1, col_s2, col_s3 = st.columns([3, 1, 1])
+                            
+                            with col_s1:
+                                status = "✅ Completed" if is_completed else "⏳ Pending"
+                                if is_locked:
+                                    status += " 🔒"
+                                
+                                st.markdown(f"**Session {sess_idx + 1}:** {session['duration_hours']:.1f}h ({session['duration_minutes']}min) - {status}")
+                                
+                                if session.get('scheduled_day') and session.get('scheduled_time'):
+                                    st.caption(f"Scheduled: {session['scheduled_day']} at {session['scheduled_time']}")
+                            
+                            with col_s2:
+                                if st.button("✏️ Edit", key=f"edit_sess_{idx}_{sess_idx}", use_container_width=True):
+                                    st.session_state[f'editing_{idx}_{sess_idx}'] = True
+                                    st.rerun()
+                            
+                            with col_s3:
+                                lock_label = "🔓 Unlock" if is_locked else "🔒 Lock"
+                                if st.button(lock_label, key=f"lock_{idx}_{sess_idx}", use_container_width=True):
+                                    result = NeroTimeLogic.edit_session(
+                                        act['activity'],
+                                        session['session_id'],
+                                        lock=not is_locked
+                                    )
+                                    if result["success"]:
+                                        st.rerun()
+                        
+                        # Edit interface
+                        if st.session_state.get(f'editing_{idx}_{sess_idx}', False):
+                            with st.form(key=f"form_{idx}_{sess_idx}"):
+                                st.write("**Edit Session:**")
+                                
+                                # Find which day the session is currently on (if any)
+                                current_day = session.get('scheduled_day')
+                                if current_day and ' ' in current_day:
+                                    # Extract weekday from "Monday 10/02" format
+                                    current_weekday = current_day.split()[0]
+                                    default_idx = WEEKDAY_NAMES.index(current_weekday) if current_weekday in WEEKDAY_NAMES else 0
+                                else:
+                                    default_idx = 0
+                                
+                                edit_day = st.selectbox("Day", options=WEEKDAY_NAMES, index=default_idx, key=f"day_{idx}_{sess_idx}")
+                                
+                                # Default time
+                                current_time_str = session.get('scheduled_time', '09:00')
+                                try:
+                                    hour, minute = map(int, current_time_str.split(':'))
+                                    default_time = time(hour, minute)
+                                except:
+                                    default_time = time(9, 0)
+                                
+                                edit_time = st.time_input("Start Time", value=default_time, key=f"time_{idx}_{sess_idx}")
+                                edit_duration = st.number_input("Duration (minutes)", min_value=15, max_value=240, 
+                                                               value=session['duration_minutes'], key=f"dur_{idx}_{sess_idx}")
+                                
+                                col_f1, col_f2 = st.columns(2)
+                                with col_f1:
+                                    if st.form_submit_button("Save Changes", use_container_width=True):
+                                        result = NeroTimeLogic.edit_session(
+                                            act['activity'],
+                                            session['session_id'],
+                                            new_day=edit_day,
+                                            new_start_time=edit_time.strftime("%H:%M"),
+                                            new_duration=edit_duration
+                                        )
+                                        if result["success"]:
+                                            st.success(result["message"])
+                                            st.session_state[f'editing_{idx}_{sess_idx}'] = False
+                                            st.rerun()
+                                        else:
+                                            st.error(result["message"])
+                                
+                                with col_f2:
+                                    if st.form_submit_button("Cancel", use_container_width=True):
+                                        st.session_state[f'editing_{idx}_{sess_idx}'] = False
+                                        st.rerun()
+                
+                st.divider()
                 
                 col1, col2, col3 = st.columns(3)
                 
@@ -451,8 +611,70 @@ with tab3:
         st.info("No events added yet")
 
 
-# ==================== SETTINGS TAB ====================
+# ==================== SCHOOL SCHEDULE TAB (NEW) ====================
 with tab4:
+    st.header("🏫 Manage Weekly School Schedule")
+    st.caption("Add recurring weekly classes that appear every week")
+    
+    # Add school schedule
+    with st.expander("➕ Add School Class", expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            from Timetable_Generation import WEEKDAY_NAMES
+            school_day = st.selectbox("Day of Week", options=WEEKDAY_NAMES)
+            subject_name = st.text_input("Subject/Class Name", placeholder="e.g., Mathematics")
+        
+        with col2:
+            school_start = st.time_input("Start Time", key="school_start")
+            school_end = st.time_input("End Time", key="school_end")
+        
+        if st.button("Add to Schedule", use_container_width=True, type="primary"):
+            if subject_name:
+                result = NeroTimeLogic.add_school_schedule(
+                    school_day,
+                    school_start.strftime("%H:%M"),
+                    school_end.strftime("%H:%M"),
+                    subject_name
+                )
+                if result["success"]:
+                    st.success(result["message"])
+                    st.rerun()
+                else:
+                    st.error(result["message"])
+            else:
+                st.error("Please enter a subject name")
+    
+    st.divider()
+    
+    # Display school schedule
+    school_data = NeroTimeLogic.get_school_schedule()
+    
+    if school_data['schedule']:
+        st.write("**Current Weekly Schedule:**")
+        
+        from Timetable_Generation import WEEKDAY_NAMES
+        for day in WEEKDAY_NAMES:
+            if day in school_data['schedule']:
+                with st.expander(f"📅 {day} ({len(school_data['schedule'][day])} classes)"):
+                    for idx, class_info in enumerate(school_data['schedule'][day]):
+                        col1, col2 = st.columns([4, 1])
+                        with col1:
+                            st.write(f"**{class_info['subject']}**")
+                            st.caption(f"🕐 {class_info['start_time']} - {class_info['end_time']}")
+                        with col2:
+                            if st.button("🗑️", key=f"del_school_{day}_{idx}", use_container_width=True):
+                                result = NeroTimeLogic.delete_school_schedule(day, idx)
+                                if result["success"]:
+                                    st.success(result["message"])
+                                    st.rerun()
+                                else:
+                                    st.error(result["message"])
+    else:
+        st.info("No school schedule added yet. Add your weekly classes above!")
+
+
+# ==================== SETTINGS TAB (MOVED TO TAB5) ====================
+with tab5:
     st.header("⚙️ Settings")
     
     st.subheader("Account Settings")
