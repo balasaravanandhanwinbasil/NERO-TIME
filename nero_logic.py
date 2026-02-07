@@ -25,13 +25,11 @@ from Timetable_Generation import (
     get_day_activity_minutes,
     find_free_slot,
     place_compulsory_events,
-    place_activities,
-    generate_timetable as generate_tt,
-    check_expired_activities,
-    remove_activity_from_timetable,
+    generate_timetable_with_sessions as generate_tt,
     WEEKDAY_NAMES,
     get_month_days
 )
+
 
 
 class NeroTimeLogic:
