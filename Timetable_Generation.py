@@ -1,5 +1,5 @@
 """
-timetable generator v26
+NERO-time timetable generator
 """
 
 from datetime import datetime, timedelta
@@ -349,16 +349,16 @@ def place_activity_sessions(activity, month_days, warnings, today):
     if remaining_minutes > 0:
         warnings.append(
             f"⚠️ '{activity_name}': Could only schedule {(total_minutes - remaining_minutes)/60:.1f}h "
-            f"of {total_hours - completed_hours}h remaining before deadline. {remaining_minutes/60:.1f}h still needed!"
+            f"of {(total_hours - completed_hours):.1f}h remaining before deadline. {remaining_minutes/60:.1f}h still needed!"
         )
     else:
         if completed_hours > 0:
             warnings.append(
                 f"✓ '{activity_name}': {completed_hours:.1f}h already completed, "
-                f"{total_hours - completed_hours}h scheduled in {new_sessions_count} new sessions"
+                f"{(total_hours - completed_hours):.1f}h scheduled in {int(new_sessions_count)} new sessions"
             )
         else:
-            warnings.append(f"✓ '{activity_name}': All {total_hours}h scheduled in {session_count} sessions")
+            warnings.append(f"✓ '{activity_name}': All {total_hours:.1f}h scheduled in {int(session_count)} sessions")
     
     return sessions
 
