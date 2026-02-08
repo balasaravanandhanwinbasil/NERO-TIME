@@ -1,6 +1,5 @@
 """
-Simplified Timetable Generation - Deadline-Focused Activity Placement
-UPDATED: Only schedule from current day forward, track past activities for completion
+timetable generator v26
 """
 
 from datetime import datetime, timedelta
