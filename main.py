@@ -371,7 +371,7 @@ st.caption(f"👤 {st.session_state.user_id}")
 st.divider()
 
 # Navigation
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["Dashboard", "Activities", "Events", "School", "Settings"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Dashboard", "Activities", "Events", "School", "Settings", "Achievements"])
 
 # ==================== DASHBOARD TAB ====================
 with tab1:
@@ -841,3 +841,5 @@ with tab5:
             if result["success"]:
                 st.warning("Data cleared")
                 st.rerun()
+with tab6:
+    st.header("Achievements")
