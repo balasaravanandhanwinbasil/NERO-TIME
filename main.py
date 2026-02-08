@@ -570,108 +570,59 @@ with tab1:
     filtered_days = filter_events_by_period(dashboard_data['month_days'], st.session_state.event_filter)
     
     if dashboard_data['timetable'] and filtered_days:
-        for day_info in filtered_days:
-            day_display = day_info['display']
-            date_obj = day_info['date']
-            formatted_date = date_obj.strftime("%d %B %Y - %A")
+    for day_info in filtered_days:
+        day_display = day_info['display']
+        date_obj = day_info['date']
+        formatted_date = date_obj.strftime("%d %B %Y - %A")
+        
+        if day_display in dashboard_data['timetable']:
+            is_current_day = (day_display == dashboard_data['current_day'])
+            events = dashboard_data['timetable'][day_display]
             
-            if day_display in dashboard_data['timetable']:
-                is_current_day = (day_display == dashboard_data['current_day'])
-                events = dashboard_data['timetable'][day_display]
-                
-                if not events:
-                    continue
-                
-                with st.expander(f"{'🟢 ' if is_current_day else ''}📅 {formatted_date}", expanded=is_current_day):
-                    for idx, event in enumerate(events):
-                        # Check if current
-                        is_current_slot = False
-                        if is_current_day and dashboard_data['current_time']:
-                            from Timetable_Generation import time_str_to_minutes
-                            event_start = time_str_to_minutes(event['start'])
-                            event_end = time_str_to_minutes(event['end'])
-                            current_minutes = time_str_to_minutes(dashboard_data['current_time'])
-                            is_current_slot = event_start <= current_minutes < event_end
-                        
-                        # Create timetable row
-                        st.markdown('<div class="timetable-row">', unsafe_allow_html=True)
-                        
-                        if event["type"] == "ACTIVITY":
-                            activity_name = event['name'].split(' (Session')[0]
-                            session_part = event['name'].split(' (Session')[1].rstrip(')') if '(Session' in event['name'] else "1"
-                            progress = event['progress']
-                            is_completed = event.get('is_completed', False)
-                            is_user_edited = event.get('is_user_edited', False)
-                            
-                            st.markdown('<div class="event-content activity">', unsafe_allow_html=True)
-                            
-                            col1, col2 = st.columns([0.85, 0.15])
-                            with col1:
-                                st.markdown('<div class="event-info">', unsafe_allow_html=True)
-                                
-                                if is_current_slot:
-                                    st.markdown('<span class="happening-now">● NOW</span>', unsafe_allow_html=True)
-                                
-                                badge = '<span class="user-edited-badge">EDITED</span>' if is_user_edited else ''
-                                status_icon = "✅" if is_completed else "⚫"
-                                st.markdown(f'<div class="event-title">{badge}{status_icon} {activity_name} (Session {session_part})</div>', unsafe_allow_html=True)
-                                
-                                completed_sessions_act = sum(1 for s in dashboard_data.get('activities_data', {}).get(activity_name, {}).get('sessions_data', []) if s.get('is_completed', False))
-                                total_sessions_act = len(dashboard_data.get('activities_data', {}).get(activity_name, {}).get('sessions_data', []))
-                                
-                                st.markdown(f'<div class="event-details">Progress: {completed_sessions_act}/{total_sessions_act} sessions • {progress["completed"]:.1f}h / {progress["total"]}h</div>', unsafe_allow_html=True)
-                                st.markdown('</div>', unsafe_allow_html=True)
-                            
-                            with col2:
-                                if is_completed:
-                                    st.markdown("✅")
-                                elif event['can_verify']:
-                                    if st.button("✓", key=f"verify_{day_display}_{idx}_{event.get('session_id', idx)}", use_container_width=True):
-                                        result = NeroTimeLogic.verify_session(day_display, idx)
-                                        if result["success"]:
-                                            st.success("Completed!")
-                                            st.rerun()
-                            
-                            st.markdown('</div>', unsafe_allow_html=True)
-                            st.markdown(f'<div class="event-time">{event["start"]} - {event["end"]}</div>', unsafe_allow_html=True)
-                        
-                        elif event["type"] == "SCHOOL":
-                            st.markdown('<div class="event-content school">', unsafe_allow_html=True)
-                            st.markdown('<div class="event-info">', unsafe_allow_html=True)
-                            
-                            if is_current_slot:
-                                st.markdown('<span class="happening-now">● NOW</span>', unsafe_allow_html=True)
-                            
-                            st.markdown(f'<div class="event-title">🏫 School/Work</div>', unsafe_allow_html=True)
-                            st.markdown('</div>', unsafe_allow_html=True)
-                            st.markdown('</div>', unsafe_allow_html=True)
-                            st.markdown(f'<div class="event-time">{event["start"]} - {event["end"]}</div>', unsafe_allow_html=True)
-                        
-                        elif event["type"] == "COMPULSORY":
-                            st.markdown('<div class="event-content compulsory">', unsafe_allow_html=True)
-                            st.markdown('<div class="event-info">', unsafe_allow_html=True)
-                            
-                            if is_current_slot:
-                                st.markdown('<span class="happening-now">● NOW</span>', unsafe_allow_html=True)
-                            
-                            st.markdown(f'<div class="event-title">🔴 {event["name"]}</div>', unsafe_allow_html=True)
-                            st.markdown(f'<div class="event-details">Compulsory Event</div>', unsafe_allow_html=True)
-                            st.markdown('</div>', unsafe_allow_html=True)
-                            st.markdown('</div>', unsafe_allow_html=True)
-                            st.markdown(f'<div class="event-time">{event["start"]} - {event["end"]}</div>', unsafe_allow_html=True)
-                        
-                        else:  # BREAK
-                            st.markdown('<div class="event-content break">', unsafe_allow_html=True)
-                            st.markdown('<div class="event-info">', unsafe_allow_html=True)
-                            st.markdown(f'<div class="event-title">⚪ Break</div>', unsafe_allow_html=True)
-                            st.markdown('</div>', unsafe_allow_html=True)
-                            st.markdown('</div>', unsafe_allow_html=True)
-                            st.markdown(f'<div class="event-time">{event["start"]} - {event["end"]}</div>', unsafe_allow_html=True)
-                        
-                        st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.info("No events for this period")
-
+            if not events:
+                continue
+            
+            # Day header
+            with st.expander(f"{'🟢 ' if is_current_day else ''}📅 {formatted_date}", expanded=is_current_day):
+                for idx, event in enumerate(events):
+                    # Determine if current event
+                    is_current_slot = False
+                    if is_current_day and dashboard_data['current_time']:
+                        from Timetable_Generation import time_str_to_minutes
+                        event_start = time_str_to_minutes(event['start'])
+                        event_end = time_str_to_minutes(event['end'])
+                        current_minutes = time_str_to_minutes(dashboard_data['current_time'])
+                        is_current_slot = event_start <= current_minutes < event_end
+                    
+                    # Color and badge
+                    type_class = event["type"].lower()
+                    happening_now = '<span class="happening-now">● NOW</span>' if is_current_slot else ''
+                    user_badge = '<span class="user-edited-badge">EDITED</span>' if event.get('is_user_edited') else ''
+                    
+                    # Activity progress
+                    progress_info = ""
+                    if event["type"] == "ACTIVITY":
+                        activity_name = event['name'].split(' (Session')[0]
+                        session_part = event['name'].split(' (Session')[1].rstrip(')') if '(Session' in event['name'] else "1"
+                        completed_sessions_act = sum(1 for s in dashboard_data.get('activities_data', {}).get(activity_name, {}).get('sessions_data', []) if s.get('is_completed', False))
+                        total_sessions_act = len(dashboard_data.get('activities_data', {}).get(activity_name, {}).get('sessions_data', []))
+                        progress_info = f"Progress: {completed_sessions_act}/{total_sessions_act} sessions • {event['progress']['completed']:.1f}h / {event['progress']['total']}h"
+                    
+                    # Timetable row
+                    st.markdown(f"""
+                    <div class="timetable-row">
+                        <div class="event-content {type_class}">
+                            <div class="event-info">
+                                {happening_now}
+                                <div class="event-title">{user_badge} {event.get('name', event.get('title', ''))}</div>
+                                <div class="event-details">{progress_info}</div>
+                            </div>
+                            <div class="event-time">{event['start']} - {event['end']}</div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+        else:
+           st.info("No events for this period")
 # ==================== ACTIVITIES TAB ====================
 with tab2:
     st.header("Activities")
