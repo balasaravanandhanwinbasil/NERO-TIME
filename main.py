@@ -1,6 +1,5 @@
 """
-NERO-Time UI - Enhanced Professional Design
-IMPROVEMENTS: Timetable-style layout, session verification, 15-min intervals, simplified school display
+NERO-Time UI 
 """
 import math
 import random
@@ -214,7 +213,7 @@ p, span, label, div {
 }
 
 /* --------------------------------------------------
-   TIMETABLE ROW - IMPROVED LAYOUT
+   TIMETABLE ROW - REORGANIZED LAYOUT
 -------------------------------------------------- */
 
 .timetable-row {
@@ -287,21 +286,35 @@ p, span, label, div {
     line-height: 1.5;
 }
 
+.event-right-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    min-width: 130px;
+}
+
 .event-time {
     font-weight: 600;
     font-size: 1rem;
     color: var(--text);
     opacity: 0.85;
     white-space: nowrap;
-    min-width: 130px;
     text-align: right;
     font-family: 'Courier New', monospace;
 }
 
 .event-actions {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
+}
+
+.event-actions button {
+    min-width: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
+    font-size: 18px !important;
 }
 
 .happening-now {
@@ -482,6 +495,10 @@ total_sessions = sum(
 )
 total_hours_completed = sum(act['progress']['completed'] for act in activities_preview['activities'])
 
+# Ensure integers for session counts
+completed_sessions = int(completed_sessions)
+total_sessions = int(total_sessions)
+
 with col_stat1:
     st.metric("Activities", total_activities)
 with col_stat2:
@@ -490,7 +507,7 @@ with col_stat3:
     st.metric("Hours", f"{total_hours_completed:.1f}h")
 with col_stat4:
     completion_rate = (completed_sessions / total_sessions * 100) if total_sessions > 0 else 0
-    st.metric("Complete", f"{completion_rate:.0f}%")
+    st.metric("Complete", f"{int(completion_rate)}%")
 
 st.caption(f"👤 {st.session_state.user_id}")
 st.divider()
@@ -648,59 +665,56 @@ with tab1:
                             is_completed = event.get('is_completed', False)
                             is_user_edited = event.get('is_user_edited', False)
                             
-                            # Create columns for layout
-                            col_main, col_actions = st.columns([0.85, 0.15])
+                            st.markdown('<div class="timetable-row">', unsafe_allow_html=True)
+                            st.markdown('<div class="event-content activity">', unsafe_allow_html=True)
                             
-                            with col_main:
-                                st.markdown('<div class="timetable-row">', unsafe_allow_html=True)
-                                st.markdown('<div class="event-content activity">', unsafe_allow_html=True)
-                                
-                                # Event info section
-                                st.markdown('<div class="event-info">', unsafe_allow_html=True)
-                                
-                                # Title row with badges
-                                title_parts = []
-                                if is_current_slot:
-                                    title_parts.append('<span class="happening-now">● LIVE NOW</span>')
-                                if is_user_edited:
-                                    title_parts.append('<span class="user-edited-badge">EDITED</span>')
-                                
-                                status_icon = "✅" if is_completed else "⚫"
-                                title_parts.append(f'{status_icon} <strong>{activity_name}</strong>')
-                                title_parts.append(f'<span style="opacity: 0.7;">Session {session_part}</span>')
-                                
-                                st.markdown(f'<div class="event-title">{" ".join(title_parts)}</div>', unsafe_allow_html=True)
-                                
-                                # Get activity details
-                                activity_obj = next((a for a in st.session_state.list_of_activities if a['activity'] == activity_name), None)
-                                if activity_obj:
-                                    sessions = activity_obj.get('sessions', [])
-                                    completed_sessions_act = sum(1 for s in sessions if s.get('is_completed', False))
-                                    total_sessions_act = len(sessions)
-                                    total_hours = activity_obj['timing']
-                                    completed_hours = sum(s.get('duration_hours', 0) for s in sessions if s.get('is_completed', False))
-                                    
-                                    st.markdown(
-                                        f'<div class="event-details">'
-                                        f'📊 Progress: {completed_sessions_act}/{total_sessions_act} sessions • '
-                                        f'{completed_hours:.1f}h / {total_hours}h completed'
-                                        f'</div>', 
-                                        unsafe_allow_html=True
-                                    )
-                                
-                                st.markdown('</div>', unsafe_allow_html=True)  # Close event-info
-                                
-                                # Time display
-                                st.markdown(f'<div class="event-time">{event["start"]} — {event["end"]}</div>', unsafe_allow_html=True)
-                                
-                                st.markdown('</div>', unsafe_allow_html=True)  # Close event-content
-                                st.markdown('</div>', unsafe_allow_html=True)  # Close timetable-row
+                            # Left: Event info
+                            st.markdown('<div class="event-info">', unsafe_allow_html=True)
                             
-                            with col_actions:
-                                if is_completed:
-                                    st.markdown("### ✅")
-                                elif event['can_verify']:
-                                    # Show both checkmark and X buttons
+                            # Title row with badges
+                            title_parts = []
+                            if is_current_slot:
+                                title_parts.append('<span class="happening-now">● LIVE NOW</span>')
+                            if is_user_edited:
+                                title_parts.append('<span class="user-edited-badge">EDITED</span>')
+                            
+                            status_icon = "✅" if is_completed else "⚫"
+                            title_parts.append(f'{status_icon} <strong>{activity_name}</strong>')
+                            title_parts.append(f'<span style="opacity: 0.7;">Session {session_part}</span>')
+                            
+                            st.markdown(f'<div class="event-title">{" ".join(title_parts)}</div>', unsafe_allow_html=True)
+                            
+                            # Get activity details
+                            activity_obj = next((a for a in st.session_state.list_of_activities if a['activity'] == activity_name), None)
+                            if activity_obj:
+                                sessions = activity_obj.get('sessions', [])
+                                completed_sessions_act = sum(1 for s in sessions if s.get('is_completed', False))
+                                total_sessions_act = len(sessions)
+                                total_hours = activity_obj['timing']
+                                completed_hours = sum(s.get('duration_hours', 0) for s in sessions if s.get('is_completed', False))
+                                
+                                st.markdown(
+                                    f'<div class="event-details">'
+                                    f'📊 Progress: {completed_sessions_act}/{total_sessions_act} sessions • '
+                                    f'{completed_hours:.1f}h / {total_hours}h completed'
+                                    f'</div>', 
+                                    unsafe_allow_html=True
+                                )
+                            
+                            st.markdown('</div>', unsafe_allow_html=True)  # Close event-info
+                            
+                            # Right: Time + Actions stacked vertically
+                            st.markdown('<div class="event-right-section">', unsafe_allow_html=True)
+                            st.markdown(f'<div class="event-time">{event["start"]} — {event["end"]}</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)  # Close event-right-section
+                            
+                            st.markdown('</div>', unsafe_allow_html=True)  # Close event-content
+                            st.markdown('</div>', unsafe_allow_html=True)  # Close timetable-row
+                            
+                            # Buttons OUTSIDE the card, right-aligned below it
+                            if not is_completed and event['can_verify']:
+                                col_spacer, col_buttons = st.columns([0.75, 0.25])
+                                with col_buttons:
                                     col_check, col_skip = st.columns(2)
                                     with col_check:
                                         if st.button("✓", key=f"verify_{day_display}_{idx}_{event.get('session_id', idx)}", 
@@ -716,6 +730,10 @@ with tab1:
                                             if result["success"]:
                                                 st.warning("⚠️ Skipped")
                                                 st.rerun()
+                            elif is_completed:
+                                col_spacer, col_check_display = st.columns([0.85, 0.15])
+                                with col_check_display:
+                                    st.markdown('<div style="text-align: center; font-size: 24px;">✅</div>', unsafe_allow_html=True)
                         
                         elif event["type"] == "SCHOOL":
                             st.markdown('<div class="timetable-row">', unsafe_allow_html=True)
@@ -732,7 +750,9 @@ with tab1:
                             st.markdown('<div class="event-details">Recurring schedule</div>', unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
                             
+                            st.markdown('<div class="event-right-section">', unsafe_allow_html=True)
                             st.markdown(f'<div class="event-time">{event["start"]} — {event["end"]}</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)
                             
                             st.markdown('</div>', unsafe_allow_html=True)  # Close event-content
                             st.markdown('</div>', unsafe_allow_html=True)  # Close timetable-row
@@ -752,7 +772,9 @@ with tab1:
                             st.markdown('<div class="event-details">Compulsory Event</div>', unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
                             
+                            st.markdown('<div class="event-right-section">', unsafe_allow_html=True)
                             st.markdown(f'<div class="event-time">{event["start"]} — {event["end"]}</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)
                             
                             st.markdown('</div>', unsafe_allow_html=True)  # Close event-content
                             st.markdown('</div>', unsafe_allow_html=True)  # Close timetable-row
@@ -766,7 +788,9 @@ with tab1:
                             st.markdown('<div class="event-details">Rest & recharge</div>', unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
                             
+                            st.markdown('<div class="event-right-section">', unsafe_allow_html=True)
                             st.markdown(f'<div class="event-time">{event["start"]} — {event["end"]}</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)
                             
                             st.markdown('</div>', unsafe_allow_html=True)  # Close event-content
                             st.markdown('</div>', unsafe_allow_html=True)  # Close timetable-row
