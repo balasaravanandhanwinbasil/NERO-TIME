@@ -508,9 +508,25 @@ with tab1:
     
     st.divider()
     
-    # Display warnings from last generation (BEFORE the button)
+    # Display warnings from last generation (BEFORE the button) - COLLAPSIBLE
     if 'timetable_warnings' in st.session_state and st.session_state.timetable_warnings:
-        with st.expander("⚠️ Timetable Generation Warnings", expanded=True):
+        # Count warning types
+        errors = sum(1 for w in st.session_state.timetable_warnings if w.startswith('❌'))
+        warnings_count = sum(1 for w in st.session_state.timetable_warnings if w.startswith('⚠️'))
+        success_count = sum(1 for w in st.session_state.timetable_warnings if w.startswith('✓'))
+        
+        # Create header based on content
+        if errors > 0:
+            header = f"⚠️ Timetable Warnings ({errors} error(s), {warnings_count} warning(s))"
+            expanded = True
+        elif warnings_count > 0:
+            header = f"⚠️ Timetable Warnings ({warnings_count} warning(s))"
+            expanded = True
+        else:
+            header = f"✓ Timetable Generation Info ({success_count} activity/activities)"
+            expanded = False
+        
+        with st.expander(header, expanded=expanded):
             for warning in st.session_state.timetable_warnings:
                 if warning.startswith('❌'):
                     st.error(warning)
@@ -614,7 +630,6 @@ with tab1:
                         if event["type"] == "ACTIVITY":
                             activity_name = event['name'].split(' (Session')[0]
                             session_part = event['name'].split(' (Session')[1].rstrip(')') if '(Session' in event['name'] else "1"
-                            progress = event['progress']
                             is_completed = event.get('is_completed', False)
                             is_user_edited = event.get('is_user_edited', False)
                             
@@ -631,10 +646,15 @@ with tab1:
                                 status_icon = "✅" if is_completed else "⚫"
                                 st.markdown(f'<div class="event-title">{badge}{status_icon} {activity_name} (Session {session_part})</div>', unsafe_allow_html=True)
                                 
-                                completed_sessions_act = sum(1 for s in dashboard_data.get('activities_data', {}).get(activity_name, {}).get('sessions_data', []) if s.get('is_completed', False))
-                                total_sessions_act = len(dashboard_data.get('activities_data', {}).get(activity_name, {}).get('sessions_data', []))
-                                
-                                st.markdown(f'<div class="event-details">Progress: {completed_sessions_act}/{total_sessions_act} sessions • {progress["completed"]:.1f}h / {progress["total"]}h</div>', unsafe_allow_html=True)
+                                # Get activity to find total sessions
+                                activity_obj = next((a for a in st.session_state.list_of_activities if a['activity'] == activity_name), None)
+                                if activity_obj:
+                                    sessions = activity_obj.get('sessions', [])
+                                    completed_sessions_act = sum(1 for s in sessions if s.get('is_completed', False))
+                                    total_sessions_act = len(sessions)
+                                    total_hours = activity_obj['timing']
+                                    
+                                    st.markdown(f'<div class="event-details">Progress: {completed_sessions_act}/{total_sessions_act} sessions • 0h / {total_hours}h</div>', unsafe_allow_html=True)
                                 st.markdown('</div>', unsafe_allow_html=True)
                             
                             with col2:
