@@ -624,7 +624,7 @@ with tab1:
                             current_minutes = time_str_to_minutes(dashboard_data['current_time'])
                             is_current_slot = event_start <= current_minutes < event_end
                         
-                        # Create timetable row
+                        # Create timetable row with proper structure
                         st.markdown('<div class="timetable-row">', unsafe_allow_html=True)
                         
                         if event["type"] == "ACTIVITY":
@@ -633,6 +633,7 @@ with tab1:
                             is_completed = event.get('is_completed', False)
                             is_user_edited = event.get('is_user_edited', False)
                             
+                            # Event content (LEFT side - with color marker)
                             st.markdown('<div class="event-content activity">', unsafe_allow_html=True)
                             
                             col1, col2 = st.columns([0.85, 0.15])
@@ -667,8 +668,12 @@ with tab1:
                                             st.success("Completed!")
                                             st.rerun()
                             
-                            st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)  # Close event-content
+                            
+                            # Time (RIGHT side - outside the card)
                             st.markdown(f'<div class="event-time">{event["start"]} - {event["end"]}</div>', unsafe_allow_html=True)
+                            
+                            st.markdown('</div>', unsafe_allow_html=True)  # Close timetable-row
                         
                         elif event["type"] == "SCHOOL":
                             st.markdown('<div class="event-content school">', unsafe_allow_html=True)
@@ -679,8 +684,9 @@ with tab1:
                             
                             st.markdown(f'<div class="event-title">🏫 School/Work</div>', unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
-                            st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)  # Close event-content
                             st.markdown(f'<div class="event-time">{event["start"]} - {event["end"]}</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)  # Close timetable-row
                         
                         elif event["type"] == "COMPULSORY":
                             st.markdown('<div class="event-content compulsory">', unsafe_allow_html=True)
@@ -692,18 +698,18 @@ with tab1:
                             st.markdown(f'<div class="event-title">🔴 {event["name"]}</div>', unsafe_allow_html=True)
                             st.markdown(f'<div class="event-details">Compulsory Event</div>', unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
-                            st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)  # Close event-content
                             st.markdown(f'<div class="event-time">{event["start"]} - {event["end"]}</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)  # Close timetable-row
                         
                         else:  # BREAK
                             st.markdown('<div class="event-content break">', unsafe_allow_html=True)
                             st.markdown('<div class="event-info">', unsafe_allow_html=True)
                             st.markdown(f'<div class="event-title">⚪ Break</div>', unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
-                            st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)  # Close event-content
                             st.markdown(f'<div class="event-time">{event["start"]} - {event["end"]}</div>', unsafe_allow_html=True)
-                        
-                        st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)  # Close timetable-row
     else:
         st.info("No events for this period")
 
