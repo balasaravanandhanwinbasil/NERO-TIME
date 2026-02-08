@@ -835,3 +835,240 @@ class NeroTimeLogic:
                     })
         
         return expired
+
+"""
+NERO-Time Logic Extension - Session Expiration and Progress Tracking
+Add this code to your existing nero_logic.py file
+"""
+
+from datetime import datetime, timedelta
+import streamlit as st
+from Firebase_Function import save_to_firebase
+
+class SessionExpirationHandler:
+    """Handles expired sessions and user verification"""
+    
+    @staticmethod
+    def check_expired_sessions():
+        """Check for sessions that have passed their date and prompt user for completion"""
+        if 'last_expiration_check' not in st.session_state:
+            st.session_state.last_expiration_check = datetime.now().date()
+        
+        # Only check once per day
+        today = datetime.now().date()
+        if st.session_state.last_expiration_check == today:
+            return
+        
+        st.session_state.last_expiration_check = today
+        
+        # Initialize expired sessions tracker
+        if 'pending_verifications' not in st.session_state:
+            st.session_state.pending_verifications = {}
+        
+        # Check all activities for expired sessions
+        for activity in st.session_state.list_of_activities:
+            activity_name = activity['activity']
+            sessions = activity.get('sessions', [])
+            
+            for session in sessions:
+                session_id = session.get('session_id')
+                scheduled_day = session.get('scheduled_day')
+                is_completed = session.get('is_completed', False)
+                
+                # Skip if already completed or not scheduled
+                if is_completed or not scheduled_day:
+                    continue
+                
+                # Parse the date from scheduled_day (format: "DayName DD/MM")
+                try:
+                    # Get the date from timetable if it exists
+                    session_date = SessionExpirationHandler._get_session_date(scheduled_day)
+                    
+                    if session_date and session_date < today:
+                        # Session has expired
+                        verification_key = f"{activity_name}_{session_id}"
+                        if verification_key not in st.session_state.pending_verifications:
+                            st.session_state.pending_verifications[verification_key] = {
+                                'activity': activity_name,
+                                'session_id': session_id,
+                                'scheduled_day': scheduled_day,
+                                'scheduled_time': session.get('scheduled_time'),
+                                'duration_minutes': session.get('duration_minutes'),
+                                'date': session_date.isoformat()
+                            }
+                except Exception as e:
+                    print(f"Error checking expiration for {activity_name} - {session_id}: {e}")
+        
+        # Save to Firebase
+        if st.session_state.user_id:
+            save_to_firebase(st.session_state.user_id, 'pending_verifications', st.session_state.pending_verifications)
+    
+    @staticmethod
+    def _get_session_date(scheduled_day):
+        """Extract date from scheduled day string (e.g., 'Monday 08/02')"""
+        try:
+            # Parse DD/MM from the scheduled_day string
+            date_part = scheduled_day.split()[-1]  # Get "DD/MM"
+            day, month = date_part.split('/')
+            
+            # Use current year or find the right year
+            current_year = datetime.now().year
+            session_date = datetime(current_year, int(month), int(day)).date()
+            
+            # If the date is in the future but appears to be from last year, adjust
+            if session_date > datetime.now().date() + timedelta(days=180):
+                session_date = datetime(current_year - 1, int(month), int(day)).date()
+            
+            return session_date
+        except Exception:
+            return None
+    
+    @staticmethod
+    def show_pending_verifications():
+        """Display pending session verifications in the UI"""
+        if not st.session_state.get('pending_verifications'):
+            return
+        
+        st.warning(f"⚠️ You have {len(st.session_state.pending_verifications)} session(s) that need verification!")
+        
+        with st.expander("🔔 Verify Past Sessions", expanded=True):
+            for key, session_info in list(st.session_state.pending_verifications.items()):
+                col1, col2, col3 = st.columns([3, 1, 1])
+                
+                with col1:
+                    st.write(f"**{session_info['activity']}**")
+                    st.caption(f"📅 {session_info['scheduled_day']} at {session_info['scheduled_time']} ({session_info['duration_minutes']} min)")
+                
+                with col2:
+                    if st.button("✅ Completed", key=f"complete_{key}"):
+                        SessionExpirationHandler.mark_session_completed(session_info, key)
+                        st.rerun()
+                
+                with col3:
+                    if st.button("❌ Missed", key=f"missed_{key}"):
+                        SessionExpirationHandler.mark_session_missed(session_info, key)
+                        st.rerun()
+    
+    @staticmethod
+    def mark_session_completed(session_info, verification_key):
+        """Mark an expired session as completed and add to progress"""
+        activity_name = session_info['activity']
+        session_id = session_info['session_id']
+        duration_minutes = session_info['duration_minutes']
+        
+        # Find the activity and session
+        for activity in st.session_state.list_of_activities:
+            if activity['activity'] == activity_name:
+                for session in activity.get('sessions', []):
+                    if session.get('session_id') == session_id:
+                        # Mark as completed
+                        session['is_completed'] = True
+                        
+                        # Add to progress
+                        if 'activity_progress' not in st.session_state:
+                            st.session_state.activity_progress = {}
+                        
+                        if activity_name not in st.session_state.activity_progress:
+                            st.session_state.activity_progress[activity_name] = 0
+                        
+                        st.session_state.activity_progress[activity_name] += duration_minutes / 60
+                        
+                        # Remove from pending verifications
+                        del st.session_state.pending_verifications[verification_key]
+                        
+                        # Save to Firebase
+                        if st.session_state.user_id:
+                            save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
+                            save_to_firebase(st.session_state.user_id, 'activity_progress', st.session_state.activity_progress)
+                            save_to_firebase(st.session_state.user_id, 'pending_verifications', st.session_state.pending_verifications)
+                        
+                        return
+    
+    @staticmethod
+    def mark_session_missed(session_info, verification_key):
+        """Mark an expired session as missed and reschedule"""
+        activity_name = session_info['activity']
+        session_id = session_info['session_id']
+        
+        # Find the activity and session
+        for activity in st.session_state.list_of_activities:
+            if activity['activity'] == activity_name:
+                for session in activity.get('sessions', []):
+                    if session.get('session_id') == session_id:
+                        # Clear the schedule so it can be rescheduled
+                        session['scheduled_day'] = None
+                        session['scheduled_time'] = None
+                        
+                        # Remove from pending verifications
+                        del st.session_state.pending_verifications[verification_key]
+                        
+                        # Save to Firebase
+                        if st.session_state.user_id:
+                            save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
+                            save_to_firebase(st.session_state.user_id, 'pending_verifications', st.session_state.pending_verifications)
+                        
+                        return
+
+
+# Add this method to your existing NeroTimeLogic class
+def check_expired_sessions():
+    """Call this method on app load to check for expired sessions"""
+    SessionExpirationHandler.check_expired_sessions()
+
+def show_pending_verifications():
+    """Call this in the dashboard to show pending verifications"""
+    SessionExpirationHandler.show_pending_verifications()
+
+
+# Update the generate_sessions function to ensure 15-minute intervals
+def round_to_15_minutes(minutes):
+    """Round minutes to nearest 15-minute interval"""
+    return ((minutes + 7) // 15) * 15
+
+
+def generate_sessions_with_15min_intervals(activity):
+    """
+    Generate sessions for an activity with durations that are multiples of 15 minutes.
+    Add this to your activity generation logic.
+    """
+    total_hours = activity['timing']
+    total_minutes = total_hours * 60
+    min_session = round_to_15_minutes(activity['min_session_length'])
+    max_session = round_to_15_minutes(activity['max_session_length'])
+    
+    sessions = []
+    remaining_minutes = total_minutes
+    session_count = 1
+    
+    while remaining_minutes > 0:
+        # Determine session duration (rounded to 15 minutes)
+        if remaining_minutes >= max_session:
+            duration = max_session
+        elif remaining_minutes >= min_session:
+            duration = round_to_15_minutes(remaining_minutes)
+        else:
+            # If less than min_session, add to previous session or create a min_session
+            if sessions:
+                sessions[-1]['duration_minutes'] += remaining_minutes
+                sessions[-1]['duration_minutes'] = round_to_15_minutes(sessions[-1]['duration_minutes'])
+                sessions[-1]['duration_hours'] = sessions[-1]['duration_minutes'] / 60
+            else:
+                duration = min_session
+        
+        if remaining_minutes >= min_session or not sessions:
+            session_id = f"{activity['activity']}_session_{session_count}"
+            sessions.append({
+                'session_id': session_id,
+                'duration_minutes': duration,
+                'duration_hours': duration / 60,
+                'is_completed': False,
+                'is_locked': False,
+                'scheduled_day': None,
+                'scheduled_time': None
+            })
+            remaining_minutes -= duration
+            session_count += 1
+        else:
+            break
+    
+    return sessions
