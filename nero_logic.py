@@ -1,6 +1,7 @@
 """
 Simplified NERO-Time Backend Logic
 Focus on fitting activities before deadlines, no complex session management
+UPDATED: Added handling for past incomplete sessions
 """
 
 import streamlit as st
@@ -41,6 +42,8 @@ class NeroTimeLogic:
             st.session_state.data_loaded = False
         if 'timetable_warnings' not in st.session_state:
             st.session_state.timetable_warnings = []
+        if 'past_incomplete_sessions' not in st.session_state:
+            st.session_state.past_incomplete_sessions = {}
     
     @staticmethod
     def login_user(user_id: str) -> Dict:
@@ -70,8 +73,67 @@ class NeroTimeLogic:
     
     @staticmethod
     def check_expired_sessions():
-        """Placeholder - not needed in simplified system"""
-        pass
+        """Check for past incomplete sessions and prompt user"""
+        today = datetime.now().date()
+        
+        for activity in st.session_state.list_of_activities:
+            activity_name = activity['activity']
+            sessions = activity.get('sessions', [])
+            
+            past_sessions = []
+            for session in sessions:
+                if session.get('is_completed', False):
+                    continue
+                    
+                scheduled_date_str = session.get('scheduled_date')
+                if not scheduled_date_str:
+                    continue
+                    
+                try:
+                    scheduled_date = datetime.fromisoformat(scheduled_date_str).date()
+                    if scheduled_date < today:
+                        past_sessions.append(session)
+                except:
+                    pass
+            
+            if past_sessions:
+                if 'past_incomplete_sessions' not in st.session_state:
+                    st.session_state.past_incomplete_sessions = {}
+                st.session_state.past_incomplete_sessions[activity_name] = past_sessions
+    
+    @staticmethod
+    def mark_past_session_complete(activity_name: str, session_id: str, completed: bool) -> Dict:
+        """Mark a past session as completed or not completed"""
+        try:
+            activity = next((a for a in st.session_state.list_of_activities 
+                           if a['activity'] == activity_name), None)
+            
+            if not activity:
+                return {"success": False, "message": "Activity not found"}
+            
+            session = next((s for s in activity.get('sessions', []) 
+                          if s['session_id'] == session_id), None)
+            
+            if not session:
+                return {"success": False, "message": "Session not found"}
+            
+            session['is_completed'] = completed
+            
+            # Remove from past incomplete list if marked as complete
+            if completed and 'past_incomplete_sessions' in st.session_state:
+                if activity_name in st.session_state.past_incomplete_sessions:
+                    st.session_state.past_incomplete_sessions[activity_name] = [
+                        s for s in st.session_state.past_incomplete_sessions[activity_name]
+                        if s['session_id'] != session_id
+                    ]
+                    if not st.session_state.past_incomplete_sessions[activity_name]:
+                        del st.session_state.past_incomplete_sessions[activity_name]
+            
+            save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
+            
+            return {"success": True, "message": "Session status updated"}
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
     
     @staticmethod
     def show_pending_verifications():
@@ -111,13 +173,15 @@ class NeroTimeLogic:
         for activity in st.session_state.list_of_activities:
             enriched = activity.copy()
             # Calculate progress from scheduled sessions
-            scheduled_sessions = activity.get('scheduled_sessions', [])
-            total_scheduled = sum(s['duration_hours'] for s in scheduled_sessions)
+            scheduled_sessions = activity.get('sessions', [])
+            completed_hours = sum(s['duration_hours'] for s in scheduled_sessions if s.get('is_completed', False))
             enriched['progress'] = {
-                'completed': 0,  # Would track actual completion
+                'completed': completed_hours,
                 'total': activity['timing'],
-                'percentage': 0
+                'percentage': (completed_hours / activity['timing'] * 100) if activity['timing'] > 0 else 0
             }
+            # Add sessions_data for UI compatibility
+            enriched['sessions_data'] = scheduled_sessions
             enriched_activities.append(enriched)
         
         return {"activities": enriched_activities}
@@ -391,8 +455,42 @@ class NeroTimeLogic:
     
     @staticmethod
     def verify_session(day_display: str, event_index: int) -> Dict:
-        """Placeholder for session verification - can be implemented later"""
-        return {"success": False, "message": "Verification not implemented in simplified system"}
+        """Mark a session as verified/completed"""
+        try:
+            if day_display not in st.session_state.timetable:
+                return {"success": False, "message": "Day not found in timetable"}
+            
+            if event_index >= len(st.session_state.timetable[day_display]):
+                return {"success": False, "message": "Event not found"}
+            
+            event = st.session_state.timetable[day_display][event_index]
+            
+            if event['type'] != 'ACTIVITY':
+                return {"success": False, "message": "Can only verify activity sessions"}
+            
+            # Find the activity and session
+            activity_name = event.get('activity_name')
+            session_num = event.get('session_num')
+            
+            if not activity_name or session_num is None:
+                return {"success": False, "message": "Invalid session data"}
+            
+            # Find and mark session as complete
+            for activity in st.session_state.list_of_activities:
+                if activity['activity'] == activity_name:
+                    for session in activity.get('sessions', []):
+                        if session.get('session_num') == session_num:
+                            session['is_completed'] = True
+                            event['is_completed'] = True
+                            
+                            save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
+                            save_to_firebase(st.session_state.user_id, 'timetable', st.session_state.timetable)
+                            
+                            return {"success": True, "message": "Session marked as complete"}
+            
+            return {"success": False, "message": "Session not found in activity"}
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
     
     @staticmethod
     def clear_all_data() -> Dict:
@@ -403,6 +501,7 @@ class NeroTimeLogic:
             st.session_state.school_schedule = {}
             st.session_state.timetable = {}
             st.session_state.timetable_warnings = []
+            st.session_state.past_incomplete_sessions = {}
             
             save_to_firebase(st.session_state.user_id, 'activities', [])
             save_to_firebase(st.session_state.user_id, 'events', [])
