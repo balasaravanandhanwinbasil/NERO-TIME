@@ -454,8 +454,8 @@ class NeroTimeLogic:
             return {"success": False, "message": f"Error: {str(e)}"}
     
     @staticmethod
-    def verify_session(day_display: str, event_index: int) -> Dict:
-        """Mark a session as verified/completed"""
+    def verify_session(day_display: str, event_index: int, completed: bool = True) -> Dict:
+        """Mark a session as verified/completed or skipped"""
         try:
             if day_display not in st.session_state.timetable:
                 return {"success": False, "message": "Day not found in timetable"}
@@ -475,18 +475,22 @@ class NeroTimeLogic:
             if not activity_name or session_num is None:
                 return {"success": False, "message": "Invalid session data"}
             
-            # Find and mark session as complete
+            # Find and mark session
             for activity in st.session_state.list_of_activities:
                 if activity['activity'] == activity_name:
                     for session in activity.get('sessions', []):
                         if session.get('session_num') == session_num:
-                            session['is_completed'] = True
-                            event['is_completed'] = True
+                            session['is_completed'] = completed
+                            session['is_skipped'] = not completed  # Track if skipped
+                            event['is_completed'] = completed
                             
                             save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
                             save_to_firebase(st.session_state.user_id, 'timetable', st.session_state.timetable)
                             
-                            return {"success": True, "message": "Session marked as complete"}
+                            if completed:
+                                return {"success": True, "message": "Session marked as complete"}
+                            else:
+                                return {"success": True, "message": "Session marked as not done"}
             
             return {"success": False, "message": "Session not found in activity"}
         except Exception as e:
