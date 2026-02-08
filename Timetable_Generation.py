@@ -202,17 +202,24 @@ def place_activity_sessions(activity, month_days, warnings):
     remaining_minutes = total_minutes
     session_count = 0
     
-    # Try to place activity chunks
-    for day_info in available_days:
-        if remaining_minutes <= 0:
-            break
-        
+    # Keep trying to place sessions until we run out of time or days
+    max_attempts = len(available_days) * 10  # Allow multiple sessions per day
+    attempt = 0
+    day_index = 0
+    
+    while remaining_minutes > 0 and attempt < max_attempts:
+        # Cycle through available days
+        day_info = available_days[day_index % len(available_days)]
         day_display = day_info['display']
         
         # Determine chunk size for this slot
         chunk_size = min(remaining_minutes, max_session)
         chunk_size = max(chunk_size, min_session) if remaining_minutes >= min_session else remaining_minutes
         chunk_size = round_to_15_minutes(chunk_size)
+        
+        # Ensure minimum 15 minutes
+        if chunk_size < 15:
+            chunk_size = 15
         
         # Try to find a free slot
         slot = find_free_slot(day_display, chunk_size, break_minutes=30)
@@ -254,6 +261,17 @@ def place_activity_sessions(activity, month_days, warnings):
                 add_event_to_timetable(day_display, break_start, break_end, "Break", "BREAK")
             
             remaining_minutes -= chunk_size
+            
+            # Try the same day again to fill it up more
+            attempt += 1
+        else:
+            # No slot found on this day, try next day
+            day_index += 1
+            attempt += 1
+            
+            # If we've cycled through all days and still can't find slots, break
+            if day_index >= len(available_days):
+                break
     
     # Check if we managed to fit everything
     if remaining_minutes > 0:
