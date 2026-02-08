@@ -315,7 +315,7 @@ def place_activity_sessions(activity, month_days, warnings, today):
                 'session_id': session_id,
                 'session_num': session_count,
                 'scheduled_day': day_display,
-                'scheduled_date': day_info['date'],
+                'scheduled_date': day_info['date'].isoformat(),
                 'scheduled_time': start_time,
                 'duration_minutes': chunk_size,
                 'duration_hours': round(chunk_size / 60, 2),
