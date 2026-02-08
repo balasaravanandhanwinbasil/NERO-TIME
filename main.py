@@ -1,5 +1,6 @@
 """
 NERO-Time UI - Clean Professional Design with Event Filtering
+FIXED: Unique button keys and purple theme
 """
 import math
 import random
@@ -11,7 +12,7 @@ from Firebase_Function import load_from_firebase
 # Page configuration
 st.set_page_config(page_title="NERO-TIME", page_icon="🕛", layout="wide")
 
-# Custom CSS - CLEAN PROFESSIONAL DESIGN
+# Custom CSS - CLEAN PROFESSIONAL DESIGN WITH PURPLE THEME
 st.markdown("""
 <style>
 /* --------------------------------------------------
@@ -23,6 +24,10 @@ st.markdown("""
     --bg-secondary: var(--secondary-background-color);
     --text: var(--text-color);
     --primary: var(--primary-color);
+    --purple: #9C27B0;
+    --purple-dark: #7B1FA2;
+    --purple-light: #BA68C8;
+    --purple-hover: #AB47BC;
 }
 
 /* --------------------------------------------------
@@ -58,36 +63,45 @@ p, span, label, div {
 }
 
 /* --------------------------------------------------
-   BUTTONS
+   BUTTONS - PURPLE THEME
 -------------------------------------------------- */
 
 .stButton > button {
     font-size: 14px;
     padding: 8px 16px;
     border-radius: 6px;
-    border: 1px solid rgba(128,128,128,0.4);
+    border: 2px solid var(--purple-light);
     background: var(--bg);
-    color: var(--text);
+    color: var(--purple);
     font-weight: 500;
     transition: all 0.2s ease;
 }
 
 .stButton > button:hover {
-    background: var(--bg-secondary);
+    background: var(--purple-light);
+    color: white;
+    border-color: var(--purple);
+    box-shadow: 0 2px 8px rgba(156, 39, 176, 0.3);
 }
 
 .stButton > button[kind="primary"] {
-    background: var(--primary);
+    background: var(--purple);
     color: white;
     border: none;
+    box-shadow: 0 2px 4px rgba(156, 39, 176, 0.3);
 }
 
 .stButton > button[kind="primary"]:hover {
-    filter: brightness(0.9);
+    background: var(--purple-dark);
+    box-shadow: 0 4px 12px rgba(156, 39, 176, 0.4);
+}
+
+.stButton > button:active {
+    transform: translateY(1px);
 }
 
 /* --------------------------------------------------
-   TABS
+   TABS - PURPLE THEME
 -------------------------------------------------- */
 
 .stTabs [data-baseweb="tab-list"] {
@@ -102,15 +116,21 @@ p, span, label, div {
     padding: 0 16px;
     border-radius: 6px;
     color: var(--text);
+    transition: all 0.2s ease;
+}
+
+.stTabs [data-baseweb="tab"]:hover {
+    background: var(--purple-light);
+    color: white;
 }
 
 .stTabs [aria-selected="true"] {
-    background: var(--bg-secondary);
-    color: var(--primary);
+    background: var(--purple);
+    color: white !important;
 }
 
 /* --------------------------------------------------
-   INPUTS
+   INPUTS - PURPLE ACCENTS
 -------------------------------------------------- */
 
 .stTextInput input,
@@ -124,18 +144,32 @@ p, span, label, div {
 }
 
 .stTextInput input:focus,
-.stNumberInput input:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 2px rgba(33,150,243,0.25);
+.stNumberInput input:focus,
+.stDateInput input:focus,
+.stTimeInput input:focus {
+    border-color: var(--purple);
+    box-shadow: 0 0 0 2px rgba(156, 39, 176, 0.25);
+}
+
+.stSlider [data-baseweb="slider"] {
+    background: var(--purple-light);
+}
+
+.stSlider [role="slider"] {
+    background-color: var(--purple);
 }
 
 /* --------------------------------------------------
-   METRICS
+   METRICS - PURPLE ACCENTS
 -------------------------------------------------- */
 
 [data-testid="stMetricValue"] {
     font-size: 28px;
     font-weight: 600;
+    color: var(--purple);
+}
+
+[data-testid="stMetricLabel"] {
     color: var(--text);
 }
 
@@ -154,7 +188,7 @@ p, span, label, div {
     color: var(--text);
 }
 
-.event-activity { border-left: 4px solid var(--primary); }
+.event-activity { border-left: 4px solid var(--purple); }
 .event-school { border-left: 4px solid #FF9800; }
 .event-compulsory { border-left: 4px solid #F44336; }
 .event-break { border-left: 4px solid #9E9E9E; }
@@ -169,19 +203,22 @@ p, span, label, div {
 }
 
 /* --------------------------------------------------
-   EXPANDERS
+   EXPANDERS - PURPLE THEME
 -------------------------------------------------- */
 
 .streamlit-expanderHeader {
     background: var(--bg);
     border-radius: 6px;
     padding: 10px 14px;
-    border: 1px solid rgba(128,128,128,0.4);
+    border: 1px solid var(--purple-light);
     color: var(--text);
+    transition: all 0.2s ease;
 }
 
 .streamlit-expanderHeader:hover {
-    background: var(--bg-secondary);
+    background: var(--purple-light);
+    color: white;
+    border-color: var(--purple);
 }
 
 /* --------------------------------------------------
@@ -191,6 +228,14 @@ p, span, label, div {
 .stSuccess, .stError, .stWarning, .stInfo {
     color: var(--text);
     background: var(--bg-secondary) !important;
+}
+
+/* --------------------------------------------------
+   PROGRESS BAR - PURPLE
+-------------------------------------------------- */
+
+.stProgress > div > div > div {
+    background-color: var(--purple);
 }
 </style>
 
@@ -245,7 +290,7 @@ if not st.session_state.user_id:
     st.markdown("""
     <div style='text-align: center; padding: 4rem 0 2rem 0;'>
         <h1 style='font-size: 4rem; margin-bottom: 0.5rem;'>🕛</h1>
-        <h1 style='font-size: 3rem; margin-bottom: 0.5rem;'>NERO-Time</h1>
+        <h1 style='font-size: 3rem; margin-bottom: 0.5rem; color: #9C27B0;'>NERO-Time</h1>
         <p style='font-size: 1.1rem; color: #757575; margin-bottom: 3rem;'>
             Simple. Powerful. Time Management.
         </p>
@@ -263,7 +308,7 @@ if not st.session_state.user_id:
       )
 
         
-        if st.button("Sign In", type="primary", use_container_width=True):
+        if st.button("Sign In", type="primary", use_container_width=True, key="btn_signin"):
             if user_input:
                 with st.spinner("Signing in..."):
                     result = NeroTimeLogic.login_user(user_input)
@@ -278,7 +323,7 @@ if not st.session_state.user_id:
     st.stop()
 
 # ==================== MAIN APP ====================
-st.markdown("<h1 style='text-align: center; margin-bottom: 2rem;'>🕛 NERO-Time</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; margin-bottom: 2rem; color: #9C27B0;'>🕛 NERO-Time</h1>", unsafe_allow_html=True)
 
 # Stats
 col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
@@ -321,7 +366,7 @@ with tab1:
     col1, col2, col3, col4, col5 = st.columns([2, 1, 2, 1, 1])
     
     with col2:
-        if st.button("◀ Prev", use_container_width=True):
+        if st.button("◀ Prev", use_container_width=True, key="btn_prev_month"):
             NeroTimeLogic.navigate_month("prev")
             st.rerun()
     
@@ -329,12 +374,12 @@ with tab1:
         st.markdown(f"<div style='text-align: center; padding: 8px; font-weight: 600; font-size: 16px;'>{dashboard_data['month_name']} {dashboard_data['year']}</div>", unsafe_allow_html=True)
     
     with col4:
-        if st.button("Next ▶", use_container_width=True):
+        if st.button("Next ▶", use_container_width=True, key="btn_next_month"):
             NeroTimeLogic.navigate_month("next")
             st.rerun()
     
     with col5:
-        if st.button("Today", use_container_width=True):
+        if st.button("Today", use_container_width=True, key="btn_today_month"):
             NeroTimeLogic.navigate_month("today")
             st.rerun()
     
@@ -344,11 +389,11 @@ with tab1:
     with st.expander("⚙️ Settings", expanded=False):
         col_a, col_b, col_c = st.columns(3)
         with col_a:
-            min_session = st.number_input("Min (min)", 15, 180, 30, 15)
+            min_session = st.number_input("Min (min)", 15, 180, 30, 15, key="gen_min_session")
         with col_b:
-            max_session = st.number_input("Max (min)", 30, 240, 120, 15)
+            max_session = st.number_input("Max (min)", 30, 240, 120, 15, key="gen_max_session")
         with col_c:
-            if st.button("Generate", type="primary", use_container_width=True):
+            if st.button("Generate", type="primary", use_container_width=True, key="btn_generate_timetable"):
                 if st.session_state.list_of_activities or st.session_state.list_of_compulsory_events or st.session_state.school_schedule:
                     with st.spinner("Generating..."):
                         result = NeroTimeLogic.generate_timetable(min_session, max_session)
@@ -370,19 +415,22 @@ with tab1:
     
     with col_f1:
         if st.button("📅 Weekly", use_container_width=True, 
-                    type="primary" if st.session_state.event_filter == 'weekly' else "secondary"):
+                    type="primary" if st.session_state.event_filter == 'weekly' else "secondary",
+                    key="filter_weekly"):
             st.session_state.event_filter = 'weekly'
             st.rerun()
     
     with col_f2:
         if st.button("📆 Monthly", use_container_width=True,
-                    type="primary" if st.session_state.event_filter == 'monthly' else "secondary"):
+                    type="primary" if st.session_state.event_filter == 'monthly' else "secondary",
+                    key="filter_monthly"):
             st.session_state.event_filter = 'monthly'
             st.rerun()
     
     with col_f3:
         if st.button("🗓️ Yearly", use_container_width=True,
-                    type="primary" if st.session_state.event_filter == 'yearly' else "secondary"):
+                    type="primary" if st.session_state.event_filter == 'yearly' else "secondary",
+                    key="filter_yearly"):
             st.session_state.event_filter = 'yearly'
             st.rerun()
     
@@ -454,7 +502,8 @@ with tab1:
                                 if is_completed:
                                     st.markdown("✓")
                                 elif event['can_verify']:
-                                    if st.button("✓", key=f"v_{day_display}_{idx}", use_container_width=True):
+                                    # FIXED: Unique key for each verify button
+                                    if st.button("✓", key=f"verify_{day_display}_{idx}_{event.get('session_id', idx)}", use_container_width=True):
                                         result = NeroTimeLogic.verify_session(day_display, idx)
                                         if result["success"]:
                                             st.success("Completed!")
@@ -491,10 +540,10 @@ with tab2:
         name = st.text_input("Name", key="activity_name")
         col1, col2 = st.columns(2)
         with col1:
-            priority = st.slider("Priority", 1, 5, 3)
-            deadline = st.date_input("Deadline", min_value=datetime.now().date())
+            priority = st.slider("Priority", 1, 5, 3, key="activity_priority")
+            deadline = st.date_input("Deadline", min_value=datetime.now().date(), key="activity_deadline")
         with col2:
-            hours = st.number_input("Hours", 1, 100, 1)
+            hours = st.number_input("Hours", 1, 100, 1, key="activity_hours")
         
         col3, col4 = st.columns(2)
         with col3:
@@ -505,9 +554,9 @@ with tab2:
                 max_s = min_s
         
         from Timetable_Generation import WEEKDAY_NAMES
-        days = st.multiselect("Days", WEEKDAY_NAMES, WEEKDAY_NAMES)
+        days = st.multiselect("Days", WEEKDAY_NAMES, WEEKDAY_NAMES, key="activity_days")
         
-        if st.button("Add", type="primary", use_container_width=True):
+        if st.button("Add", type="primary", use_container_width=True, key="btn_add_activity"):
             if name:
                 result = NeroTimeLogic.add_activity(name, priority, deadline.isoformat(), hours, min_s, max_s, days)
                 if result["success"]:
@@ -527,11 +576,12 @@ with tab2:
                 st.caption(f"Priority: {act['priority']} • Deadline: {act['deadline']} days")
                 
                 col1, col2 = st.columns(2)
-                if col1.button("Delete", key=f"del_{idx}"):
+                # FIXED: Unique keys for delete and reset buttons
+                if col1.button("Delete", key=f"del_activity_{idx}_{act['activity']}"):
                     result = NeroTimeLogic.delete_activity(idx)
                     if result["success"]:
                         st.rerun()
-                if col2.button("Reset", key=f"reset_{idx}"):
+                if col2.button("Reset", key=f"reset_activity_{idx}_{act['activity']}"):
                     result = NeroTimeLogic.reset_activity_progress(act['activity'])
                     if result["success"]:
                         st.rerun()
@@ -546,18 +596,18 @@ with tab3:
         event_name = st.text_input("Name", key="event_name")
         col1, col2 = st.columns(2)
         with col1:
-            event_date = st.date_input("Date", min_value=datetime.now().date())
+            event_date = st.date_input("Date", min_value=datetime.now().date(), key="event_date")
         with col2:
             from Timetable_Generation import WEEKDAY_NAMES
-            st.text_input("Day", value=WEEKDAY_NAMES[event_date.weekday()], disabled=True)
+            st.text_input("Day", value=WEEKDAY_NAMES[event_date.weekday()], disabled=True, key="event_day_display")
         
         col3, col4 = st.columns(2)
         with col3:
-            start_t = st.time_input("Start")
+            start_t = st.time_input("Start", key="event_start_time")
         with col4:
-            end_t = st.time_input("End")
+            end_t = st.time_input("End", key="event_end_time")
         
-        if st.button("Add", type="primary", use_container_width=True):
+        if st.button("Add", type="primary", use_container_width=True, key="btn_add_event"):
             if event_name:
                 result = NeroTimeLogic.add_event(event_name, event_date.isoformat(), start_t.strftime("%H:%M"), end_t.strftime("%H:%M"))
                 if result["success"]:
@@ -574,7 +624,8 @@ with tab3:
         for idx, evt in enumerate(events_data['events']):
             with st.expander(f"{idx+1}. {evt['event']} - {evt['day']}"):
                 st.write(f"{evt['start_time']} - {evt['end_time']}")
-                if st.button("Delete", key=f"del_e_{idx}"):
+                # FIXED: Unique key for delete event button
+                if st.button("Delete", key=f"del_event_{idx}_{evt['event']}"):
                     result = NeroTimeLogic.delete_event(idx)
                     if result["success"]:
                         st.rerun()
@@ -589,13 +640,13 @@ with tab4:
         col1, col2 = st.columns(2)
         with col1:
             from Timetable_Generation import WEEKDAY_NAMES
-            day = st.selectbox("Day", WEEKDAY_NAMES)
+            day = st.selectbox("Day", WEEKDAY_NAMES, key="school_day")
             subject = st.text_input("Subject", key="school_subject")
         with col2:
-            start = st.time_input("Start", key="s_start")
-            end = st.time_input("End", key="s_end")
+            start = st.time_input("Start", key="school_start")
+            end = st.time_input("End", key="school_end")
         
-        if st.button("Add", type="primary", use_container_width=True):
+        if st.button("Add", type="primary", use_container_width=True, key="btn_add_school"):
             if subject:
                 result = NeroTimeLogic.add_school_schedule(day, start.strftime("%H:%M"), end.strftime("%H:%M"), subject)
                 if result["success"]:
@@ -619,7 +670,8 @@ with tab4:
                             st.write(f"**{cls['subject']}**")
                             st.caption(f"{cls['start_time']} - {cls['end_time']}")
                         with col2:
-                            if st.button("×", key=f"del_s_{day}_{idx}"):
+                            # FIXED: Unique key for delete school button
+                            if st.button("×", key=f"del_school_{day}_{idx}_{cls['subject']}"):
                                 result = NeroTimeLogic.delete_school_schedule(day, idx)
                                 if result["success"]:
                                     st.rerun()
@@ -636,13 +688,13 @@ with tab5:
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Logout", type="primary", use_container_width=True):
+        if st.button("Logout", type="primary", use_container_width=True, key="btn_logout"):
             st.session_state.user_id = None
             st.session_state.data_loaded = False
             st.rerun()
     
     with col2:
-        if st.button("Clear Data", use_container_width=True):
+        if st.button("Clear Data", use_container_width=True, key="btn_clear_data"):
             result = NeroTimeLogic.clear_all_data()
             if result["success"]:
                 st.warning("Data cleared")
