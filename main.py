@@ -622,19 +622,10 @@ with tab1:
                             
                             progress_html = f'<div class="event-details">Progress: {completed_sessions_act}/{total_sessions_act} sessions • {completed_hours:.1f}h / {total_hours}h</div>'
                         
-                        # Timetable row
-                        st.markdown(f"""
-<div class="timetable-row">
-    <div class="event-content {type_class}">
-        <div class="event-info">
-            {happening_now}
-            <div class="event-title">{user_badge} {event.get('name', event.get('title', ''))}</div>
-            {progress_html}
-        </div>
-        <div class="event-time">{event['start']} - {event['end']}</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+                        # Timetable row - wrap entire content in single markdown call
+                        timetable_html = f'<div class="timetable-row"><div class="event-content {type_class}"><div class="event-info">{happening_now}<div class="event-title">{user_badge} {event.get("name", event.get("title", ""))}</div>{progress_html}</div><div class="event-time">{event["start"]} - {event["end"]}</div></div></div>'
+                        
+                        st.markdown(timetable_html, unsafe_allow_html=True)
     else:
         # Check if we have a timetable but no events in filtered days
         has_events_in_timetable = any(
