@@ -680,7 +680,6 @@ with tab2:
         name = st.text_input("Name", key="activity_name")
         col1, col2 = st.columns(2)
         with col1:
-            priority = st.slider("Priority", 1, 5, 3, key="activity_priority")
             deadline = st.date_input("Deadline", min_value=datetime.now().date(), key="activity_deadline")
         with col2:
             hours = st.number_input("Hours", 1, 100, 1, key="activity_hours")
@@ -702,7 +701,7 @@ with tab2:
         
         if st.button("Add", type="primary", use_container_width=True, key="btn_add_activity"):
             if name:
-                result = NeroTimeLogic.add_activity(name, priority, deadline.isoformat(), hours, min_s, max_s, days)
+                result = NeroTimeLogic.add_activity(name, 3, deadline.isoformat(), hours, min_s, max_s, days)
                 if result["success"]:
                     st.success("✓ Added")
                     st.rerun()
@@ -717,7 +716,7 @@ with tab2:
         for idx, act in enumerate(activities_data['activities']):
             with st.expander(f"{idx+1}. {act['activity']} ({act['progress']['completed']:.1f}h/{act['timing']}h)"):
                 st.progress(act['progress']['percentage'] / 100)
-                st.caption(f"Priority: {act['priority']} • Deadline: {act['deadline']} days")
+                st.caption(f"Deadline: {act['deadline']} days")
                 
                 # Show sessions
                 st.markdown("#### 📋 Sessions")
