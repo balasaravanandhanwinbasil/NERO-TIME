@@ -1,13 +1,20 @@
 """
-Updated Timetable Generation with Enhanced User Edit Priority, Date-based Scheduling, and Session Verification
+Simplified Timetable Generation - Deadline-Focused Activity Placement
+No complex session management - just fit activities before deadlines with breaks
 """
 
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 import streamlit as st
 import random
 from typing import Dict, List, Tuple
 
 WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+# Time constraints
+WORK_START_HOUR = 6  # 6:00 AM
+WORK_END_HOUR = 23   # 11:00 PM
+WORK_END_MINUTE = 30  # 11:30 PM
+WORK_END_TOTAL_MINUTES = WORK_END_HOUR * 60 + WORK_END_MINUTE  # 1410 minutes
 
 def time_str_to_minutes(time_str):
     """Convert HH:MM to minutes since midnight."""
@@ -27,6 +34,10 @@ def add_minutes(time_str, minutes_to_add):
         total_minutes = 1439
     return minutes_to_time_str(total_minutes)
 
+def round_to_15_minutes(minutes):
+    """Round minutes to nearest 15-minute interval"""
+    return ((minutes + 7) // 15) * 15
+
 def get_month_days(year, month):
     """Get all days in a month with their weekday names."""
     from calendar import monthrange
@@ -34,19 +45,13 @@ def get_month_days(year, month):
     days = []
     for day in range(1, num_days + 1):
         date_obj = datetime(year, month, day)
-        if date_obj.weekday() < 7:  # All days of the week
-            day_name = WEEKDAY_NAMES[date_obj.weekday()]
-            days.append({
-                'date': date_obj,
-                'day_name': day_name,
-                'display': f"{day_name} {date_obj.strftime('%d/%m')}"
-            })
+        day_name = WEEKDAY_NAMES[date_obj.weekday()]
+        days.append({
+            'date': date_obj,
+            'day_name': day_name,
+            'display': f"{day_name} {date_obj.strftime('%d/%m')}"
+        })
     return days
-
-def date_to_display_format(date_obj):
-    """Convert a date object to display format: 'DayName DD/MM'"""
-    day_name = WEEKDAY_NAMES[date_obj.weekday()]
-    return f"{day_name} {date_obj.strftime('%d/%m')}"
 
 def is_time_slot_free(day, start_time, end_time):
     """Check if a time slot is free on a given day."""
@@ -63,7 +68,7 @@ def is_time_slot_free(day, start_time, end_time):
             return False
     return True
 
-def add_event_to_timetable(day, start_time, end_time, event_name, event_type, session_id=None):
+def add_event_to_timetable(day, start_time, end_time, event_name, event_type, activity_name=None, session_num=None):
     """Add an event to the timetable."""
     if day not in st.session_state.timetable:
         st.session_state.timetable[day] = []
@@ -75,45 +80,48 @@ def add_event_to_timetable(day, start_time, end_time, event_name, event_type, se
         "type": event_type
     }
     
-    if session_id:
-        event_data["session_id"] = session_id
+    if activity_name:
+        event_data["activity_name"] = activity_name
+    if session_num is not None:
+        event_data["session_num"] = session_num
     
     st.session_state.timetable[day].append(event_data)
     st.session_state.timetable[day].sort(key=lambda x: time_str_to_minutes(x["start"]))
 
-def get_day_activity_minutes(day):
-    """Calculate total minutes of activities on a day."""
-    if day not in st.session_state.timetable:
-        return 0
-    
-    total_minutes = 0
-    for event in st.session_state.timetable[day]:
-        if event["type"] == "ACTIVITY":
-            start_mins = time_str_to_minutes(event["start"])
-            end_mins = time_str_to_minutes(event["end"])
-            total_minutes += (end_mins - start_mins)
-    return total_minutes
-
-def find_free_slot(day, duration_minutes, start_hour=6, end_hour=22, break_time=2):
-    """Find a free slot on a given day, including space for break."""
+def find_free_slot(day, duration_minutes, break_minutes=30):
+    """Find a free slot on a given day between 6 AM and 11:30 PM, including break."""
     attempts = []
-    break_minutes = break_time * 60
-
-    for hour in range(start_hour, end_hour):
+    
+    for hour in range(WORK_START_HOUR, WORK_END_HOUR + 1):
         for minute in [0, 15, 30, 45]:
-            start_time = f"{hour:02d}:{minute:02d}"
-            end_time = add_minutes(start_time, duration_minutes)
-
-            if time_str_to_minutes(end_time) > end_hour * 60:
+            start_minutes = hour * 60 + minute
+            
+            # Skip if we're starting too late
+            if start_minutes < WORK_START_HOUR * 60:
                 continue
-
+            
+            start_time = minutes_to_time_str(start_minutes)
+            end_minutes = start_minutes + duration_minutes
+            
+            # Check if activity ends before cutoff (11:30 PM)
+            if end_minutes > WORK_END_TOTAL_MINUTES:
+                continue
+            
+            end_time = minutes_to_time_str(end_minutes)
+            
+            # Check if break fits before cutoff
+            break_end_minutes = end_minutes + break_minutes
+            if break_end_minutes > WORK_END_TOTAL_MINUTES:
+                # Try without break if activity fits
+                if is_time_slot_free(day, start_time, end_time):
+                    attempts.append((start_time, end_time, False))  # No break
+                continue
+            
+            break_end = minutes_to_time_str(break_end_minutes)
+            
             # Check if both activity AND break can fit
-            break_end = add_minutes(end_time, break_minutes)
-            if time_str_to_minutes(break_end) >= 1440:  # Past midnight
-                continue
-                
             if is_time_slot_free(day, start_time, break_end):
-                attempts.append((start_time, end_time))
+                attempts.append((start_time, end_time, True))  # With break
 
     if attempts:
         random.shuffle(attempts)
@@ -135,27 +143,22 @@ def place_school_schedules(month_days):
                     day_display,
                     school_event['start_time'],
                     school_event['end_time'],
-                    school_event['subject'],
+                    "School/Work",
                     "SCHOOL"
                 )
 
-def place_compulsory_events(break_time=2):
+def place_compulsory_events():
     """Place one-time compulsory events in the timetable."""
     for event in st.session_state.list_of_compulsory_events:
         day = event["day"]
         start_time = event["start_time"]
         end_time = event["end_time"]
-
         add_event_to_timetable(day, start_time, end_time, event["event"], "COMPULSORY")
 
-        # Add break after compulsory event
-        break_end = add_minutes(end_time, break_time * 60)
-        if time_str_to_minutes(break_end) < 1440 and is_time_slot_free(day, end_time, break_end):
-            add_event_to_timetable(day, end_time, break_end, "Break", "BREAK")
-
-def get_available_days_for_activity(activity, month_days, deadline_days):
-    """Get available days for an activity based on allowed days and deadline."""
+def get_available_days_for_activity(activity, month_days):
+    """Get available days for an activity before its deadline."""
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    deadline_days = activity['deadline']
     deadline = today + timedelta(days=deadline_days)
     
     allowed_weekdays = activity.get('allowed_days', WEEKDAY_NAMES)
@@ -164,226 +167,107 @@ def get_available_days_for_activity(activity, month_days, deadline_days):
     for day_info in month_days:
         if today <= day_info['date'] <= deadline:
             if day_info['day_name'] in allowed_weekdays:
-                available_days.append(day_info['display'])
+                available_days.append({
+                    'display': day_info['display'],
+                    'date': day_info['date']
+                })
     
     return available_days
 
-def check_edit_violates_deadline(activity, session, edited_date, warnings):
-    """Check if user edit would prevent completion before deadline."""
+def place_activity_sessions(activity, month_days, warnings):
+    """
+    Place activity sessions in the timetable, creating sessions as we schedule them.
+    This ensures sessions are generated to meet the deadline.
+    Returns list of created sessions for the activity.
+    """
     activity_name = activity['activity']
-    deadline_days = activity['deadline']
-    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    deadline = today + timedelta(days=deadline_days)
+    total_hours = activity['timing']
+    total_minutes = total_hours * 60
+    min_session = activity.get('min_session_minutes', 30)
+    max_session = activity.get('max_session_minutes', 120)
     
-    # If edited date is past deadline, warn
-    if edited_date > deadline:
-        warnings.append(f"⚠️ DEADLINE WARNING: User edit for {activity_name} Session {session['session_id'].split('_')[-1]} is past deadline! This may prevent completion.")
-        return True
+    # Round to 15-minute intervals
+    min_session = round_to_15_minutes(min_session)
+    max_session = round_to_15_minutes(max_session)
     
-    return False
-
-def place_user_edited_sessions(activity, month_days, warnings):
-    """Place sessions that have been manually edited by the user FIRST with highest priority."""
-    activity_name = activity['activity']
-    placed_sessions = []
-    deadline_days = activity['deadline']
-    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    deadline = today + timedelta(days=deadline_days)
-    
-    for session in activity['sessions']:
-        session_id = session['session_id']
-        
-        # Skip if already completed
-        if st.session_state.session_completion.get(activity_name, {}).get(session_id, False):
-            placed_sessions.append(session_id)
-            continue
-        
-        edit_key = f"{activity_name}_{session_id}"
-        
-        # Check if this session has user edits
-        if edit_key in st.session_state.user_edits:
-            edit = st.session_state.user_edits[edit_key]
-            
-            if edit.get('date') and edit.get('start_time'):
-                # Parse the date from user edit
-                try:
-                    edited_date = datetime.fromisoformat(edit['date']).replace(hour=0, minute=0, second=0, microsecond=0)
-                    
-                    # Check if edit violates deadline
-                    check_edit_violates_deadline(activity, session, edited_date, warnings)
-                    
-                    # Check if the edited date is in the past
-                    if edited_date < today:
-                        warnings.append(f"⚠️ User-edited date for {activity_name} Session {session_id.split('_')[-1]} is in the past. Skipping.")
-                        continue
-                    
-                    # Convert date to display format
-                    day_display = date_to_display_format(edited_date)
-                    start_time = edit['start_time']
-                    duration = edit.get('duration', session['duration_minutes'])
-                    
-                    end_time = add_minutes(start_time, duration)
-                    
-                    # Try to place the edited session (HIGHEST PRIORITY)
-                    if is_time_slot_free(day_display, start_time, end_time):
-                        session_label = f"{activity_name} (Session {session['session_id'].split('_')[-1]})"
-                        add_event_to_timetable(day_display, start_time, end_time, session_label, "ACTIVITY", session_id)
-                        
-                        # Add break
-                        break_end = add_minutes(end_time, 2 * 60)
-                        if time_str_to_minutes(break_end) < 1440 and is_time_slot_free(day_display, end_time, break_end):
-                            add_event_to_timetable(day_display, end_time, break_end, "Break", "BREAK")
-                        
-                        placed_sessions.append(session_id)
-                        
-                        # Update session info with scheduled date
-                        session['scheduled_day'] = day_display
-                        session['scheduled_time'] = start_time
-                        session['scheduled_date'] = edited_date.isoformat()
-                        session['duration_minutes'] = duration
-                        session['is_user_edited'] = True
-                    else:
-                        warnings.append(f"⚠️ User-edited time slot for {session_label} conflicts with existing schedule. Will attempt auto-placement.")
-                
-                except Exception as e:
-                    warnings.append(f"⚠️ Error processing user edit for {activity_name} Session {session_id.split('_')[-1]}: {str(e)}")
-    
-    return placed_sessions
-
-def place_activity_sessions(activity, month_days, break_time=2, warnings=None):
-    """Place all sessions of an activity in the timetable, prioritizing user edits and maintaining order."""
-    if warnings is None:
-        warnings = []
-    
-    MAX_ACTIVITY_MINUTES_PER_DAY = 6 * 60
-    
-    activity_name = activity['activity']
-    deadline_days = activity['deadline']
-    sessions = activity.get('sessions', [])
-    
-    if not sessions:
-        return warnings
-    
-    # Check if any sessions are already completed
-    completed_sessions = []
-    uncompleted_sessions = []
-    for session in sessions:
-        session_id = session['session_id']
-        if st.session_state.session_completion.get(activity_name, {}).get(session_id, False):
-            completed_sessions.append(session)
-        else:
-            uncompleted_sessions.append(session)
-    
-    # FIRST: Place user-edited sessions (HIGHEST PRIORITY)
-    placed_sessions = place_user_edited_sessions(activity, month_days, warnings)
-    
-    # Get available days
-    available_days = get_available_days_for_activity(activity, month_days, deadline_days)
+    # Get available days before deadline
+    available_days = get_available_days_for_activity(activity, month_days)
     
     if not available_days:
-        warnings.append(f"❌ Activity '{activity_name}' has no available days before deadline")
-        return warnings
+        warnings.append(f"❌ '{activity_name}': No available days before deadline!")
+        return []
     
-    # Calculate total time needed for uncompleted, unplaced sessions
-    total_time_needed = sum(
-        s['duration_minutes'] for s in uncompleted_sessions 
-        if s['session_id'] not in placed_sessions and not s.get('is_locked')
-    )
+    # Track created sessions
+    sessions = []
+    remaining_minutes = total_minutes
+    session_count = 0
     
-    # Check if we have enough days to complete before deadline
-    max_possible_minutes = len(available_days) * MAX_ACTIVITY_MINUTES_PER_DAY
-    if total_time_needed > max_possible_minutes:
-        warnings.append(f"⚠️ DEADLINE ISSUE: '{activity_name}' may not fit before deadline! Need {total_time_needed/60:.1f}h but only ~{max_possible_minutes/60:.1f}h available")
-    
-    # SECOND: Place remaining sessions IN ORDER (auto-scheduled)
-    for session in uncompleted_sessions:
-        session_id = session['session_id']
+    # Try to place activity chunks
+    for day_info in available_days:
+        if remaining_minutes <= 0:
+            break
         
-        # Skip if already placed (user edit, locked, or completed)
-        if session_id in placed_sessions or session.get('is_locked'):
-            continue
+        day_display = day_info['display']
         
-        duration_minutes = session['duration_minutes']
-        session_number = session_id.split('_')[-1]
+        # Determine chunk size for this slot
+        chunk_size = min(remaining_minutes, max_session)
+        chunk_size = max(chunk_size, min_session) if remaining_minutes >= min_session else remaining_minutes
+        chunk_size = round_to_15_minutes(chunk_size)
         
-        placed = False
-        # Try to maintain order by using available days sequentially (not shuffled)
-        for day in available_days:
-            current_minutes = get_day_activity_minutes(day)
-            if current_minutes + duration_minutes > MAX_ACTIVITY_MINUTES_PER_DAY:
-                continue
+        # Try to find a free slot
+        slot = find_free_slot(day_display, chunk_size, break_minutes=30)
+        
+        if slot:
+            start_time, end_time, has_break = slot
+            session_count += 1
+            session_id = f"{activity_name}_session_{session_count}"
             
-            slot = find_free_slot(day, duration_minutes, break_time=break_time)
+            # Add activity to timetable
+            session_label = f"{activity_name} (Session {session_count})"
+            add_event_to_timetable(
+                day_display, 
+                start_time, 
+                end_time, 
+                session_label, 
+                "ACTIVITY",
+                activity_name=activity_name,
+                session_num=session_count
+            )
             
-            if slot:
-                start_time, end_time = slot
-                session_label = f"{activity_name} (Session {session_number})"
-                
-                # Get the actual date for this day
-                matching_day = next((d for d in month_days if d['display'] == day), None)
-                if matching_day:
-                    session_date = matching_day['date'].isoformat()
-                else:
-                    session_date = None
-                
-                add_event_to_timetable(day, start_time, end_time, session_label, "ACTIVITY", session_id)
-                
-                # Update session info with scheduled date
-                session['scheduled_day'] = day
-                session['scheduled_time'] = start_time
-                session['scheduled_date'] = session_date
-                session['is_user_edited'] = False
-                
-                # Add break
-                break_end = add_minutes(end_time, break_time * 60)
-                if time_str_to_minutes(break_end) < 1440 and is_time_slot_free(day, end_time, break_end):
-                    add_event_to_timetable(day, end_time, break_end, "Break", "BREAK")
-                
-                placed = True
-                placed_sessions.append(session_id)
-                break
-        
-        if not placed:
-            warnings.append(f"❌ CRITICAL: Could not schedule session {session_number} of '{activity_name}' - deadline CANNOT be achieved!")
+            # Create session object
+            sessions.append({
+                'session_id': session_id,
+                'session_num': session_count,
+                'scheduled_day': day_display,
+                'scheduled_date': day_info['date'].isoformat(),
+                'scheduled_time': start_time,
+                'duration_minutes': chunk_size,
+                'duration_hours': round(chunk_size / 60, 2),
+                'is_completed': False,
+                'is_locked': False
+            })
+            
+            # Add break if it fits
+            if has_break:
+                break_start = end_time
+                break_end = add_minutes(end_time, 30)
+                add_event_to_timetable(day_display, break_start, break_end, "Break", "BREAK")
+            
+            remaining_minutes -= chunk_size
     
-    # Final check: verify all uncompleted sessions were placed
-    unplaced_sessions = [
-        s for s in uncompleted_sessions 
-        if s['session_id'] not in placed_sessions and not s.get('is_locked')
-    ]
-    if unplaced_sessions:
-        warnings.append(f"❌ {len(unplaced_sessions)} session(s) of '{activity_name}' could not be scheduled before deadline!")
+    # Check if we managed to fit everything
+    if remaining_minutes > 0:
+        warnings.append(
+            f"⚠️ '{activity_name}': Could only schedule {(total_minutes - remaining_minutes)/60:.1f}h "
+            f"of {total_hours}h before deadline. {remaining_minutes/60:.1f}h remaining!"
+        )
     else:
-        # Success message if all sessions placed
-        total_uncompleted = len(uncompleted_sessions)
-        if total_uncompleted > 0:
-            warnings.append(f"✓ All {total_uncompleted} uncompleted session(s) of '{activity_name}' scheduled successfully")
+        warnings.append(f"✓ '{activity_name}': All {total_hours}h scheduled successfully in {session_count} sessions")
     
-    return warnings
-
-def check_expired_activities():
-    """Check for activities past their deadline."""
-    now = datetime.now()
-    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    
-    for activity in st.session_state.list_of_activities:
-        deadline_date = today + timedelta(days=activity['deadline'])
-        if now > deadline_date:
-            activity_name = activity['activity']
-            if activity_name not in st.session_state.get('pending_verifications', {}):
-                # Mark for verification
-                pass
-
-def remove_activity_from_timetable(activity_name):
-    """Remove all sessions of an activity from the timetable."""
-    for day in st.session_state.timetable:
-        st.session_state.timetable[day] = [
-            event for event in st.session_state.timetable[day]
-            if not (event['type'] == 'ACTIVITY' and event['name'].startswith(activity_name))
-        ]
+    return sessions
 
 def generate_timetable_with_sessions(year=None, month=None):
-    """Generate the complete timetable with session support, verification, and deadline management."""
+    """Generate the complete timetable by fitting activities before their deadlines."""
     if year is None or month is None:
         now = datetime.now()
         year = now.year
@@ -399,26 +283,31 @@ def generate_timetable_with_sessions(year=None, month=None):
     
     warnings = []
     
-    # 1. Place school schedules (recurring weekly) - HIGHEST PRIORITY
+    # 1. Place school schedules (recurring weekly)
     place_school_schedules(month_days)
     
-    # 2. Place compulsory events (one-time) - HIGH PRIORITY
+    # 2. Place compulsory events (one-time)
     place_compulsory_events()
     
-    # 3. Sort activities by priority and deadline (urgent ones first)
+    # 3. Sort activities by deadline (most urgent first), then by priority
     sorted_activities = sorted(
         st.session_state.list_of_activities,
-        key=lambda x: (x['deadline'], -x['priority'])  # Sort by deadline first (sooner first), then priority
+        key=lambda x: (x['deadline'], -x['priority'])
     )
     
-    # 4. Place activity sessions (user-edited sessions are placed FIRST within this step)
+    # 4. Place each activity, creating and storing sessions
     for activity in sorted_activities:
-        warnings = place_activity_sessions(activity, month_days, warnings=warnings)
+        sessions = place_activity_sessions(activity, month_days, warnings)
+        
+        # Store sessions in the activity
+        activity['sessions'] = sessions
+        activity['num_sessions'] = len(sessions)
     
-    # 5. Display warnings to user
+    # Store warnings for UI display
     if warnings:
-        # Store warnings in session state so UI can display them
         st.session_state.timetable_warnings = warnings
+    else:
+        st.session_state.timetable_warnings = []
     
     # Auto-save to Firebase
     if st.session_state.user_id:
