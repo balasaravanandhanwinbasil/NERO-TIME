@@ -514,6 +514,20 @@ with tab1:
                 result = NeroTimeLogic.generate_timetable()
             if result["success"]:
                 st.success("✓ Timetable generated successfully!")
+                
+                # Display warnings if any
+                if 'timetable_warnings' in st.session_state and st.session_state.timetable_warnings:
+                    with st.expander("⚠️ Generation Warnings & Info", expanded=True):
+                        for warning in st.session_state.timetable_warnings:
+                            if warning.startswith('❌'):
+                                st.error(warning)
+                            elif warning.startswith('⚠️'):
+                                st.warning(warning)
+                            elif warning.startswith('✓'):
+                                st.success(warning)
+                            else:
+                                st.info(warning)
+                
                 st.rerun()
             else:
                 st.error(result["message"])
