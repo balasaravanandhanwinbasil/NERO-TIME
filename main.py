@@ -1,5 +1,6 @@
 """
-NERO-Time UI 
+NERO-Time UI - Enhanced Professional Design
+IMPROVEMENTS: Timetable-style layout, session verification, 15-min intervals, simplified school display
 """
 import math
 import random
@@ -414,11 +415,11 @@ if not st.session_state.user_id:
     with col2:
         st.markdown("### Welcome")
         user_input = st.text_input(
-            "Email",
-            placeholder="your.email@example.com",
-            label_visibility="collapsed",
-            key="login_email"
-        )
+          "Email",
+          placeholder="your.email@example.com",
+          label_visibility="collapsed",
+          key="login_email"
+      )
 
         
         if st.button("Sign In", type="primary", use_container_width=True, key="btn_signin"):
@@ -507,6 +508,20 @@ with tab1:
     
     st.divider()
     
+    # Display warnings from last generation (BEFORE the button)
+    if 'timetable_warnings' in st.session_state and st.session_state.timetable_warnings:
+        with st.expander("⚠️ Timetable Generation Warnings", expanded=True):
+            for warning in st.session_state.timetable_warnings:
+                if warning.startswith('❌'):
+                    st.error(warning)
+                elif warning.startswith('⚠️'):
+                    st.warning(warning)
+                elif warning.startswith('✓'):
+                    st.success(warning)
+                else:
+                    st.info(warning)
+        st.divider()
+    
     # Generate timetable - BIG BUTTON
     if st.button("🚀 GENERATE TIMETABLE", type="primary", use_container_width=True, key="btn_generate_timetable"):
         if st.session_state.list_of_activities or st.session_state.list_of_compulsory_events or st.session_state.school_schedule:
@@ -514,20 +529,6 @@ with tab1:
                 result = NeroTimeLogic.generate_timetable()
             if result["success"]:
                 st.success("✓ Timetable generated successfully!")
-                
-                # Display warnings if any
-                if 'timetable_warnings' in st.session_state and st.session_state.timetable_warnings:
-                    with st.expander("⚠️ Generation Warnings & Info", expanded=True):
-                        for warning in st.session_state.timetable_warnings:
-                            if warning.startswith('❌'):
-                                st.error(warning)
-                            elif warning.startswith('⚠️'):
-                                st.warning(warning)
-                            elif warning.startswith('✓'):
-                                st.success(warning)
-                            else:
-                                st.info(warning)
-                
                 st.rerun()
             else:
                 st.error(result["message"])
@@ -535,9 +536,6 @@ with tab1:
             st.warning("⚠️ Please add activities, events, or school schedule first")
     
     st.divider()
-    
-    # Show pending verifications if any
-    NeroTimeLogic.show_pending_verifications()
     
     # Event filter
     st.markdown("### 📅 Events")
@@ -586,12 +584,7 @@ with tab1:
     
     filtered_days = filter_events_by_period(dashboard_data['month_days'], st.session_state.event_filter)
     
-    # Debug info
-    if not dashboard_data['timetable']:
-        st.info("📝 No timetable generated yet. Click 'GENERATE TIMETABLE' to create your schedule!")
-    elif not filtered_days:
-        st.info("📅 No days in the selected filter period. Try changing the filter or navigating to a different month.")
-    elif dashboard_data['timetable'] and filtered_days:
+    if dashboard_data['timetable'] and filtered_days:
         for day_info in filtered_days:
             day_display = day_info['display']
             date_obj = day_info['date']
@@ -604,10 +597,9 @@ with tab1:
                 if not events:
                     continue
                 
-                # Day header
                 with st.expander(f"{'🟢 ' if is_current_day else ''}📅 {formatted_date}", expanded=is_current_day):
                     for idx, event in enumerate(events):
-                        # Determine if current event
+                        # Check if current
                         is_current_slot = False
                         if is_current_day and dashboard_data['current_time']:
                             from Timetable_Generation import time_str_to_minutes
@@ -616,38 +608,84 @@ with tab1:
                             current_minutes = time_str_to_minutes(dashboard_data['current_time'])
                             is_current_slot = event_start <= current_minutes < event_end
                         
-                        # Color and badge
-                        type_class = event["type"].lower()
-                        happening_now = '<span class="happening-now">● NOW</span>' if is_current_slot else ''
-                        user_badge = '<span class="user-edited-badge">EDITED</span>' if event.get('is_user_edited') else ''
+                        # Create timetable row
+                        st.markdown('<div class="timetable-row">', unsafe_allow_html=True)
                         
-                        # Activity progress
-                        progress_html = ""
                         if event["type"] == "ACTIVITY":
                             activity_name = event['name'].split(' (Session')[0]
-                            activity_data = dashboard_data.get('activities_data', {}).get(activity_name, {})
-                            sessions_data = activity_data.get('sessions_data', [])
-                            progress_data = event.get('progress', {})
+                            session_part = event['name'].split(' (Session')[1].rstrip(')') if '(Session' in event['name'] else "1"
+                            progress = event['progress']
+                            is_completed = event.get('is_completed', False)
+                            is_user_edited = event.get('is_user_edited', False)
                             
-                            completed_sessions_act = sum(1 for s in sessions_data if s.get('is_completed', False))
-                            total_sessions_act = len(sessions_data)
-                            completed_hours = progress_data.get('completed', 0)
-                            total_hours = progress_data.get('total', 0)
+                            st.markdown('<div class="event-content activity">', unsafe_allow_html=True)
                             
-                            progress_html = f'<div class="event-details">Progress: {completed_sessions_act}/{total_sessions_act} sessions • {completed_hours:.1f}h / {total_hours}h</div>'
+                            col1, col2 = st.columns([0.85, 0.15])
+                            with col1:
+                                st.markdown('<div class="event-info">', unsafe_allow_html=True)
+                                
+                                if is_current_slot:
+                                    st.markdown('<span class="happening-now">● NOW</span>', unsafe_allow_html=True)
+                                
+                                badge = '<span class="user-edited-badge">EDITED</span>' if is_user_edited else ''
+                                status_icon = "✅" if is_completed else "⚫"
+                                st.markdown(f'<div class="event-title">{badge}{status_icon} {activity_name} (Session {session_part})</div>', unsafe_allow_html=True)
+                                
+                                completed_sessions_act = sum(1 for s in dashboard_data.get('activities_data', {}).get(activity_name, {}).get('sessions_data', []) if s.get('is_completed', False))
+                                total_sessions_act = len(dashboard_data.get('activities_data', {}).get(activity_name, {}).get('sessions_data', []))
+                                
+                                st.markdown(f'<div class="event-details">Progress: {completed_sessions_act}/{total_sessions_act} sessions • {progress["completed"]:.1f}h / {progress["total"]}h</div>', unsafe_allow_html=True)
+                                st.markdown('</div>', unsafe_allow_html=True)
+                            
+                            with col2:
+                                if is_completed:
+                                    st.markdown("✅")
+                                elif event['can_verify']:
+                                    if st.button("✓", key=f"verify_{day_display}_{idx}_{event.get('session_id', idx)}", use_container_width=True):
+                                        result = NeroTimeLogic.verify_session(day_display, idx)
+                                        if result["success"]:
+                                            st.success("Completed!")
+                                            st.rerun()
+                            
+                            st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="event-time">{event["start"]} - {event["end"]}</div>', unsafe_allow_html=True)
                         
-                        # Timetable row - wrap entire content in single markdown call
-                        timetable_html = f'<div class="timetable-row"><div class="event-content {type_class}"><div class="event-info">{happening_now}<div class="event-title">{user_badge} {event.get("name", event.get("title", ""))}</div>{progress_html}</div><div class="event-time">{event["start"]} - {event["end"]}</div></div></div>'
+                        elif event["type"] == "SCHOOL":
+                            st.markdown('<div class="event-content school">', unsafe_allow_html=True)
+                            st.markdown('<div class="event-info">', unsafe_allow_html=True)
+                            
+                            if is_current_slot:
+                                st.markdown('<span class="happening-now">● NOW</span>', unsafe_allow_html=True)
+                            
+                            st.markdown(f'<div class="event-title">🏫 School/Work</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="event-time">{event["start"]} - {event["end"]}</div>', unsafe_allow_html=True)
                         
-                        st.markdown(timetable_html, unsafe_allow_html=True)
+                        elif event["type"] == "COMPULSORY":
+                            st.markdown('<div class="event-content compulsory">', unsafe_allow_html=True)
+                            st.markdown('<div class="event-info">', unsafe_allow_html=True)
+                            
+                            if is_current_slot:
+                                st.markdown('<span class="happening-now">● NOW</span>', unsafe_allow_html=True)
+                            
+                            st.markdown(f'<div class="event-title">🔴 {event["name"]}</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="event-details">Compulsory Event</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="event-time">{event["start"]} - {event["end"]}</div>', unsafe_allow_html=True)
+                        
+                        else:  # BREAK
+                            st.markdown('<div class="event-content break">', unsafe_allow_html=True)
+                            st.markdown('<div class="event-info">', unsafe_allow_html=True)
+                            st.markdown(f'<div class="event-title">⚪ Break</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="event-time">{event["start"]} - {event["end"]}</div>', unsafe_allow_html=True)
+                        
+                        st.markdown('</div>', unsafe_allow_html=True)
     else:
-        # Check if we have a timetable but no events in filtered days
-        has_events_in_timetable = any(
-            day_info['display'] in dashboard_data['timetable'] and dashboard_data['timetable'][day_info['display']]
-            for day_info in filtered_days
-        )
-        if not has_events_in_timetable:
-            st.info("📅 No events scheduled for the selected period. Try a different filter or generate a new timetable.")
+        st.info("No events for this period")
 
 # ==================== ACTIVITIES TAB ====================
 with tab2:
@@ -697,7 +735,7 @@ with tab2:
                 
                 # Show sessions
                 st.markdown("#### 📋 Sessions")
-                sessions_data = act.get('sessions_data', [])
+                sessions_data = act.get('sessions', [])
                 
                 if sessions_data:
                     for sess_idx, session in enumerate(sessions_data):
@@ -725,7 +763,7 @@ with tab2:
                             with col_s3:
                                 if not is_completed:
                                     edit_key = f"edit_session_{act['activity']}_{session_id}"
-                                    if st.button("✏️ Edit", key=edit_key, use_container_width=True):
+                                    if st.button("✏️", key=edit_key, use_container_width=True):
                                         st.session_state[f"editing_{edit_key}"] = True
                                         st.rerun()
                             
@@ -800,7 +838,7 @@ with tab2:
                             
                             st.divider()
                 else:
-                    st.info("No sessions generated yet")
+                    st.info("No sessions generated yet - generate a timetable to create sessions")
                 
                 st.markdown("---")
                 
