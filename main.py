@@ -843,3 +843,4 @@ with tab5:
                 st.rerun()
 with tab6:
     st.header("Achievements")
+    st.write(f"**Hours of work done:** {total_hours_completed}")
