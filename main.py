@@ -414,11 +414,11 @@ if not st.session_state.user_id:
     with col2:
         st.markdown("### Welcome")
         user_input = st.text_input(
-          "Email",
-          placeholder="your.email@example.com",
-          label_visibility="collapsed",
-          key="login_email"
-      )
+            "Email",
+            placeholder="your.email@example.com",
+            label_visibility="collapsed",
+            key="login_email"
+        )
 
         
         if st.button("Sign In", type="primary", use_container_width=True, key="btn_signin"):
@@ -570,59 +570,60 @@ with tab1:
     filtered_days = filter_events_by_period(dashboard_data['month_days'], st.session_state.event_filter)
     
     if dashboard_data['timetable'] and filtered_days:
-    for day_info in filtered_days:
-        day_display = day_info['display']
-        date_obj = day_info['date']
-        formatted_date = date_obj.strftime("%d %B %Y - %A")
-        
-        if day_display in dashboard_data['timetable']:
-            is_current_day = (day_display == dashboard_data['current_day'])
-            events = dashboard_data['timetable'][day_display]
+        for day_info in filtered_days:
+            day_display = day_info['display']
+            date_obj = day_info['date']
+            formatted_date = date_obj.strftime("%d %B %Y - %A")
             
-            if not events:
-                continue
-            
-            # Day header
-            with st.expander(f"{'🟢 ' if is_current_day else ''}📅 {formatted_date}", expanded=is_current_day):
-                for idx, event in enumerate(events):
-                    # Determine if current event
-                    is_current_slot = False
-                    if is_current_day and dashboard_data['current_time']:
-                        from Timetable_Generation import time_str_to_minutes
-                        event_start = time_str_to_minutes(event['start'])
-                        event_end = time_str_to_minutes(event['end'])
-                        current_minutes = time_str_to_minutes(dashboard_data['current_time'])
-                        is_current_slot = event_start <= current_minutes < event_end
-                    
-                    # Color and badge
-                    type_class = event["type"].lower()
-                    happening_now = '<span class="happening-now">● NOW</span>' if is_current_slot else ''
-                    user_badge = '<span class="user-edited-badge">EDITED</span>' if event.get('is_user_edited') else ''
-                    
-                    # Activity progress
-                    progress_info = ""
-                    if event["type"] == "ACTIVITY":
-                        activity_name = event['name'].split(' (Session')[0]
-                        session_part = event['name'].split(' (Session')[1].rstrip(')') if '(Session' in event['name'] else "1"
-                        completed_sessions_act = sum(1 for s in dashboard_data.get('activities_data', {}).get(activity_name, {}).get('sessions_data', []) if s.get('is_completed', False))
-                        total_sessions_act = len(dashboard_data.get('activities_data', {}).get(activity_name, {}).get('sessions_data', []))
-                        progress_info = f"Progress: {completed_sessions_act}/{total_sessions_act} sessions • {event['progress']['completed']:.1f}h / {event['progress']['total']}h"
-                    
-                    # Timetable row
-                    st.markdown(f"""
-                    <div class="timetable-row">
-                        <div class="event-content {type_class}">
-                            <div class="event-info">
-                                {happening_now}
-                                <div class="event-title">{user_badge} {event.get('name', event.get('title', ''))}</div>
-                                <div class="event-details">{progress_info}</div>
+            if day_display in dashboard_data['timetable']:
+                is_current_day = (day_display == dashboard_data['current_day'])
+                events = dashboard_data['timetable'][day_display]
+                
+                if not events:
+                    continue
+                
+                # Day header
+                with st.expander(f"{'🟢 ' if is_current_day else ''}📅 {formatted_date}", expanded=is_current_day):
+                    for idx, event in enumerate(events):
+                        # Determine if current event
+                        is_current_slot = False
+                        if is_current_day and dashboard_data['current_time']:
+                            from Timetable_Generation import time_str_to_minutes
+                            event_start = time_str_to_minutes(event['start'])
+                            event_end = time_str_to_minutes(event['end'])
+                            current_minutes = time_str_to_minutes(dashboard_data['current_time'])
+                            is_current_slot = event_start <= current_minutes < event_end
+                        
+                        # Color and badge
+                        type_class = event["type"].lower()
+                        happening_now = '<span class="happening-now">● NOW</span>' if is_current_slot else ''
+                        user_badge = '<span class="user-edited-badge">EDITED</span>' if event.get('is_user_edited') else ''
+                        
+                        # Activity progress
+                        progress_info = ""
+                        if event["type"] == "ACTIVITY":
+                            activity_name = event['name'].split(' (Session')[0]
+                            session_part = event['name'].split(' (Session')[1].rstrip(')') if '(Session' in event['name'] else "1"
+                            completed_sessions_act = sum(1 for s in dashboard_data.get('activities_data', {}).get(activity_name, {}).get('sessions_data', []) if s.get('is_completed', False))
+                            total_sessions_act = len(dashboard_data.get('activities_data', {}).get(activity_name, {}).get('sessions_data', []))
+                            progress_info = f"Progress: {completed_sessions_act}/{total_sessions_act} sessions • {event['progress']['completed']:.1f}h / {event['progress']['total']}h"
+                        
+                        # Timetable row
+                        st.markdown(f"""
+                        <div class="timetable-row">
+                            <div class="event-content {type_class}">
+                                <div class="event-info">
+                                    {happening_now}
+                                    <div class="event-title">{user_badge} {event.get('name', event.get('title', ''))}</div>
+                                    <div class="event-details">{progress_info}</div>
+                                </div>
+                                <div class="event-time">{event['start']} - {event['end']}</div>
                             </div>
-                            <div class="event-time">{event['start']} - {event['end']}</div>
                         </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-   else:
-      st.info("No events for this period")
+                        """, unsafe_allow_html=True)
+    else:
+        st.info("No events for this period")
+
 # ==================== ACTIVITIES TAB ====================
 with tab2:
     st.header("Activities")
