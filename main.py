@@ -11,84 +11,317 @@ from Firebase_Function import load_from_firebase
 # Page configuration
 st.set_page_config(page_title="NERO-TIME", page_icon="🕛", layout="wide")
 
-# Custom CSS
+# Custom CSS - ENHANCED VERSION
 st.markdown("""
 <style>
+    /* Hide Streamlit branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     
+    /* Main container */
+    .main > div {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    
+    /* Beautiful gradient background */
+    .stApp {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    /* Content container with glassmorphism */
+    .block-container {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+    
+    /* Enhanced buttons */
     .stButton > button {
-        font-size: 13px;
-        padding: 8px 16px;
-        border-radius: 10px;
-        border: 1px solid #e6c7f2;
-        background: #fff;
+        font-size: 14px;
+        padding: 10px 24px;
+        border-radius: 12px;
+        border: 2px solid #e6c7f2;
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
         color: #5a2b7a;
         font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
     
-    .month-display button {
-        background: linear-gradient(135deg, #e0c3fc, #d0a4f7) !important;
-        color: #4a0080 !important;
-        font-weight: 700 !important;
-        font-size: 16px !important;
-        border: 2px solid #c77dff !important;
-        cursor: pointer !important;
-        position: relative;
-    }
-    
-    .month-display button:hover {
-        background: linear-gradient(135deg, #c77dff, #b895f0) !important;
-        border-color: #a855f7 !important;
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #f6e6ff 0%, #e9d5ff 100%);
+        border-color: #c77dff;
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(167, 85, 247, 0.3);
     }
     
-    .calendar-popup {
-        display: none;
-        position: absolute;
-        top: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        margin-top: 10px;
+    .stButton > button:active {
+        transform: translateY(0px);
+        box-shadow: 0 2px 6px rgba(167, 85, 247, 0.2);
+    }
+    
+    /* Primary buttons */
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .stButton > button[kind="primary"]:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+    
+    /* Month display with enhanced styling */
+    .month-display button {
+        background: linear-gradient(135deg, #e0c3fc 0%, #d0a4f7 100%) !important;
+        color: #4a0080 !important;
+        font-weight: 700 !important;
+        font-size: 18px !important;
+        border: 3px solid #c77dff !important;
+        cursor: pointer !important;
+        position: relative;
+        box-shadow: 0 4px 15px rgba(199, 125, 255, 0.3) !important;
+    }
+    
+    .month-display button:hover {
+        background: linear-gradient(135deg, #c77dff 0%, #b895f0 100%) !important;
+        border-color: #a855f7 !important;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(167, 85, 247, 0.4) !important;
+    }
+    
+    /* Enhanced expanders */
+    .streamlit-expanderHeader {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 12px;
+        padding: 12px 16px;
+        border: 2px solid #dee2e6;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .streamlit-expanderHeader:hover {
+        background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+        border-color: #c77dff;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Tabs styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        padding: 8px;
+        border-radius: 12px;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        padding: 0 24px;
         background: white;
-        border: 2px solid #c77dff;
         border-radius: 10px;
-        padding: 15px;
-        box-shadow: 0 8px 24px rgba(167, 85, 247, 0.3);
-        z-index: 1000;
-        min-width: 250px;
+        border: 2px solid transparent;
+        font-weight: 600;
+        transition: all 0.3s ease;
     }
     
-    .month-display:hover .calendar-popup {
-        display: block;
-    }
-    
-    .stButton > button:hover {
-        background: #f6e6ff;
+    .stTabs [data-baseweb="tab"]:hover {
+        background: linear-gradient(135deg, #f6e6ff 0%, #e9d5ff 100%);
         border-color: #c77dff;
     }
     
-    .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #c77dff, #ff8dc7);
-        color: white;
-        border: none;
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+        border-color: #667eea !important;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
     }
     
+    /* Progress bars */
+    .stProgress > div > div > div > div {
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        border-radius: 10px;
+    }
+    
+    /* Metric values */
     [data-testid="stMetricValue"] {
-        font-size: 24px;
+        font-size: 32px;
         font-weight: 700;
-        color: #6a1bb9;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
     
+    /* Input fields */
+    .stTextInput > div > div > input,
+    .stNumberInput > div > div > input,
+    .stSelectbox > div > div > div,
+    .stMultiSelect > div > div > div {
+        border-radius: 10px;
+        border: 2px solid #dee2e6;
+        padding: 10px 12px;
+        transition: all 0.3s ease;
+    }
+    
+    .stTextInput > div > div > input:focus,
+    .stNumberInput > div > div > input:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    /* User edited badge */
     .user-edited-badge {
-        background-color: #0dcaf0;
+        background: linear-gradient(135deg, #0dcaf0 0%, #0891b2 100%);
         color: white;
-        padding: 2px 8px;
-        border-radius: 12px;
+        padding: 4px 12px;
+        border-radius: 20px;
         font-size: 11px;
         font-weight: bold;
         margin-right: 8px;
+        display: inline-block;
+        box-shadow: 0 2px 8px rgba(13, 202, 240, 0.3);
+    }
+    
+    /* Session status badges */
+    .session-completed {
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        border-left: 4px solid #28a745;
+        padding: 12px;
+        margin: 8px 0;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(40, 167, 69, 0.2);
+    }
+    
+    .session-pending {
+        background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
+        border-left: 4px solid #ffc107;
+        padding: 12px;
+        margin: 8px 0;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(255, 193, 7, 0.2);
+    }
+    
+    .session-locked {
+        background: linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%);
+        border-left: 4px solid #6c757d;
+        padding: 12px;
+        margin: 8px 0;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(108, 117, 125, 0.2);
+    }
+    
+    /* Event type indicators */
+    .event-activity {
+        border-left: 5px solid #667eea;
+        padding-left: 12px;
+        margin: 8px 0;
+    }
+    
+    .event-school {
+        border-left: 5px solid #f59e0b;
+        padding-left: 12px;
+        margin: 8px 0;
+    }
+    
+    .event-compulsory {
+        border-left: 5px solid #dc3545;
+        padding-left: 12px;
+        margin: 8px 0;
+    }
+    
+    .event-break {
+        border-left: 5px solid #6c757d;
+        padding-left: 12px;
+        margin: 8px 0;
+        opacity: 0.7;
+    }
+    
+    /* Happening now indicator */
+    .happening-now {
+        animation: pulse 2s infinite;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        display: inline-block;
+        font-weight: 700;
+        margin-bottom: 12px;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 0.8;
+            transform: scale(1.05);
+        }
+    }
+    
+    /* Slider styling */
+    .stSlider > div > div > div > div {
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    /* Headers */
+    h1 {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800;
+        margin-bottom: 1rem;
+    }
+    
+    h2, h3 {
+        color: #4a0080;
+        font-weight: 700;
+    }
+    
+    /* Divider */
+    hr {
+        margin: 2rem 0;
+        border: none;
+        height: 2px;
+        background: linear-gradient(90deg, transparent 0%, #c77dff 50%, transparent 100%);
+    }
+    
+    /* Info boxes */
+    .stAlert {
+        border-radius: 12px;
+        border-left: 5px solid #667eea;
+        padding: 1rem;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+    
+    /* Success message */
+    .stSuccess {
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%) !important;
+        border-left: 5px solid #28a745 !important;
+    }
+    
+    /* Error message */
+    .stError {
+        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%) !important;
+        border-left: 5px solid #dc3545 !important;
+    }
+    
+    /* Warning message */
+    .stWarning {
+        background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%) !important;
+        border-left: 5px solid #ffc107 !important;
+    }
+    
+    /* Spinner */
+    .stSpinner > div {
+        border-top-color: #667eea !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -136,28 +369,102 @@ if not st.session_state.data_loaded and st.session_state.user_id:
 
 # ==================== LOGIN SCREEN ====================
 if not st.session_state.user_id:
-    st.title("Welcome to NERO-Time")
-    st.markdown("Please enter your user ID to continue")
+    # Center everything with beautiful design
+    st.markdown("""
+    <div style='text-align: center; padding: 3rem 0;'>
+        <h1 style='font-size: 4rem; margin-bottom: 0.5rem;'>🕛</h1>
+        <h1 style='font-size: 3rem; font-weight: 800; 
+                   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                   -webkit-background-clip: text;
+                   -webkit-text-fill-color: transparent;
+                   margin-bottom: 1rem;'>
+            NERO-Time
+        </h1>
+        <p style='font-size: 1.2rem; color: #6c757d; margin-bottom: 2rem;'>
+            Your intelligent time management companion
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        user_input = st.text_input("User ID", placeholder="email@example.com")
-        if st.button("Login", type="primary", use_container_width=True):
+        st.markdown("""
+        <div style='background: white; padding: 2rem; border-radius: 20px; 
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+                    border: 2px solid rgba(102, 126, 234, 0.2);'>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("### 👋 Welcome back!")
+        st.markdown("Enter your email to continue")
+        
+        user_input = st.text_input("Email Address", placeholder="your.email@example.com", label_visibility="collapsed")
+        
+        if st.button("🚀 Sign In", type="primary", use_container_width=True):
             if user_input:
-                result = NeroTimeLogic.login_user(user_input)
+                with st.spinner("Logging in..."):
+                    result = NeroTimeLogic.login_user(user_input)
                 if result["success"]:
-                    st.success(result["message"])
+                    st.success("✓ " + result["message"])
+                    st.balloons()
+                    import time
+                    time.sleep(0.5)
                     st.rerun()
                 else:
-                    st.error(result["message"])
+                    st.error("✗ " + result["message"])
             else:
-                st.error("Please enter a user ID")
+                st.error("📧 Please enter your email address")
+        
+        st.markdown("""
+        <div style='text-align: center; margin-top: 2rem; padding-top: 1rem; 
+                    border-top: 2px solid rgba(102, 126, 234, 0.1);'>
+            <p style='color: #6c757d; font-size: 0.9rem;'>
+                ✨ Manage your activities • 📚 Track school schedule • 🎯 Meet deadlines
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    
     st.stop()
 
 
 # ==================== MAIN APP ====================
-st.title("NERO-Time")
-st.caption(f"Logged in as: {st.session_state.user_id}")
+# Beautiful header
+st.markdown("""
+<div style='text-align: center; padding: 1rem 0 2rem 0;'>
+    <h1 style='font-size: 2.5rem; margin-bottom: 0.5rem;'>🕛 NERO-Time</h1>
+</div>
+""", unsafe_allow_html=True)
+
+# User info and quick stats
+col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
+
+# Calculate stats
+dashboard_preview = NeroTimeLogic.get_dashboard_data()
+activities_preview = NeroTimeLogic.get_activities_data()
+
+total_activities = len(activities_preview['activities'])
+completed_sessions = sum(
+    sum(1 for sess in act.get('sessions_data', []) if sess.get('is_completed', False))
+    for act in activities_preview['activities']
+)
+total_sessions = sum(
+    len(act.get('sessions_data', []))
+    for act in activities_preview['activities']
+)
+total_hours_completed = sum(act['progress']['completed'] for act in activities_preview['activities'])
+
+with col_stat1:
+    st.metric("📝 Activities", total_activities, help="Total active activities")
+with col_stat2:
+    st.metric("✅ Sessions Done", f"{completed_sessions}/{total_sessions}", help="Completed vs total sessions")
+with col_stat3:
+    st.metric("⏱️ Hours Logged", f"{total_hours_completed:.1f}h", help="Total hours completed")
+with col_stat4:
+    completion_rate = (completed_sessions / total_sessions * 100) if total_sessions > 0 else 0
+    st.metric("📊 Completion", f"{completion_rate:.0f}%", help="Overall completion rate")
+
+st.caption(f"👤 Logged in as: **{st.session_state.user_id}**")
+st.divider()
 
 # Navigation - MODIFIED: Added School Schedule tab
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["Dashboard", "Activities", "Events", "School Schedule", "Settings"])
@@ -240,39 +547,63 @@ with tab1:
     
     st.divider()
     
-    
-    # Quick actions
+    # Quick actions with enhanced styling
+    st.markdown("### ⚡ Quick Actions")
     col1, col2 = st.columns(2)
+    
     with col1:
-        with st.expander("Generate Timetable", expanded=True):
+        with st.expander("🎯 Generate Timetable", expanded=True):
+            st.markdown("**Configure your timetable generation settings:**")
+            
             col_a, col_b = st.columns(2)
             with col_a:
-                min_session = st.number_input("Min session (minutes)", 15, 180, 30, 15)
+                min_session = st.number_input("⏱️ Min session (minutes)", 15, 180, 30, 15, 
+                                             help="Minimum duration for each study session")
             with col_b:
-                max_session = st.number_input("Max session (minutes)", 30, 240, 120, 15)
-                
+                max_session = st.number_input("⏱️ Max session (minutes)", 30, 240, 120, 15,
+                                             help="Maximum duration for each study session")
             
-            if st.button("Generate", type="primary", use_container_width=True):
-                # MODIFIED: Added school schedule check
+            st.info(f"💡 Sessions will be between {min_session}-{max_session} minutes")
+            
+            if st.button("✨ Generate Timetable", type="primary", use_container_width=True):
+                # Check if there's anything to schedule
                 if st.session_state.list_of_activities or st.session_state.list_of_compulsory_events or st.session_state.school_schedule:
-                    with st.spinner("Generating..."):
+                    with st.spinner("🔮 Generating your personalized timetable..."):
+                        import time
+                        time.sleep(0.5)  # Brief pause for UX
                         result = NeroTimeLogic.generate_timetable(min_session, max_session)
                     if result["success"]:
-                        st.success(result["message"])
+                        st.success("✓ " + result["message"])
                         st.balloons()
                         st.rerun()
                     else:
-                        st.error(result["message"])
+                        st.error("✗ " + result["message"])
                 else:
-                    st.warning("Add activities, events, or school schedule first")
+                    st.warning("⚠️ Add activities, events, or school schedule first")
     
     with col2:
-        if st.button("💾 Save Data", use_container_width=True, type="primary"):
-            result = NeroTimeLogic.save_all_data()
+        st.markdown("#### 💾 Data Management")
+        
+        if st.button("💾 Save All Data", use_container_width=True, type="primary"):
+            with st.spinner("Saving..."):
+                result = NeroTimeLogic.save_all_data()
             if result["success"]:
-                st.success(result["message"])
+                st.success("✓ " + result["message"])
             else:
-                st.error(result["message"])
+                st.error("✗ " + result["message"])
+        
+        st.markdown("---")
+        
+        # Show last save info
+        st.caption("💡 **Tip:** Data is auto-saved when you generate timetable")
+        
+        # Quick stats about current month
+        num_events_today = 0
+        today_display = dashboard_data.get('current_day', '')
+        if today_display and today_display in dashboard_data.get('timetable', {}):
+            num_events_today = len(dashboard_data['timetable'][today_display])
+        
+        st.metric("📅 Events Today", num_events_today)
     
     st.divider()
     
@@ -310,54 +641,91 @@ with tab1:
                             is_completed = event.get('is_completed', False)
                             is_user_edited = event.get('is_user_edited', False)
                             
+                            # Show happening now badge
                             if is_current_slot:
-                                st.markdown("**🟢 HAPPENING NOW**")
+                                st.markdown('<div class="happening-now">🟢 HAPPENING NOW</div>', unsafe_allow_html=True)
+                            
+                            # Create event container
+                            st.markdown('<div class="event-activity">', unsafe_allow_html=True)
                             
                             col1, col2 = st.columns([0.85, 0.15])
                             with col1:
-                                # NEW: Show edit badge
+                                # Show edit badge
+                                badge_html = ""
                                 if is_user_edited:
-                                    st.markdown("<span class='user-edited-badge'>✏️ EDITED</span>", unsafe_allow_html=True)
+                                    badge_html = '<span class="user-edited-badge">✏️ EDITED</span>'
                                 
-                                # NEW: Show completion status
+                                # Show completion status with icon
                                 if is_completed:
-                                    st.markdown(f"**✅ {event['start']} - {event['end']}:** {event['name']} (Completed)")
+                                    st.markdown(f"{badge_html}**✅ {event['start']} - {event['end']}:** {event['name']}", unsafe_allow_html=True)
+                                    st.caption("✓ Session completed")
                                 else:
-                                    st.markdown(f"**🔵 {event['start']} - {event['end']}:** {event['name']}")
+                                    st.markdown(f"{badge_html}**🔵 {event['start']} - {event['end']}:** {event['name']}", unsafe_allow_html=True)
                                 
+                                # Beautiful progress bar
                                 st.progress(progress['percentage'] / 100)
-                                st.caption(f"{progress['completed']:.1f}h / {progress['total']}h completed")
+                                
+                                # Progress info with icons
+                                progress_pct = progress['percentage']
+                                if progress_pct == 100:
+                                    icon = "🎉"
+                                elif progress_pct >= 75:
+                                    icon = "🔥"
+                                elif progress_pct >= 50:
+                                    icon = "💪"
+                                elif progress_pct >= 25:
+                                    icon = "📈"
+                                else:
+                                    icon = "🚀"
+                                
+                                st.caption(f"{icon} {progress['completed']:.1f}h / {progress['total']}h ({progress_pct:.0f}%)")
                             
                             with col2:
-                                # NEW: Show done or verify button based on completion
+                                # Show done or verify button based on completion
                                 if is_completed:
-                                    st.markdown("✓ Done")
+                                    st.markdown("**✓** Done", unsafe_allow_html=True)
                                 elif can_verify:
-                                    if st.button("✓", key=f"verify_{day_display}_{idx}", use_container_width=True):
+                                    if st.button("✓ Verify", key=f"verify_{day_display}_{idx}", use_container_width=True, type="primary"):
                                         result = NeroTimeLogic.verify_session(day_display, idx)
                                         if result["success"]:
                                             st.success(result["message"])
+                                            st.balloons()
                                             st.rerun()
                                         else:
                                             st.error(result["message"])
                                 else:
-                                    st.caption("⏳ Not yet")
+                                    st.caption("⏳ Future")
+                            
+                            st.markdown('</div>', unsafe_allow_html=True)
                         
                         # NEW: Handle SCHOOL event type
                         elif event["type"] == "SCHOOL":
                             if is_current_slot:
-                                st.markdown("**🟢 HAPPENING NOW**")
+                                st.markdown('<div class="happening-now">🟢 HAPPENING NOW</div>', unsafe_allow_html=True)
+                            
+                            st.markdown('<div class="event-school">', unsafe_allow_html=True)
                             st.markdown(f"**🏫 {event['start']} - {event['end']}:** {event['name']}")
+                            duration = (time_str_to_minutes(event['end']) - time_str_to_minutes(event['start'])) / 60
+                            st.caption(f"📚 School class ({duration:.1f}h)")
+                            st.markdown('</div>', unsafe_allow_html=True)
                         
                         elif event["type"] == "COMPULSORY":
                             if is_current_slot:
-                                st.markdown("**🟢 HAPPENING NOW**")
+                                st.markdown('<div class="happening-now">🟢 HAPPENING NOW</div>', unsafe_allow_html=True)
+                            
+                            st.markdown('<div class="event-compulsory">', unsafe_allow_html=True)
                             st.markdown(f"**🔴 {event['start']} - {event['end']}:** {event['name']}")
+                            duration = (time_str_to_minutes(event['end']) - time_str_to_minutes(event['start'])) / 60
+                            st.caption(f"📅 Compulsory event ({duration:.1f}h)")
+                            st.markdown('</div>', unsafe_allow_html=True)
                         
                         else:  # BREAK
                             if is_current_slot:
-                                st.markdown("**🟢 BREAK TIME**")
+                                st.markdown('<div class="happening-now">🟢 BREAK TIME</div>', unsafe_allow_html=True)
+                            
+                            st.markdown('<div class="event-break">', unsafe_allow_html=True)
                             st.markdown(f"*⚪ {event['start']} - {event['end']}: {event['name']}*")
+                            st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.info("No timetable generated yet")
 
@@ -376,15 +744,15 @@ with tab2:
         with col2:
             timing = st.number_input("Total Hours", min_value=1, max_value=100, value=1)
         
-        st.write("**Session Timing Preferences (Optional)**")
+        st.write("**Session Timing Preferences**")
         col3, col4 = st.columns(2)
         with col3:
             min_session_min = st.number_input("Min session (minutes)", 15, 180, 30, 15, key="add_min_session")
         with col4:
             max_session_min = st.number_input("Max session (minutes)", 30, 240, 120, 15, key="add_max_session")
-            if max_session_min > timing*60:
-                max_session_min = timing*60
-            sessions = math.ceil(timing*60/(random.randint(min_session_min, max_session_min)))
+            # Ensure max is always >= min
+            if max_session_min < min_session_min:
+                max_session_min = min_session_min
         
         # NEW: Add day preferences
         st.write("**Day Preferences (Optional)**")
@@ -398,10 +766,10 @@ with tab2:
         
         if st.button("Add Activity", use_container_width=True, type="primary"):
             if activity_name:
-                # MODIFIED: Added allowed_days parameter
+                # Add activity with allowed days
                 result = NeroTimeLogic.add_activity(
                     activity_name, priority, deadline_date.isoformat(), 
-                    timing, min_session_min, max_session_min, sessions, allowed_days
+                    timing, min_session_min, max_session_min, allowed_days
                 )
                 if result["success"]:
                     st.success(result["message"])
