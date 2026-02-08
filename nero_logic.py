@@ -245,7 +245,8 @@ class NeroTimeLogic:
     
     @staticmethod
     def edit_session(activity_name: str, session_id: str, new_day: str = None, 
-                     new_start_time: str = None, new_duration: int = None, lock: bool = None) -> Dict:
+                     new_start_time: str = None, new_duration: int = None, lock: bool = None,
+                     new_date: str = None) -> Dict:
         """Edit a specific session of an activity and rebalance other sessions"""
         try:
             # Find the activity
@@ -287,6 +288,8 @@ class NeroTimeLogic:
                 session['duration_hours'] = round(new_duration / 60, 2)
             if lock is not None:
                 session['is_locked'] = lock
+            if new_date is not None:
+                session['scheduled_date'] = new_date
             
             # Rebalance other unedited, incomplete sessions if duration changed
             if new_duration is not None and new_duration != old_duration:
@@ -353,6 +356,7 @@ class NeroTimeLogic:
                 'start_time': new_start_time,
                 'duration': new_duration,
                 'locked': lock,
+                'date': new_date,
                 'edited_at': datetime.now().isoformat()
             }
             
