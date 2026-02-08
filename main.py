@@ -621,8 +621,8 @@ with tab1:
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
-        else:
-           st.info("No events for this period")
+   else:
+      st.info("No events for this period")
 # ==================== ACTIVITIES TAB ====================
 with tab2:
     st.header("Activities")
