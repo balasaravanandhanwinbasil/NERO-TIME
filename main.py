@@ -255,7 +255,13 @@ if not st.session_state.user_id:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("### Welcome")
-        user_input = st.text_input("Email", placeholder="your.email@example.com", label_visibility="collapsed")
+        user_input = st.text_input(
+          "Email",
+          placeholder="your.email@example.com",
+          label_visibility="collapsed",
+          key="login_email"
+      )
+
         
         if st.button("Sign In", type="primary", use_container_width=True):
             if user_input:
@@ -482,7 +488,7 @@ with tab2:
     st.header("Activities")
     
     with st.expander("➕ Add Activity", expanded=False):
-        name = st.text_input("Name")
+        name = st.text_input("Name", key="activity_name")
         col1, col2 = st.columns(2)
         with col1:
             priority = st.slider("Priority", 1, 5, 3)
@@ -537,7 +543,7 @@ with tab3:
     st.header("Events")
     
     with st.expander("➕ Add Event", expanded=False):
-        event_name = st.text_input("Name")
+        event_name = st.text_input("Name", key="event_name")
         col1, col2 = st.columns(2)
         with col1:
             event_date = st.date_input("Date", min_value=datetime.now().date())
@@ -584,7 +590,7 @@ with tab4:
         with col1:
             from Timetable_Generation import WEEKDAY_NAMES
             day = st.selectbox("Day", WEEKDAY_NAMES)
-            subject = st.text_input("Subject")
+            subject = st.text_input("Subject", key="school_subject")
         with col2:
             start = st.time_input("Start", key="s_start")
             end = st.time_input("End", key="s_end")
