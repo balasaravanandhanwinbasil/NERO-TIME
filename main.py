@@ -610,17 +610,18 @@ with tab1:
                         
                         # Timetable row
                         st.markdown(f"""
-                        <div class="timetable-row">
-                            <div class="event-content {type_class}">
-                                <div class="event-info">
-                                    {happening_now}
-                                    <div class="event-title">{user_badge} {event.get('name', event.get('title', ''))}</div>
-                                    <div class="event-details">{progress_info}</div>
-                                </div>
-                                <div class="event-time">{event['start']} - {event['end']}</div>
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                              <div class="timetable-row">
+                                  <div class="event-content {type_class}">
+                                      <div class="event-info">
+                                          {happening_now}
+                                          <div class="event-title">{user_badge} {event.get('name', event.get('title', ''))}</div>
+                                          {f'<div class="event-details">{progress_info}</div>' if progress_info else ''}
+                                      </div>
+                                      <div class="event-time">{event['start']} - {event['end']}</div>
+                                  </div>
+                              </div>
+                              """, unsafe_allow_html=True)
+
     else:
         st.info("No events for this period")
 
