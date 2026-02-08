@@ -214,79 +214,94 @@ p, span, label, div {
 }
 
 /* --------------------------------------------------
-   TIMETABLE ROW - FIXED LAYOUT
+   TIMETABLE ROW - IMPROVED LAYOUT
 -------------------------------------------------- */
 
 .timetable-row {
     display: flex;
     align-items: stretch;
-    margin: 10px 0;
-    min-height: 60px;
+    margin: 12px 0;
+    min-height: 70px;
 }
 
 .event-content {
     flex: 1;
-    padding: 14px 18px;
-    border-radius: 8px;
+    padding: 16px 20px;
+    border-radius: 10px;
     background: var(--bg);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-    border-left: 4px solid;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    border-left: 5px solid;
     transition: all 0.3s ease;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
+    gap: 20px;
 }
 
 .event-content:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-    transform: translateX(3px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    transform: translateX(4px);
 }
 
 .event-content.activity {
     border-left-color: var(--activity-color);
+    background: linear-gradient(to right, rgba(233, 30, 99, 0.02), var(--bg));
 }
 
 .event-content.school {
     border-left-color: var(--school-color);
+    background: linear-gradient(to right, rgba(255, 152, 0, 0.02), var(--bg));
 }
 
 .event-content.compulsory {
     border-left-color: var(--compulsory-color);
+    background: linear-gradient(to right, rgba(244, 67, 54, 0.02), var(--bg));
 }
 
 .event-content.break {
     border-left-color: var(--break-color);
-    opacity: 0.75;
+    opacity: 0.7;
 }
 
 .event-info {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 .event-title {
     font-weight: 600;
-    font-size: 1rem;
-    margin-bottom: 4px;
+    font-size: 1.05rem;
+    margin: 0;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     flex-wrap: wrap;
+    line-height: 1.4;
 }
 
 .event-details {
-    font-size: 0.85rem;
-    opacity: 0.8;
+    font-size: 0.88rem;
+    opacity: 0.75;
+    line-height: 1.5;
 }
 
 .event-time {
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 1rem;
     color: var(--text);
+    opacity: 0.85;
     white-space: nowrap;
-    min-width: 120px;
+    min-width: 130px;
     text-align: right;
+    font-family: 'Courier New', monospace;
+}
+
+.event-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
 }
 
 .happening-now {
@@ -626,90 +641,133 @@ with tab1:
                             current_minutes = time_str_to_minutes(dashboard_data['current_time'])
                             is_current_slot = event_start <= current_minutes < event_end
                         
-                        # Create timetable row with proper structure
-                        st.markdown('<div class="timetable-row">', unsafe_allow_html=True)
-                        
+                        # Create timetable row
                         if event["type"] == "ACTIVITY":
                             activity_name = event['name'].split(' (Session')[0]
                             session_part = event['name'].split(' (Session')[1].rstrip(')') if '(Session' in event['name'] else "1"
                             is_completed = event.get('is_completed', False)
                             is_user_edited = event.get('is_user_edited', False)
                             
-                            # Event content (with color marker on LEFT)
-                            st.markdown('<div class="event-content activity">', unsafe_allow_html=True)
+                            # Create columns for layout
+                            col_main, col_actions = st.columns([0.85, 0.15])
                             
-                            col1, col2 = st.columns([0.85, 0.15])
-                            with col1:
+                            with col_main:
+                                st.markdown('<div class="timetable-row">', unsafe_allow_html=True)
+                                st.markdown('<div class="event-content activity">', unsafe_allow_html=True)
+                                
+                                # Event info section
                                 st.markdown('<div class="event-info">', unsafe_allow_html=True)
                                 
+                                # Title row with badges
+                                title_parts = []
                                 if is_current_slot:
-                                    st.markdown('<span class="happening-now">● NOW</span>', unsafe_allow_html=True)
+                                    title_parts.append('<span class="happening-now">● LIVE NOW</span>')
+                                if is_user_edited:
+                                    title_parts.append('<span class="user-edited-badge">EDITED</span>')
                                 
-                                badge = '<span class="user-edited-badge">EDITED</span>' if is_user_edited else ''
                                 status_icon = "✅" if is_completed else "⚫"
-                                st.markdown(f'<div class="event-title">{badge}{status_icon} {activity_name} (Session {session_part})</div>', unsafe_allow_html=True)
+                                title_parts.append(f'{status_icon} <strong>{activity_name}</strong>')
+                                title_parts.append(f'<span style="opacity: 0.7;">Session {session_part}</span>')
                                 
-                                # Get activity to find total sessions
+                                st.markdown(f'<div class="event-title">{" ".join(title_parts)}</div>', unsafe_allow_html=True)
+                                
+                                # Get activity details
                                 activity_obj = next((a for a in st.session_state.list_of_activities if a['activity'] == activity_name), None)
                                 if activity_obj:
                                     sessions = activity_obj.get('sessions', [])
                                     completed_sessions_act = sum(1 for s in sessions if s.get('is_completed', False))
                                     total_sessions_act = len(sessions)
                                     total_hours = activity_obj['timing']
+                                    completed_hours = sum(s.get('duration_hours', 0) for s in sessions if s.get('is_completed', False))
                                     
-                                    st.markdown(f'<div class="event-details">Progress: {completed_sessions_act}/{total_sessions_act} sessions • 0h / {total_hours}h</div>', unsafe_allow_html=True)
+                                    st.markdown(
+                                        f'<div class="event-details">'
+                                        f'📊 Progress: {completed_sessions_act}/{total_sessions_act} sessions • '
+                                        f'{completed_hours:.1f}h / {total_hours}h completed'
+                                        f'</div>', 
+                                        unsafe_allow_html=True
+                                    )
                                 
-                                # Time display INSIDE the card on the right
-                                st.markdown(f'<div class="event-time">{event["start"]} - {event["end"]}</div>', unsafe_allow_html=True)
+                                st.markdown('</div>', unsafe_allow_html=True)  # Close event-info
                                 
-                                st.markdown('</div>', unsafe_allow_html=True)
+                                # Time display
+                                st.markdown(f'<div class="event-time">{event["start"]} — {event["end"]}</div>', unsafe_allow_html=True)
+                                
+                                st.markdown('</div>', unsafe_allow_html=True)  # Close event-content
+                                st.markdown('</div>', unsafe_allow_html=True)  # Close timetable-row
                             
-                            with col2:
+                            with col_actions:
                                 if is_completed:
-                                    st.markdown("✅")
+                                    st.markdown("### ✅")
                                 elif event['can_verify']:
-                                    if st.button("✓", key=f"verify_{day_display}_{idx}_{event.get('session_id', idx)}", use_container_width=True):
-                                        result = NeroTimeLogic.verify_session(day_display, idx)
-                                        if result["success"]:
-                                            st.success("Completed!")
-                                            st.rerun()
-                            
-                            st.markdown('</div>', unsafe_allow_html=True)  # Close event-content
-                            st.markdown('</div>', unsafe_allow_html=True)  # Close timetable-row
+                                    # Show both checkmark and X buttons
+                                    col_check, col_skip = st.columns(2)
+                                    with col_check:
+                                        if st.button("✓", key=f"verify_{day_display}_{idx}_{event.get('session_id', idx)}", 
+                                                   use_container_width=True, help="Mark as completed"):
+                                            result = NeroTimeLogic.verify_session(day_display, idx, completed=True)
+                                            if result["success"]:
+                                                st.success("✅ Completed!")
+                                                st.rerun()
+                                    with col_skip:
+                                        if st.button("✗", key=f"skip_{day_display}_{idx}_{event.get('session_id', idx)}", 
+                                                   use_container_width=True, help="Mark as not done"):
+                                            result = NeroTimeLogic.verify_session(day_display, idx, completed=False)
+                                            if result["success"]:
+                                                st.warning("⚠️ Skipped")
+                                                st.rerun()
                         
                         elif event["type"] == "SCHOOL":
+                            st.markdown('<div class="timetable-row">', unsafe_allow_html=True)
                             st.markdown('<div class="event-content school">', unsafe_allow_html=True)
+                            
                             st.markdown('<div class="event-info">', unsafe_allow_html=True)
                             
+                            title_parts = []
                             if is_current_slot:
-                                st.markdown('<span class="happening-now">● NOW</span>', unsafe_allow_html=True)
+                                title_parts.append('<span class="happening-now">● LIVE NOW</span>')
+                            title_parts.append('🏫 <strong>School/Work</strong>')
                             
-                            st.markdown(f'<div class="event-title">🏫 School/Work</div>', unsafe_allow_html=True)
-                            st.markdown(f'<div class="event-time">{event["start"]} - {event["end"]}</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="event-title">{" ".join(title_parts)}</div>', unsafe_allow_html=True)
+                            st.markdown('<div class="event-details">Recurring schedule</div>', unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
+                            
+                            st.markdown(f'<div class="event-time">{event["start"]} — {event["end"]}</div>', unsafe_allow_html=True)
+                            
                             st.markdown('</div>', unsafe_allow_html=True)  # Close event-content
                             st.markdown('</div>', unsafe_allow_html=True)  # Close timetable-row
                         
                         elif event["type"] == "COMPULSORY":
+                            st.markdown('<div class="timetable-row">', unsafe_allow_html=True)
                             st.markdown('<div class="event-content compulsory">', unsafe_allow_html=True)
+                            
                             st.markdown('<div class="event-info">', unsafe_allow_html=True)
                             
+                            title_parts = []
                             if is_current_slot:
-                                st.markdown('<span class="happening-now">● NOW</span>', unsafe_allow_html=True)
+                                title_parts.append('<span class="happening-now">● LIVE NOW</span>')
+                            title_parts.append(f'🔴 <strong>{event["name"]}</strong>')
                             
-                            st.markdown(f'<div class="event-title">🔴 {event["name"]}</div>', unsafe_allow_html=True)
-                            st.markdown(f'<div class="event-details">Compulsory Event</div>', unsafe_allow_html=True)
-                            st.markdown(f'<div class="event-time">{event["start"]} - {event["end"]}</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="event-title">{" ".join(title_parts)}</div>', unsafe_allow_html=True)
+                            st.markdown('<div class="event-details">Compulsory Event</div>', unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
+                            
+                            st.markdown(f'<div class="event-time">{event["start"]} — {event["end"]}</div>', unsafe_allow_html=True)
+                            
                             st.markdown('</div>', unsafe_allow_html=True)  # Close event-content
                             st.markdown('</div>', unsafe_allow_html=True)  # Close timetable-row
                         
                         else:  # BREAK
+                            st.markdown('<div class="timetable-row">', unsafe_allow_html=True)
                             st.markdown('<div class="event-content break">', unsafe_allow_html=True)
+                            
                             st.markdown('<div class="event-info">', unsafe_allow_html=True)
-                            st.markdown(f'<div class="event-title">⚪ Break</div>', unsafe_allow_html=True)
-                            st.markdown(f'<div class="event-time">{event["start"]} - {event["end"]}</div>', unsafe_allow_html=True)
+                            st.markdown('<div class="event-title">⚪ <strong>Break</strong></div>', unsafe_allow_html=True)
+                            st.markdown('<div class="event-details">Rest & recharge</div>', unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
+                            
+                            st.markdown(f'<div class="event-time">{event["start"]} — {event["end"]}</div>', unsafe_allow_html=True)
+                            
                             st.markdown('</div>', unsafe_allow_html=True)  # Close event-content
                             st.markdown('</div>', unsafe_allow_html=True)  # Close timetable-row
     else:
