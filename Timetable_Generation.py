@@ -233,10 +233,10 @@ def place_activity_sessions(activity, month_days, warnings, today):
     """
     Place activity sessions in the timetable, creating sessions as we schedule them.
     ONLY schedules from today onwards. Past sessions trigger completion prompts.
+    Excludes already completed sessions when regenerating.
     """
     activity_name = activity['activity']
     total_hours = activity['timing']
-    total_minutes = total_hours * 60
     min_session = activity.get('min_session_minutes', 30)
     max_session = activity.get('max_session_minutes', 120)
     
@@ -247,17 +247,30 @@ def place_activity_sessions(activity, month_days, warnings, today):
     # Check for past incomplete sessions
     check_past_activities(activity, month_days, today, warnings)
     
+    # Calculate remaining time based on completed sessions
+    existing_sessions = activity.get('sessions', [])
+    completed_hours = sum(s.get('duration_hours', 0) for s in existing_sessions if s.get('is_completed', False))
+    total_minutes = (total_hours - completed_hours) * 60
+    
+    if total_minutes <= 0:
+        warnings.append(f"✓ '{activity_name}': All hours already completed!")
+        # Keep only completed sessions
+        completed_sessions = [s for s in existing_sessions if s.get('is_completed', False)]
+        return completed_sessions
+    
     # Get available days before deadline (from today onwards)
     available_days = get_available_days_for_activity(activity, month_days, today)
     
     if not available_days:
         warnings.append(f"❌ '{activity_name}': No available days before deadline (starting from today)!")
-        return []
+        # Keep completed sessions
+        completed_sessions = [s for s in existing_sessions if s.get('is_completed', False)]
+        return completed_sessions
     
-    # Track created sessions
-    sessions = []
+    # Track created sessions (start with completed sessions)
+    sessions = [s for s in existing_sessions if s.get('is_completed', False)]
+    session_count = len(sessions)  # Start counting from completed sessions
     remaining_minutes = total_minutes
-    session_count = 0
     
     # Keep trying to place sessions until we run out of time or days
     max_attempts = len(available_days) * 10  # Allow multiple sessions per day
@@ -330,14 +343,23 @@ def place_activity_sessions(activity, month_days, warnings, today):
             if day_index >= len(available_days):
                 break
     
+    # Calculate new session count (excluding completed ones)
+    new_sessions_count = session_count - sum(1 for s in existing_sessions if s.get('is_completed', False))
+    
     # Check if we managed to fit everything
     if remaining_minutes > 0:
         warnings.append(
             f"⚠️ '{activity_name}': Could only schedule {(total_minutes - remaining_minutes)/60:.1f}h "
-            f"of {total_hours}h before deadline (from today onwards). {remaining_minutes/60:.1f}h remaining!"
+            f"of {total_hours - completed_hours}h remaining before deadline. {remaining_minutes/60:.1f}h still needed!"
         )
     else:
-        warnings.append(f"✓ '{activity_name}': All {total_hours}h scheduled successfully in {session_count} sessions")
+        if completed_hours > 0:
+            warnings.append(
+                f"✓ '{activity_name}': {completed_hours:.1f}h already completed, "
+                f"{total_hours - completed_hours}h scheduled in {new_sessions_count} new sessions"
+            )
+        else:
+            warnings.append(f"✓ '{activity_name}': All {total_hours}h scheduled in {session_count} sessions")
     
     return sessions
 
