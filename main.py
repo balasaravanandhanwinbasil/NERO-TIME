@@ -24,10 +24,10 @@ st.markdown("""
     --bg-secondary: var(--secondary-background-color);
     --text: var(--text-color);
     --primary: var(--primary-color);
-    --purple: #9C27B0;
-    --purple-dark: #7B1FA2;
-    --purple-light: #BA68C8;
-    --purple-hover: #AB47BC;
+    --purple: #B24BF3;
+    --purple-dark: #9333EA;
+    --purple-light: #D8B4FE;
+    --purple-hover: #C678FF;
 }
 
 /* --------------------------------------------------
@@ -290,7 +290,7 @@ if not st.session_state.user_id:
     st.markdown("""
     <div style='text-align: center; padding: 4rem 0 2rem 0;'>
         <h1 style='font-size: 4rem; margin-bottom: 0.5rem;'>🕛</h1>
-        <h1 style='font-size: 3rem; margin-bottom: 0.5rem; color: #9C27B0;'>NERO-Time</h1>
+        <h1 style='font-size: 3rem; margin-bottom: 0.5rem; color: #B24BF3;'>NERO-Time</h1>
         <p style='font-size: 1.1rem; color: #757575; margin-bottom: 3rem;'>
             Simple. Powerful. Time Management.
         </p>
@@ -323,7 +323,7 @@ if not st.session_state.user_id:
     st.stop()
 
 # ==================== MAIN APP ====================
-st.markdown("<h1 style='text-align: center; margin-bottom: 2rem; color: #9C27B0;'>🕛 NERO-Time</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; margin-bottom: 2rem; color: #B24BF3;'>🕛 NERO-Time</h1>", unsafe_allow_html=True)
 
 # Stats
 col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
@@ -385,25 +385,25 @@ with tab1:
     
     st.divider()
     
-    # Generate timetable
-    with st.expander("⚙️ Settings", expanded=False):
-        col_a, col_b, col_c = st.columns(3)
-        with col_a:
-            min_session = st.number_input("Min (min)", 15, 180, 30, 15, key="gen_min_session")
-        with col_b:
-            max_session = st.number_input("Max (min)", 30, 240, 120, 15, key="gen_max_session")
-        with col_c:
-            if st.button("Generate", type="primary", use_container_width=True, key="btn_generate_timetable"):
-                if st.session_state.list_of_activities or st.session_state.list_of_compulsory_events or st.session_state.school_schedule:
-                    with st.spinner("Generating..."):
-                        result = NeroTimeLogic.generate_timetable(min_session, max_session)
-                    if result["success"]:
-                        st.success("✓ Timetable generated")
-                        st.rerun()
-                    else:
-                        st.error(result["message"])
-                else:
-                    st.warning("Add activities or events first")
+    # Generate timetable - BIG BUTTON
+    st.markdown("### 🎯 Generate Timetable")
+    col_gen1, col_gen2, col_gen3 = st.columns([1, 1, 2])
+    with col_gen1:
+        min_session = st.number_input("Min Session (min)", 15, 180, 30, 15, key="gen_min_session")
+    with col_gen2:
+        max_session = st.number_input("Max Session (min)", 30, 240, 120, 15, key="gen_max_session")
+    
+    if st.button("🚀 GENERATE TIMETABLE", type="primary", use_container_width=True, key="btn_generate_timetable"):
+        if st.session_state.list_of_activities or st.session_state.list_of_compulsory_events or st.session_state.school_schedule:
+            with st.spinner("Generating your perfect schedule..."):
+                result = NeroTimeLogic.generate_timetable(min_session, max_session)
+            if result["success"]:
+                st.success("✓ Timetable generated successfully!")
+                st.rerun()
+            else:
+                st.error(result["message"])
+        else:
+            st.warning("⚠️ Please add activities, events, or school schedule first")
     
     st.divider()
     
@@ -575,6 +575,113 @@ with tab2:
                 st.progress(act['progress']['percentage'] / 100)
                 st.caption(f"Priority: {act['priority']} • Deadline: {act['deadline']} days")
                 
+                # Show sessions
+                st.markdown("#### 📋 Sessions")
+                sessions_data = act.get('sessions_data', [])
+                
+                if sessions_data:
+                    for sess_idx, session in enumerate(sessions_data):
+                        session_id = session.get('session_id', f"session_{sess_idx}")
+                        is_completed = session.get('is_completed', False)
+                        duration_hours = session.get('duration_hours', 0)
+                        duration_minutes = session.get('duration_minutes', 0)
+                        
+                        # Create a container for each session
+                        with st.container():
+                            col_s1, col_s2, col_s3 = st.columns([2, 2, 1])
+                            
+                            with col_s1:
+                                status = "✅ Completed" if is_completed else "⚫ Pending"
+                                st.markdown(f"**Session {sess_idx + 1}** - {status}")
+                                st.caption(f"Duration: {duration_hours:.1f}h ({duration_minutes} min)")
+                            
+                            with col_s2:
+                                scheduled_day = session.get('scheduled_day')
+                                scheduled_time = session.get('scheduled_time')
+                                if scheduled_day and scheduled_time:
+                                    st.caption(f"📅 {scheduled_day} at {scheduled_time}")
+                                else:
+                                    st.caption("📅 Not scheduled yet")
+                            
+                            with col_s3:
+                                if not is_completed:
+                                    edit_key = f"edit_session_{act['activity']}_{session_id}"
+                                    if st.button("✏️ Edit", key=edit_key, use_container_width=True):
+                                        st.session_state[f"editing_{edit_key}"] = True
+                                        st.rerun()
+                            
+                            # Show edit form if editing
+                            edit_state_key = f"editing_edit_session_{act['activity']}_{session_id}"
+                            if st.session_state.get(edit_state_key, False):
+                                with st.form(key=f"form_{act['activity']}_{session_id}"):
+                                    st.markdown("**Edit Session**")
+                                    
+                                    from Timetable_Generation import WEEKDAY_NAMES
+                                    col_e1, col_e2, col_e3 = st.columns(3)
+                                    
+                                    with col_e1:
+                                        new_day = st.selectbox(
+                                            "Day", 
+                                            WEEKDAY_NAMES, 
+                                            index=WEEKDAY_NAMES.index(scheduled_day) if scheduled_day in WEEKDAY_NAMES else 0,
+                                            key=f"day_{session_id}"
+                                        )
+                                    
+                                    with col_e2:
+                                        # Parse current time or use default
+                                        default_time = datetime.strptime(scheduled_time, "%H:%M").time() if scheduled_time else datetime.now().time()
+                                        new_time = st.time_input(
+                                            "Start Time",
+                                            value=default_time,
+                                            key=f"time_{session_id}"
+                                        )
+                                    
+                                    with col_e3:
+                                        new_duration = st.number_input(
+                                            "Duration (min)",
+                                            min_value=15,
+                                            max_value=240,
+                                            value=duration_minutes,
+                                            step=15,
+                                            key=f"dur_{session_id}"
+                                        )
+                                    
+                                    col_btn1, col_btn2 = st.columns(2)
+                                    with col_btn1:
+                                        submitted = st.form_submit_button("💾 Save", type="primary", use_container_width=True)
+                                    with col_btn2:
+                                        cancelled = st.form_submit_button("❌ Cancel", use_container_width=True)
+                                    
+                                    if submitted:
+                                        # Check if it's past the deadline
+                                        if act['deadline'] < 0:
+                                            st.error("❌ Cannot edit - activity deadline has passed!")
+                                        else:
+                                            result = NeroTimeLogic.edit_session(
+                                                act['activity'],
+                                                session_id,
+                                                new_day=new_day,
+                                                new_start_time=new_time.strftime("%H:%M"),
+                                                new_duration=new_duration
+                                            )
+                                            if result["success"]:
+                                                st.session_state[edit_state_key] = False
+                                                st.success("✓ Session updated!")
+                                                st.rerun()
+                                            else:
+                                                st.error(result["message"])
+                                    
+                                    if cancelled:
+                                        st.session_state[edit_state_key] = False
+                                        st.rerun()
+                            
+                            st.divider()
+                else:
+                    st.info("No sessions generated yet")
+                
+                st.markdown("---")
+                
+                # Action buttons
                 col1, col2 = st.columns(2)
                 # FIXED: Unique keys for delete and reset buttons
                 if col1.button("Delete", key=f"del_activity_{idx}_{act['activity']}"):
