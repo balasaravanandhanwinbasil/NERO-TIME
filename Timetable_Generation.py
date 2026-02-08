@@ -1,6 +1,6 @@
 """
 Simplified Timetable Generation - Deadline-Focused Activity Placement
-No complex session management - just fit activities before deadlines with breaks
+UPDATED: Only schedule from current day forward, track past activities for completion
 """
 
 from datetime import datetime, timedelta
@@ -128,12 +128,16 @@ def find_free_slot(day, duration_minutes, break_minutes=30):
         return attempts[0]
     return None
 
-def place_school_schedules(month_days):
-    """Place recurring weekly school schedules across all days in the month."""
+def place_school_schedules(month_days, today):
+    """Place recurring weekly school schedules across all days in the month, starting from today."""
     if not st.session_state.school_schedule:
         return
     
     for day_info in month_days:
+        # Only schedule from today onwards
+        if day_info['date'].date() < today:
+            continue
+            
         day_name = day_info['day_name']
         day_display = day_info['display']
         
@@ -147,25 +151,41 @@ def place_school_schedules(month_days):
                     "SCHOOL"
                 )
 
-def place_compulsory_events():
-    """Place one-time compulsory events in the timetable."""
+def place_compulsory_events(today):
+    """Place one-time compulsory events in the timetable, only from today onwards."""
     for event in st.session_state.list_of_compulsory_events:
         day = event["day"]
         start_time = event["start_time"]
         end_time = event["end_time"]
-        add_event_to_timetable(day, start_time, end_time, event["event"], "COMPULSORY")
+        
+        # Parse the event date to check if it's in the future
+        try:
+            # Extract date from the day display format (e.g., "Monday 15/02")
+            date_part = day.split()[-1]
+            day_num, month_num = map(int, date_part.split('/'))
+            # Use current year or session state year
+            year = st.session_state.get('current_year', datetime.now().year)
+            event_date = datetime(year, month_num, day_num).date()
+            
+            # Only add if event is today or in the future
+            if event_date >= today:
+                add_event_to_timetable(day, start_time, end_time, event["event"], "COMPULSORY")
+        except:
+            # If we can't parse the date, add it anyway (safer)
+            add_event_to_timetable(day, start_time, end_time, event["event"], "COMPULSORY")
 
-def get_available_days_for_activity(activity, month_days):
-    """Get available days for an activity before its deadline."""
-    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+def get_available_days_for_activity(activity, month_days, today):
+    """Get available days for an activity before its deadline, starting from today."""
+    today_dt = datetime.combine(today, datetime.min.time())
     deadline_days = activity['deadline']
-    deadline = today + timedelta(days=deadline_days)
+    deadline = today_dt + timedelta(days=deadline_days)
     
     allowed_weekdays = activity.get('allowed_days', WEEKDAY_NAMES)
     available_days = []
     
     for day_info in month_days:
-        if today <= day_info['date'] <= deadline:
+        # Only include days from today onwards
+        if today_dt <= day_info['date'] <= deadline:
             if day_info['day_name'] in allowed_weekdays:
                 available_days.append({
                     'display': day_info['display'],
@@ -174,11 +194,45 @@ def get_available_days_for_activity(activity, month_days):
     
     return available_days
 
-def place_activity_sessions(activity, month_days, warnings):
+def check_past_activities(activity, month_days, today, warnings):
+    """
+    Check if an activity has sessions that were supposed to happen before today.
+    Prompt user to mark them as complete/incomplete and adjust accordingly.
+    """
+    activity_name = activity['activity']
+    existing_sessions = activity.get('sessions', [])
+    
+    past_incomplete_sessions = []
+    for session in existing_sessions:
+        if session.get('is_completed', False):
+            continue
+            
+        scheduled_date_str = session.get('scheduled_date')
+        if not scheduled_date_str:
+            continue
+            
+        try:
+            scheduled_date = datetime.fromisoformat(scheduled_date_str).date()
+            if scheduled_date < today:
+                past_incomplete_sessions.append(session)
+        except:
+            pass
+    
+    if past_incomplete_sessions:
+        warnings.append(
+            f"⚠️ '{activity_name}' has {len(past_incomplete_sessions)} past incomplete session(s). "
+            f"Please review and mark as complete in the Activities tab."
+        )
+        
+        # Store these for potential UI prompts
+        if 'past_incomplete_sessions' not in st.session_state:
+            st.session_state.past_incomplete_sessions = {}
+        st.session_state.past_incomplete_sessions[activity_name] = past_incomplete_sessions
+
+def place_activity_sessions(activity, month_days, warnings, today):
     """
     Place activity sessions in the timetable, creating sessions as we schedule them.
-    This ensures sessions are generated to meet the deadline.
-    Returns list of created sessions for the activity.
+    ONLY schedules from today onwards. Past sessions trigger completion prompts.
     """
     activity_name = activity['activity']
     total_hours = activity['timing']
@@ -190,11 +244,14 @@ def place_activity_sessions(activity, month_days, warnings):
     min_session = round_to_15_minutes(min_session)
     max_session = round_to_15_minutes(max_session)
     
-    # Get available days before deadline
-    available_days = get_available_days_for_activity(activity, month_days)
+    # Check for past incomplete sessions
+    check_past_activities(activity, month_days, today, warnings)
+    
+    # Get available days before deadline (from today onwards)
+    available_days = get_available_days_for_activity(activity, month_days, today)
     
     if not available_days:
-        warnings.append(f"❌ '{activity_name}': No available days before deadline!")
+        warnings.append(f"❌ '{activity_name}': No available days before deadline (starting from today)!")
         return []
     
     # Track created sessions
@@ -277,7 +334,7 @@ def place_activity_sessions(activity, month_days, warnings):
     if remaining_minutes > 0:
         warnings.append(
             f"⚠️ '{activity_name}': Could only schedule {(total_minutes - remaining_minutes)/60:.1f}h "
-            f"of {total_hours}h before deadline. {remaining_minutes/60:.1f}h remaining!"
+            f"of {total_hours}h before deadline (from today onwards). {remaining_minutes/60:.1f}h remaining!"
         )
     else:
         warnings.append(f"✓ '{activity_name}': All {total_hours}h scheduled successfully in {session_count} sessions")
@@ -285,11 +342,14 @@ def place_activity_sessions(activity, month_days, warnings):
     return sessions
 
 def generate_timetable_with_sessions(year=None, month=None):
-    """Generate the complete timetable by fitting activities before their deadlines."""
+    """Generate the complete timetable by fitting activities before their deadlines, starting from today."""
     if year is None or month is None:
         now = datetime.now()
         year = now.year
         month = now.month
+    
+    # Get today's date (no time component)
+    today = datetime.now().date()
     
     # Get all days in the month
     month_days = get_month_days(year, month)
@@ -301,11 +361,11 @@ def generate_timetable_with_sessions(year=None, month=None):
     
     warnings = []
     
-    # 1. Place school schedules (recurring weekly)
-    place_school_schedules(month_days)
+    # 1. Place school schedules (recurring weekly) - from today onwards
+    place_school_schedules(month_days, today)
     
-    # 2. Place compulsory events (one-time)
-    place_compulsory_events()
+    # 2. Place compulsory events (one-time) - from today onwards
+    place_compulsory_events(today)
     
     # 3. Sort activities by deadline (most urgent first), then by priority
     sorted_activities = sorted(
@@ -313,9 +373,9 @@ def generate_timetable_with_sessions(year=None, month=None):
         key=lambda x: (x['deadline'], -x['priority'])
     )
     
-    # 4. Place each activity, creating and storing sessions
+    # 4. Place each activity, creating and storing sessions (from today onwards)
     for activity in sorted_activities:
-        sessions = place_activity_sessions(activity, month_days, warnings)
+        sessions = place_activity_sessions(activity, month_days, warnings, today)
         
         # Store sessions in the activity
         activity['sessions'] = sessions
