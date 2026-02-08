@@ -1,7 +1,5 @@
 """
-Simplified NERO-Time Backend Logic
-Focus on fitting activities before deadlines, no complex session management
-UPDATED: Added handling for past incomplete sessions
+back-end v26
 """
 
 import streamlit as st
