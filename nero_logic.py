@@ -184,7 +184,7 @@ class NeroTimeLogic:
             today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
             days_left = (deadline_dt.replace(hour=0, minute=0, second=0, microsecond=0) - today).days
             
-            # Generate sessions
+            # Generate sessions with 15-minute multiples
             total_minutes = total_hours * 60
             avg_session = (min_session + max_session) / 2
             num_sessions = math.ceil(total_minutes / avg_session)
@@ -194,11 +194,18 @@ class NeroTimeLogic:
             
             for i in range(num_sessions):
                 if i == num_sessions - 1:
-                    session_duration = remaining_minutes
+                    # Last session gets remaining time, rounded to 15
+                    session_duration = round(remaining_minutes / 15) * 15
                 else:
                     max_possible = min(max_session, remaining_minutes)
                     min_possible = min(min_session, remaining_minutes)
                     session_duration = random.randint(min_possible, max_possible)
+                    # Round to nearest 15 minutes
+                    session_duration = round(session_duration / 15) * 15
+                
+                # Ensure minimum 15 minutes
+                if session_duration < 15:
+                    session_duration = 15
                 
                 session_list.append({
                     'session_id': f"{name}_session_{i+1}",
@@ -239,7 +246,7 @@ class NeroTimeLogic:
     @staticmethod
     def edit_session(activity_name: str, session_id: str, new_day: str = None, 
                      new_start_time: str = None, new_duration: int = None, lock: bool = None) -> Dict:
-        """Edit a specific session of an activity"""
+        """Edit a specific session of an activity and rebalance other sessions"""
         try:
             # Find the activity
             activity = next((a for a in st.session_state.list_of_activities 
@@ -261,6 +268,15 @@ class NeroTimeLogic:
             if NeroTimeLogic._is_session_completed(activity_name, session_id):
                 return {"success": False, "message": "Cannot edit completed session"}
             
+            # Round duration to nearest 15 minutes if provided
+            if new_duration is not None:
+                new_duration = round(new_duration / 15) * 15
+                if new_duration < 15:
+                    new_duration = 15
+            
+            # Store old duration for rebalancing
+            old_duration = session['duration_minutes']
+            
             # Apply edits
             if new_day is not None:
                 session['scheduled_day'] = new_day
@@ -271,6 +287,62 @@ class NeroTimeLogic:
                 session['duration_hours'] = round(new_duration / 60, 2)
             if lock is not None:
                 session['is_locked'] = lock
+            
+            # Rebalance other unedited, incomplete sessions if duration changed
+            if new_duration is not None and new_duration != old_duration:
+                # Calculate total required time (in minutes)
+                total_required = activity['timing'] * 60
+                
+                # Calculate time from completed sessions
+                completed_time = 0
+                for sess in activity['sessions']:
+                    sess_id = sess['session_id']
+                    if NeroTimeLogic._is_session_completed(activity_name, sess_id):
+                        completed_time += sess['duration_minutes']
+                
+                # Calculate time from locked/edited sessions (including this one)
+                locked_time = 0
+                unedited_sessions = []
+                for sess in activity['sessions']:
+                    sess_id = sess['session_id']
+                    if not NeroTimeLogic._is_session_completed(activity_name, sess_id):
+                        edit_key = f"{activity_name}_{sess_id}"
+                        if sess_id == session_id or edit_key in st.session_state.user_edits:
+                            locked_time += sess['duration_minutes']
+                        else:
+                            unedited_sessions.append(sess)
+                
+                # Calculate remaining time to distribute
+                remaining_time = total_required - completed_time - locked_time
+                
+                if remaining_time > 0 and unedited_sessions:
+                    # Distribute remaining time across unedited sessions
+                    num_unedited = len(unedited_sessions)
+                    avg_duration = remaining_time / num_unedited
+                    
+                    # Get min/max bounds
+                    min_session = activity.get('min_session_minutes', 30)
+                    max_session = activity.get('max_session_minutes', 120)
+                    
+                    # Round to nearest 15 minutes
+                    avg_duration = round(avg_duration / 15) * 15
+                    avg_duration = max(min_session, min(max_session, avg_duration))
+                    
+                    # Distribute with slight randomization
+                    for i, sess in enumerate(unedited_sessions):
+                        if i == len(unedited_sessions) - 1:
+                            # Last session gets remaining time
+                            allocated = remaining_time
+                        else:
+                            # Random variation ±15 minutes
+                            variation = random.choice([-15, 0, 15])
+                            allocated = avg_duration + variation
+                            allocated = max(min_session, min(max_session, allocated))
+                            allocated = round(allocated / 15) * 15
+                        
+                        sess['duration_minutes'] = int(allocated)
+                        sess['duration_hours'] = round(allocated / 60, 2)
+                        remaining_time -= allocated
             
             # Track user edit
             edit_key = f"{activity_name}_{session_id}"
