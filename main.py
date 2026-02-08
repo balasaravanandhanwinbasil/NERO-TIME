@@ -24,10 +24,10 @@ st.markdown("""
     --bg-secondary: var(--secondary-background-color);
     --text: var(--text-color);
     --primary: var(--primary-color);
-    --purple: #C678FF;
-    --purple-dark: #B24BF3;
-    --purple-light: #E0B3FF;
-    --purple-hover: #D89FFF;
+    --purple: #B24BF3;
+    --purple-dark: #9333EA;
+    --purple-light: #D8B4FE;
+    --purple-hover: #C678FF;
 }
 
 /* --------------------------------------------------
@@ -305,7 +305,7 @@ if not st.session_state.user_id:
     st.markdown("""
     <div style='text-align: center; padding: 4rem 0 2rem 0;'>
         <h1 style='font-size: 4rem; margin-bottom: 0.5rem;'>🕛</h1>
-        <h1 style='font-size: 3rem; margin-bottom: 0.5rem; color: #C678FF;'>NERO-Time</h1>
+        <h1 style='font-size: 3rem; margin-bottom: 0.5rem; color: #B24BF3;'>NERO-Time</h1>
         <p style='font-size: 1.1rem; color: #757575; margin-bottom: 3rem;'>
             Simple. Powerful. Time Management.
         </p>
@@ -338,7 +338,7 @@ if not st.session_state.user_id:
     st.stop()
 
 # ==================== MAIN APP ====================
-st.markdown("<h1 style='text-align: center; margin-bottom: 2rem; color: #C678FF;'>🕛 NERO-Time</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; margin-bottom: 2rem; color: #B24BF3;'>🕛 NERO-Time</h1>", unsafe_allow_html=True)
 
 # Stats
 col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
@@ -378,7 +378,7 @@ with tab1:
     dashboard_data = NeroTimeLogic.get_dashboard_data()
     
     # Month navigation
-    col1, col2, col3, col4, col5 = st.columns([1, 1, 2, 1, 1])
+    col1, col2, col3, col4, col5 = st.columns([2, 1, 2, 1, 1])
     
     with col2:
         if st.button("◀ Prev", use_container_width=True, key="btn_prev_month"):
@@ -474,10 +474,6 @@ with tab1:
     if dashboard_data['timetable'] and filtered_days:
         for day_info in filtered_days:
             day_display = day_info['display']
-            date_obj = day_info['date']
-            
-            # Format: "14 February 2026 - Saturday"
-            formatted_date = date_obj.strftime("%d %B %Y - %A")
             
             if day_display in dashboard_data['timetable']:
                 is_current_day = (day_display == dashboard_data['current_day'])
@@ -486,7 +482,7 @@ with tab1:
                 if not events:
                     continue
                 
-                with st.expander(f"{'🟢 ' if is_current_day else ''}📅 {formatted_date}", expanded=is_current_day):
+                with st.expander(f"{'🟢 ' if is_current_day else ''}📅 {day_display}", expanded=is_current_day):
                     for idx, event in enumerate(events):
                         # Check if current
                         is_current_slot = False
@@ -499,7 +495,6 @@ with tab1:
                         
                         if event["type"] == "ACTIVITY":
                             activity_name = event['name'].split(' (Session')[0]
-                            session_part = event['name'].split(' (Session')[1].rstrip(')') if '(Session' in event['name'] else "1"
                             progress = event['progress']
                             is_completed = event.get('is_completed', False)
                             is_user_edited = event.get('is_user_edited', False)
@@ -513,12 +508,8 @@ with tab1:
                             with col1:
                                 badge = '<span class="user-edited-badge">EDITED</span>' if is_user_edited else ''
                                 status_icon = "✅" if is_completed else "⚫"
-                                # New format: Activity 1 -- session_name (Session _)
-                                st.markdown(f"{badge}**{status_icon} {event['start']}-{event['end']}** {activity_name} (Session {session_part})", unsafe_allow_html=True)
-                                # Show progress as completed/total sessions
-                                completed_sessions = sum(1 for s in dashboard_data.get('activities_data', {}).get(activity_name, {}).get('sessions_data', []) if s.get('is_completed', False))
-                                total_sessions = len(dashboard_data.get('activities_data', {}).get(activity_name, {}).get('sessions_data', []))
-                                st.markdown(f"**{completed_sessions}/{total_sessions}**")
+                                st.markdown(f"{badge}**{status_icon} {event['start']}-{event['end']}** {event['name']}", unsafe_allow_html=True)
+                                st.progress(progress['percentage'] / 100)
                                 st.caption(f"{progress['completed']:.1f}h / {progress['total']}h")
                             
                             with col2:
@@ -640,16 +631,14 @@ with tab2:
                                     st.markdown("**Edit Session**")
                                     
                                     from Timetable_Generation import WEEKDAY_NAMES
-                                    col_e1, col_e2, col_e3, col_e4 = st.columns(4)
+                                    col_e1, col_e2, col_e3 = st.columns(3)
                                     
                                     with col_e1:
-                                        # Date picker for specific date
-                                        default_date = datetime.now().date()
-                                        new_date = st.date_input(
-                                            "Date",
-                                            value=default_date,
-                                            min_value=datetime.now().date(),
-                                            key=f"date_{session_id}"
+                                        new_day = st.selectbox(
+                                            "Day", 
+                                            WEEKDAY_NAMES, 
+                                            index=WEEKDAY_NAMES.index(scheduled_day) if scheduled_day in WEEKDAY_NAMES else 0,
+                                            key=f"day_{session_id}"
                                         )
                                     
                                     with col_e2:
@@ -671,11 +660,6 @@ with tab2:
                                             key=f"dur_{session_id}"
                                         )
                                     
-                                    with col_e4:
-                                        # Show the day that will be used (auto-calculated from date)
-                                        day_preview = WEEKDAY_NAMES[new_date.weekday()]
-                                        st.text_input("Day", value=day_preview, disabled=True, key=f"daypreview_{session_id}")
-                                    
                                     col_btn1, col_btn2 = st.columns(2)
                                     with col_btn1:
                                         submitted = st.form_submit_button("💾 Save", type="primary", use_container_width=True)
@@ -687,16 +671,12 @@ with tab2:
                                         if act['deadline'] < 0:
                                             st.error("❌ Cannot edit - activity deadline has passed!")
                                         else:
-                                            # Get the actual day name from the selected date
-                                            actual_day = WEEKDAY_NAMES[new_date.weekday()]
-                                            
                                             result = NeroTimeLogic.edit_session(
                                                 act['activity'],
                                                 session_id,
-                                                new_day=actual_day,
+                                                new_day=new_day,
                                                 new_start_time=new_time.strftime("%H:%M"),
-                                                new_duration=new_duration,
-                                                new_date=new_date.isoformat()
+                                                new_duration=new_duration
                                             )
                                             if result["success"]:
                                                 st.session_state[edit_state_key] = False
