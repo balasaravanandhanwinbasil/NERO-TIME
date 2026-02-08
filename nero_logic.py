@@ -836,16 +836,6 @@ class NeroTimeLogic:
         
         return expired
 
-"""
-NERO-Time Logic Extension - Session Expiration and Progress Tracking
-Add this code to your existing nero_logic.py file
-"""
-
-from datetime import datetime, timedelta
-import streamlit as st
-from Firebase_Function import save_to_firebase
-
-class SessionExpirationHandler:
     """Handles expired sessions and user verification"""
     
     @staticmethod
