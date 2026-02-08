@@ -846,7 +846,7 @@ with tab6:
     col1,col2,col3 = st.columns(3)
     st.write(f"**Hours of work done:** {total_hours_completed}")
     with col1:
-        st.write("You Just started. Achieve:",total_hours_completed,"/0 hours to get this badge")
+        st.write("You Just started. Achieve:",str(total_hours_completed),"/0 hours to get this badge")
     if total_hours_completed > 0:
       with col1:
-        st.markdown("UNLOCKED 🔓")
+        st.write("UNLOCKED 🔓")
