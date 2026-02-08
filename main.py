@@ -522,6 +522,9 @@ with tab1:
     
     st.divider()
     
+    # Show pending verifications if any
+    NeroTimeLogic.show_pending_verifications()
+    
     # Event filter
     st.markdown("### 📅 Events")
     
@@ -569,7 +572,12 @@ with tab1:
     
     filtered_days = filter_events_by_period(dashboard_data['month_days'], st.session_state.event_filter)
     
-    if dashboard_data['timetable'] and filtered_days:
+    # Debug info
+    if not dashboard_data['timetable']:
+        st.info("📝 No timetable generated yet. Click 'GENERATE TIMETABLE' to create your schedule!")
+    elif not filtered_days:
+        st.info("📅 No days in the selected filter period. Try changing the filter or navigating to a different month.")
+    elif dashboard_data['timetable'] and filtered_days:
         for day_info in filtered_days:
             day_display = day_info['display']
             date_obj = day_info['date']
@@ -600,30 +608,41 @@ with tab1:
                         user_badge = '<span class="user-edited-badge">EDITED</span>' if event.get('is_user_edited') else ''
                         
                         # Activity progress
-                        progress_info = ""
+                        progress_html = ""
                         if event["type"] == "ACTIVITY":
                             activity_name = event['name'].split(' (Session')[0]
-                            session_part = event['name'].split(' (Session')[1].rstrip(')') if '(Session' in event['name'] else "1"
-                            completed_sessions_act = sum(1 for s in dashboard_data.get('activities_data', {}).get(activity_name, {}).get('sessions_data', []) if s.get('is_completed', False))
-                            total_sessions_act = len(dashboard_data.get('activities_data', {}).get(activity_name, {}).get('sessions_data', []))
-                            progress_info = f"Progress: {completed_sessions_act}/{total_sessions_act} sessions • {event['progress']['completed']:.1f}h / {event['progress']['total']}h"
+                            activity_data = dashboard_data.get('activities_data', {}).get(activity_name, {})
+                            sessions_data = activity_data.get('sessions_data', [])
+                            progress_data = event.get('progress', {})
+                            
+                            completed_sessions_act = sum(1 for s in sessions_data if s.get('is_completed', False))
+                            total_sessions_act = len(sessions_data)
+                            completed_hours = progress_data.get('completed', 0)
+                            total_hours = progress_data.get('total', 0)
+                            
+                            progress_html = f'<div class="event-details">Progress: {completed_sessions_act}/{total_sessions_act} sessions • {completed_hours:.1f}h / {total_hours}h</div>'
                         
                         # Timetable row
                         st.markdown(f"""
-                              <div class="timetable-row">
-                                  <div class="event-content {type_class}">
-                                      <div class="event-info">
-                                          {happening_now}
-                                          <div class="event-title">{user_badge} {event.get('name', event.get('title', ''))}</div>
-                                          {f'<div class="event-details">{progress_info}</div>' if progress_info else ''}
-                                      </div>
-                                      <div class="event-time">{event['start']} - {event['end']}</div>
-                                  </div>
-                              </div>
-                              """, unsafe_allow_html=True)
-
+                        <div class="timetable-row">
+                            <div class="event-content {type_class}">
+                                <div class="event-info">
+                                    {happening_now}
+                                    <div class="event-title">{user_badge} {event.get('name', event.get('title', ''))}</div>
+                                    {progress_html}
+                                </div>
+                                <div class="event-time">{event['start']} - {event['end']}</div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
     else:
-        st.info("No events for this period")
+        # Check if we have a timetable but no events in filtered days
+        has_events_in_timetable = any(
+            day_info['display'] in dashboard_data['timetable'] and dashboard_data['timetable'][day_info['display']]
+            for day_info in filtered_days
+        )
+        if not has_events_in_timetable:
+            st.info("📅 No events scheduled for the selected period. Try a different filter or generate a new timetable.")
 
 # ==================== ACTIVITIES TAB ====================
 with tab2:
