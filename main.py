@@ -624,17 +624,17 @@ with tab1:
                         
                         # Timetable row
                         st.markdown(f"""
-                        <div class="timetable-row">
-                            <div class="event-content {type_class}">
-                                <div class="event-info">
-                                    {happening_now}
-                                    <div class="event-title">{user_badge} {event.get('name', event.get('title', ''))}</div>
-                                    {progress_html}
-                                </div>
-                                <div class="event-time">{event['start']} - {event['end']}</div>
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
+<div class="timetable-row">
+    <div class="event-content {type_class}">
+        <div class="event-info">
+            {happening_now}
+            <div class="event-title">{user_badge} {event.get('name', event.get('title', ''))}</div>
+            {progress_html}
+        </div>
+        <div class="event-time">{event['start']} - {event['end']}</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
     else:
         # Check if we have a timetable but no events in filtered days
         has_events_in_timetable = any(
