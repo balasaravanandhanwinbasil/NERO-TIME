@@ -24,7 +24,7 @@ from Timetable_Generation import (
     get_month_days
 )
 
-# Import these if they exist in your Timetable_Generation.py:
+# Import from timetable generation.py
 try:
     from Timetable_Generation import (
         minutes_to_time_str,
@@ -38,7 +38,7 @@ try:
         remove_activity_from_timetable,
     )
 except ImportError:
-    pass  # These functions will be available if you've added them
+    pass  # error fixer
 
 
 class NeroTimeLogic:
