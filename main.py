@@ -1,5 +1,5 @@
 """
-NERO-Time UI 
+NERO-Time UI
 """
 import math
 import random
@@ -695,8 +695,8 @@ with tab1:
                                 
                                 st.markdown(
                                     f'<div class="event-details">'
-                                    f'📊 Progress: {completed_sessions_act}/{total_sessions_act} sessions • '
-                                    f'{completed_hours:.1f}h / {total_hours}h completed'
+                                    f'📊 Progress: {int(completed_sessions_act)}/{int(total_sessions_act)} sessions • '
+                                    f'{completed_hours:.1f}h / {total_hours:.1f}h completed'
                                     f'</div>', 
                                     unsafe_allow_html=True
                                 )
@@ -839,7 +839,7 @@ with tab2:
     
     if activities_data['activities']:
         for idx, act in enumerate(activities_data['activities']):
-            with st.expander(f"{idx+1}. {act['activity']} ({act['progress']['completed']:.1f}h/{act['timing']}h)"):
+            with st.expander(f"{idx+1}. {act['activity']} ({act['progress']['completed']:.1f}h/{act['timing']:.1f}h)"):
                 st.progress(act['progress']['percentage'] / 100)
                 st.caption(f"Deadline: {act['deadline']} days")
                 
@@ -1077,9 +1077,9 @@ with tab5:
 with tab6:
     st.header("Achievements")
     col1, col2, col3 = st.columns(3)
-    st.write(f"**Hours of work done:** {total_hours_completed}")
+    st.write(f"**Hours of work done:** {total_hours_completed:.1f}h")
     with col1:
-        st.write("You Just started. Achieve:", str(total_hours_completed), "/0 hours to get this badge")
+        st.write("You Just started. Achieve:", f"{total_hours_completed:.1f}/0 hours to get this badge")
         if total_hours_completed > 0:
             st.write("UNLOCKED 🔓")
 
