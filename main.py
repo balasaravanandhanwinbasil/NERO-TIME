@@ -15,144 +15,244 @@ st.set_page_config(page_title="NERO-TIME", page_icon="🕛", layout="wide")
 # Custom CSS - CLEAN PROFESSIONAL DESIGN WITH PURPLE THEME
 st.markdown("""
 <style>
-    #MainMenu { visibility: hidden; }
-    footer { visibility: hidden; }
+/* --------------------------------------------------
+   GLOBAL THEME-AWARE COLORS
+-------------------------------------------------- */
 
-    /* App background & text */
-    .stApp {
-        background: var(--background-color);
-        color: var(--text-color);
-    }
+:root {
+    --bg: var(--background-color);
+    --bg-secondary: var(--secondary-background-color);
+    --text: var(--text-color);
+    --primary: var(--primary-color);
+    --purple: #B24BF3;
+    --purple-dark: #9333EA;
+    --purple-light: #D8B4FE;
+    --purple-hover: #C678FF;
+}
 
-    .block-container {
-        background: var(--secondary-background-color);
-        border-radius: 10px;
-        padding: 2rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-    }
+/* --------------------------------------------------
+   BASE APP
+-------------------------------------------------- */
 
-    /* Buttons */
-    .stButton > button {
-        font-size: 13px;
-        padding: 8px 16px;
-        border-radius: 10px;
-        border: 1px solid #e6c7f2;
-        background: var(--background-color);
-        color: #6a1bb9;
-        font-weight: 600;
-        transition: all 0.2s ease;
-    }
+#MainMenu { visibility: hidden; }
+footer { visibility: hidden; }
 
-    .stButton > button:hover {
-        background: #f6e6ff;
-        border-color: #c77dff;
-        box-shadow: 0 4px 12px rgba(167, 85, 247, 0.3);
-    }
+.stApp {
+    background: var(--bg);
+    color: var(--text);
+}
 
-    .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #c77dff, #ff8dc7);
-        color: white;
-        border: none;
-    }
+.block-container {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
 
-    .stButton > button[kind="primary"]:hover {
-        background: linear-gradient(135deg, #b06cff, #f472b6);
-    }
+/* --------------------------------------------------
+   HEADINGS & TEXT
+-------------------------------------------------- */
 
-    /* Month display button */
-    .month-display button {
-        background: linear-gradient(135deg, #e0c3fc, #d0a4f7) !important;
-        color: #4a0080 !important;
-        font-weight: 700 !important;
-        font-size: 16px !important;
-        border: 2px solid #c77dff !important;
-        cursor: pointer !important;
-        position: relative;
-    }
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text);
+    font-weight: 600;
+}
 
-    .month-display button:hover {
-        background: linear-gradient(135deg, #c77dff, #b895f0) !important;
-        border-color: #a855f7 !important;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(167, 85, 247, 0.3);
-    }
+p, span, label, div {
+    color: var(--text);
+}
 
-    /* Calendar popup */
-    .calendar-popup {
-        display: none;
-        position: absolute;
-        top: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        margin-top: 10px;
-        background: var(--secondary-background-color);
-        color: var(--text-color);
-        border: 2px solid #c77dff;
-        border-radius: 10px;
-        padding: 15px;
-        box-shadow: 0 8px 24px rgba(167, 85, 247, 0.3);
-        z-index: 1000;
-        min-width: 250px;
-    }
+/* --------------------------------------------------
+   BUTTONS - PURPLE THEME
+-------------------------------------------------- */
 
-    .month-display:hover .calendar-popup {
-        display: block;
-    }
+.stButton > button {
+    font-size: 14px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 2px solid var(--purple-light);
+    background: var(--bg);
+    color: var(--purple);
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
 
-    /* Inputs */
-    input, textarea {
-        background: var(--background-color);
-        color: var(--text-color);
-        border-radius: 8px;
-        border: 1px solid #d8b4fe;
-    }
+.stButton > button:hover {
+    background: var(--purple-light);
+    color: white;
+    border-color: var(--purple);
+    box-shadow: 0 2px 8px rgba(156, 39, 176, 0.3);
+}
 
-    input:focus, textarea:focus {
-        border-color: #a855f7;
-        box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.35);
-    }
+.stButton > button[kind="primary"] {
+    background: var(--purple);
+    color: white;
+    border: none;
+    box-shadow: 0 2px 4px rgba(156, 39, 176, 0.3);
+}
 
-    /* Tabs */
-    .stTabs [data-baseweb="tab"] {
-        color: var(--text-color);
-        border-radius: 8px;
-    }
+.stButton > button[kind="primary"]:hover {
+    background: var(--purple-dark);
+    box-shadow: 0 4px 12px rgba(156, 39, 176, 0.4);
+}
 
-    .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #c77dff, #ff8dc7);
-        color: white !important;
-    }
+.stButton > button:active {
+    transform: translateY(1px);
+}
 
-    /* Metrics */
-    [data-testid="stMetricValue"] {
-        font-size: 24px;
-        font-weight: 700;
-        color: #7c3aed;
-    }
+/* --------------------------------------------------
+   TABS - PURPLE THEME
+-------------------------------------------------- */
 
-    /* Events */
-    .event-activity,
-    .event-school,
-    .event-compulsory,
-    .event-break {
-        padding: 12px;
-        margin: 8px 0;
-        border-radius: 6px;
-        background: var(--background-color);
-        color: var(--text-color);
-    }
+.stTabs [data-baseweb="tab-list"] {
+    gap: 4px;
+    background: var(--bg);
+    padding: 4px;
+    border-radius: 8px;
+}
 
-    .event-activity { border-left: 4px solid #7c3aed; }
-    .event-school { border-left: 4px solid #fb923c; }
-    .event-compulsory { border-left: 4px solid #ef4444; }
-    .event-break { border-left: 4px solid #9ca3af; }
+.stTabs [data-baseweb="tab"] {
+    height: 50px;
+    padding: 12px 20px;
+    border-radius: 6px;
+    color: var(--text);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 
-    /* Progress bar */
-    .stProgress > div > div > div {
-        background-color: #7c3aed;
-    }
+.stTabs [data-baseweb="tab"]:hover {
+    background: var(--purple-light);
+    color: white;
+}
+
+.stTabs [aria-selected="true"] {
+    background: var(--purple);
+    color: white !important;
+}
+
+/* --------------------------------------------------
+   INPUTS - PURPLE ACCENTS
+-------------------------------------------------- */
+
+.stTextInput input,
+.stNumberInput input,
+.stDateInput input,
+.stTimeInput input {
+    border-radius: 6px;
+    border: 1px solid rgba(128,128,128,0.4);
+    background: var(--bg);
+    color: var(--text);
+}
+
+.stTextInput input:focus,
+.stNumberInput input:focus,
+.stDateInput input:focus,
+.stTimeInput input:focus {
+    border-color: var(--purple);
+    box-shadow: 0 0 0 2px rgba(156, 39, 176, 0.25);
+}
+
+.stSlider [data-baseweb="slider"] {
+    background: var(--purple-light);
+}
+
+.stSlider [role="slider"] {
+    background-color: var(--purple);
+}
+
+/* --------------------------------------------------
+   METRICS - PURPLE ACCENTS
+-------------------------------------------------- */
+
+[data-testid="stMetricValue"] {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--purple);
+}
+
+[data-testid="stMetricLabel"] {
+    color: var(--text);
+}
+
+/* --------------------------------------------------
+   EVENTS
+-------------------------------------------------- */
+
+.event-activity,
+.event-school,
+.event-compulsory,
+.event-break {
+    padding: 12px;
+    margin: 8px 0;
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text);
+}
+
+.event-activity { 
+    border-left: 6px solid var(--purple); 
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.event-school { 
+    border-left: 6px solid #FF9800; 
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.event-compulsory { 
+    border-left: 6px solid #F44336; 
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.event-break { 
+    border-left: 6px solid #9E9E9E; 
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.happening-now {
+    background: #4CAF50;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+/* --------------------------------------------------
+   EXPANDERS - PURPLE THEME
+-------------------------------------------------- */
+
+.streamlit-expanderHeader {
+    background: var(--bg);
+    border-radius: 6px;
+    padding: 10px 14px;
+    border: 1px solid var(--purple-light);
+    color: var(--text);
+    transition: all 0.2s ease;
+}
+
+.streamlit-expanderHeader:hover {
+    background: var(--purple-light);
+    color: white;
+    border-color: var(--purple);
+}
+
+/* --------------------------------------------------
+   ALERTS
+-------------------------------------------------- */
+
+.stSuccess, .stError, .stWarning, .stInfo {
+    color: var(--text);
+    background: var(--bg-secondary) !important;
+}
+
+/* --------------------------------------------------
+   PROGRESS BAR - PURPLE
+-------------------------------------------------- */
+
+.stProgress > div > div > div {
+    background-color: var(--purple);
+}
 </style>
-
 
 """, unsafe_allow_html=True)
 
@@ -301,7 +401,6 @@ with tab1:
     st.divider()
     
     # Generate timetable - BIG BUTTON
-    st.markdown("### 🎯 Generate Timetable")
     col_gen1, col_gen2, col_gen3 = st.columns([1, 1, 2])
     with col_gen1:
         min_session = st.number_input("Min Session (min)", 15, 180, 30, 15, key="gen_min_session")
@@ -663,19 +762,20 @@ with tab4:
         with col1:
             from Timetable_Generation import WEEKDAY_NAMES
             day = st.selectbox("Day", WEEKDAY_NAMES, key="school_day")
-            subject = st.text_input("Subject", key="school_subject")
+            subject = st.text_input("Subject (optional)", key="school_subject", placeholder="Class")
         with col2:
             start = st.time_input("Start", key="school_start")
             end = st.time_input("End", key="school_end")
         
         if st.button("Add", type="primary", use_container_width=True, key="btn_add_school"):
-            if subject:
-                result = NeroTimeLogic.add_school_schedule(day, start.strftime("%H:%M"), end.strftime("%H:%M"), subject)
-                if result["success"]:
-                    st.success("✓ Added")
-                    st.rerun()
-                else:
-                    st.error(result["message"])
+            # Use "Class" as default if subject is empty
+            subject_name = subject.strip() if subject.strip() else "Class"
+            result = NeroTimeLogic.add_school_schedule(day, start.strftime("%H:%M"), end.strftime("%H:%M"), subject_name)
+            if result["success"]:
+                st.success("✓ Added")
+                st.rerun()
+            else:
+                st.error(result["message"])
     
     st.divider()
     
