@@ -1,5 +1,5 @@
 """
-Updated Timetable Generation with Session Support and School Schedules
+Updated Timetable Generation with Enhanced User Edit Priority and Date-based Scheduling
 """
 
 from datetime import datetime, timedelta, date
@@ -42,6 +42,11 @@ def get_month_days(year, month):
                 'display': f"{day_name} {date_obj.strftime('%d/%m')}"
             })
     return days
+
+def date_to_display_format(date_obj):
+    """Convert a date object to display format: 'DayName DD/MM'"""
+    day_name = WEEKDAY_NAMES[date_obj.weekday()]
+    return f"{day_name} {date_obj.strftime('%d/%m')}"
 
 def is_time_slot_free(day, start_time, end_time):
     """Check if a time slot is free on a given day."""
@@ -164,9 +169,12 @@ def get_available_days_for_activity(activity, month_days, deadline_days):
     return available_days
 
 def place_user_edited_sessions(activity, month_days, warnings):
-    """Place sessions that have been manually edited by the user first."""
+    """Place sessions that have been manually edited by the user FIRST with highest priority."""
     activity_name = activity['activity']
     placed_sessions = []
+    deadline_days = activity['deadline']
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    deadline = today + timedelta(days=deadline_days)
     
     for session in activity['sessions']:
         session_id = session['session_id']
@@ -176,35 +184,55 @@ def place_user_edited_sessions(activity, month_days, warnings):
         if edit_key in st.session_state.user_edits:
             edit = st.session_state.user_edits[edit_key]
             
-            if edit.get('day') and edit.get('start_time'):
-                day = edit['day']
-                start_time = edit['start_time']
-                duration = edit.get('duration', session['duration_minutes'])
+            if edit.get('date') and edit.get('start_time'):
+                # Parse the date from user edit
+                try:
+                    edited_date = datetime.fromisoformat(edit['date']).replace(hour=0, minute=0, second=0, microsecond=0)
+                    
+                    # Check if the edited date is past the deadline
+                    if edited_date > deadline:
+                        warnings.append(f"⚠️ User-edited date for {activity_name} Session {session_id.split('_')[-1]} is past the deadline. Using deadline date instead.")
+                        edited_date = deadline
+                    
+                    # Check if the edited date is in the past
+                    if edited_date < today:
+                        warnings.append(f"⚠️ User-edited date for {activity_name} Session {session_id.split('_')[-1]} is in the past. Skipping.")
+                        continue
+                    
+                    # Convert date to display format
+                    day_display = date_to_display_format(edited_date)
+                    start_time = edit['start_time']
+                    duration = edit.get('duration', session['duration_minutes'])
+                    
+                    end_time = add_minutes(start_time, duration)
+                    
+                    # Try to place the edited session (HIGHEST PRIORITY)
+                    if is_time_slot_free(day_display, start_time, end_time):
+                        session_label = f"{activity_name} (Session {session['session_id'].split('_')[-1]})"
+                        add_event_to_timetable(day_display, start_time, end_time, session_label, "ACTIVITY", session_id)
+                        
+                        # Add break
+                        break_end = add_minutes(end_time, 2 * 60)
+                        if time_str_to_minutes(break_end) < 1440 and is_time_slot_free(day_display, end_time, break_end):
+                            add_event_to_timetable(day_display, end_time, break_end, "Break", "BREAK")
+                        
+                        placed_sessions.append(session_id)
+                        
+                        # Update session info
+                        session['scheduled_day'] = day_display
+                        session['scheduled_time'] = start_time
+                        session['duration_minutes'] = duration
+                        session['is_user_edited'] = True
+                    else:
+                        warnings.append(f"⚠️ User-edited time slot for {session_label} conflicts with existing schedule. Will attempt auto-placement.")
                 
-                end_time = add_minutes(start_time, duration)
-                
-                # Try to place the edited session
-                if is_time_slot_free(day, start_time, end_time):
-                    session_label = f"{activity_name} (Session {session['session_id'].split('_')[-1]})"
-                    add_event_to_timetable(day, start_time, end_time, session_label, "ACTIVITY", session_id)
-                    
-                    # Add break
-                    break_end = add_minutes(end_time, 2 * 60)
-                    if time_str_to_minutes(break_end) < 1440 and is_time_slot_free(day, end_time, break_end):
-                        add_event_to_timetable(day, end_time, break_end, "Break", "BREAK")
-                    
-                    placed_sessions.append(session_id)
-                    
-                    # Update session info
-                    session['scheduled_day'] = day
-                    session['scheduled_time'] = start_time
-                else:
-                    warnings.append(f"⚠️ User edit for {session_label} conflicts with existing schedule")
+                except Exception as e:
+                    warnings.append(f"⚠️ Error processing user edit for {activity_name} Session {session_id.split('_')[-1]}: {str(e)}")
     
     return placed_sessions
 
 def place_activity_sessions(activity, month_days, break_time=2, warnings=None):
-    """Place all sessions of an activity in the timetable."""
+    """Place all sessions of an activity in the timetable, prioritizing user edits."""
     if warnings is None:
         warnings = []
     
@@ -217,7 +245,7 @@ def place_activity_sessions(activity, month_days, break_time=2, warnings=None):
     if not sessions:
         return warnings
     
-    # First, place user-edited sessions
+    # FIRST: Place user-edited sessions (HIGHEST PRIORITY)
     placed_sessions = place_user_edited_sessions(activity, month_days, warnings)
     
     # Get available days
@@ -227,7 +255,7 @@ def place_activity_sessions(activity, month_days, break_time=2, warnings=None):
         warnings.append(f"❌ Activity '{activity_name}' has no available days before deadline")
         return warnings
     
-    # Place remaining sessions
+    # SECOND: Place remaining sessions (auto-scheduled)
     for session in sessions:
         session_id = session['session_id']
         
@@ -258,6 +286,7 @@ def place_activity_sessions(activity, month_days, break_time=2, warnings=None):
                 # Update session info
                 session['scheduled_day'] = day
                 session['scheduled_time'] = start_time
+                session['is_user_edited'] = False
                 
                 # Add break
                 break_end = add_minutes(end_time, break_time * 60)
@@ -273,7 +302,7 @@ def place_activity_sessions(activity, month_days, break_time=2, warnings=None):
     return warnings
 
 def generate_timetable_with_sessions(year=None, month=None):
-    """Generate the complete timetable with session support and school schedules."""
+    """Generate the complete timetable with session support and prioritized user edits."""
     if year is None or month is None:
         now = datetime.now()
         year = now.year
@@ -289,10 +318,10 @@ def generate_timetable_with_sessions(year=None, month=None):
     
     warnings = []
     
-    # 1. Place school schedules (recurring weekly)
+    # 1. Place school schedules (recurring weekly) - HIGHEST PRIORITY
     place_school_schedules(month_days)
     
-    # 2. Place compulsory events (one-time)
+    # 2. Place compulsory events (one-time) - HIGH PRIORITY
     place_compulsory_events()
     
     # 3. Sort activities by priority and deadline
@@ -302,7 +331,7 @@ def generate_timetable_with_sessions(year=None, month=None):
         reverse=True
     )
     
-    # 4. Place activity sessions
+    # 4. Place activity sessions (user-edited sessions are placed FIRST within this step)
     for activity in sorted_activities:
         warnings = place_activity_sessions(activity, month_days, warnings=warnings)
     
