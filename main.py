@@ -1,6 +1,5 @@
 """
-NERO-Time UI - Enhanced Professional Design
-IMPROVEMENTS: Card-based timetable, live clock, pinkish-purple theme, refined UI
+NERO-Time UI 
 """
 import math
 import random
@@ -12,7 +11,7 @@ from Firebase_Function import load_from_firebase
 # Page configuration
 st.set_page_config(page_title="NERO-TIME", page_icon="🕛", layout="wide")
 
-# Custom CSS - ENHANCED PROFESSIONAL DESIGN WITH PINKISH-PURPLE THEME
+# Custom CSS - TIMETABLE STYLE DESIGN
 st.markdown("""
 <style>
 /* --------------------------------------------------
@@ -214,86 +213,86 @@ p, span, label, div {
 }
 
 /* --------------------------------------------------
-   EVENT CARDS - NEW DESIGN
+   TIMETABLE ROW - NEW DESIGN
 -------------------------------------------------- */
 
-.event-day-container {
-    margin: 1.5rem 0;
+.timetable-row {
+    display: flex;
+    align-items: stretch;
+    margin: 10px 0;
+    min-height: 60px;
 }
 
-.event-timeline {
-    position: relative;
-    padding-left: 100px;
-}
-
-.event-time {
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    font-weight: 600;
-    font-size: 0.95rem;
-    color: var(--text);
-    width: 85px;
-    text-align: right;
-}
-
-.event-card {
-    padding: 16px 20px;
-    margin: 12px 0;
-    border-radius: 12px;
+.event-content {
+    flex: 1;
+    padding: 14px 18px;
+    border-radius: 8px;
     background: var(--bg);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    border-left: 5px solid;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    border-left: 4px solid;
     transition: all 0.3s ease;
-    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
-.event-card:hover {
-    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-    transform: translateX(4px);
+.event-content:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    transform: translateX(3px);
 }
 
-.event-card.activity {
+.event-content.activity {
     border-left-color: var(--activity-color);
 }
 
-.event-card.school {
+.event-content.school {
     border-left-color: var(--school-color);
 }
 
-.event-card.compulsory {
+.event-content.compulsory {
     border-left-color: var(--compulsory-color);
 }
 
-.event-card.break {
+.event-content.break {
     border-left-color: var(--break-color);
-    opacity: 0.7;
+    opacity: 0.75;
+}
+
+.event-info {
+    flex: 1;
 }
 
 .event-title {
     font-weight: 600;
-    font-size: 1.05rem;
-    margin-bottom: 8px;
+    font-size: 1rem;
+    margin-bottom: 4px;
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
 .event-details {
-    font-size: 0.9rem;
-    color: var(--text);
+    font-size: 0.85rem;
     opacity: 0.8;
-    margin-top: 4px;
+}
+
+.event-time {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text);
+    white-space: nowrap;
+    padding-left: 16px;
+    min-width: 120px;
+    text-align: right;
 }
 
 .happening-now {
     background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
     color: white;
-    padding: 4px 12px;
-    border-radius: 20px;
+    padding: 4px 10px;
+    border-radius: 12px;
     font-weight: 600;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     display: inline-block;
     box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
     animation: pulse 2s infinite;
@@ -311,7 +310,6 @@ p, span, label, div {
     border-radius: 4px;
     font-size: 0.7rem;
     font-weight: 600;
-    margin-right: 8px;
 }
 
 /* --------------------------------------------------
@@ -342,23 +340,12 @@ p, span, label, div {
     background: linear-gradient(90deg, var(--purple) 0%, var(--purple-dark) 100%);
 }
 
-/* --------------------------------------------------
-   CARDS & CONTAINERS
--------------------------------------------------- */
-
-.metric-card {
-    background: var(--bg);
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    border: 2px solid var(--purple-light);
-    transition: all 0.3s ease;
+/* Remove weird shape above expanders */
+details summary::marker,
+details summary::-webkit-details-marker {
+    display: none;
 }
 
-.metric-card:hover {
-    box-shadow: 0 4px 16px rgba(233, 30, 99, 0.15);
-    transform: translateY(-2px);
-}
 </style>
 
 """, unsafe_allow_html=True)
@@ -369,6 +356,10 @@ NeroTimeLogic.initialize_session_state()
 # Initialize event filter
 if 'event_filter' not in st.session_state:
     st.session_state.event_filter = 'weekly'
+
+# Check for expired sessions on load
+if st.session_state.user_id and st.session_state.data_loaded:
+    NeroTimeLogic.check_expired_sessions()
 
 # Load data from Firebase
 if not st.session_state.data_loaded and st.session_state.user_id:
@@ -602,9 +593,8 @@ with tab1:
                             current_minutes = time_str_to_minutes(dashboard_data['current_time'])
                             is_current_slot = event_start <= current_minutes < event_end
                         
-                        # Create timeline container
-                        st.markdown('<div class="event-timeline">', unsafe_allow_html=True)
-                        st.markdown(f'<div class="event-time">{event["start"]} - {event["end"]}</div>', unsafe_allow_html=True)
+                        # Create timetable row
+                        st.markdown('<div class="timetable-row">', unsafe_allow_html=True)
                         
                         if event["type"] == "ACTIVITY":
                             activity_name = event['name'].split(' (Session')[0]
@@ -613,21 +603,24 @@ with tab1:
                             is_completed = event.get('is_completed', False)
                             is_user_edited = event.get('is_user_edited', False)
                             
-                            st.markdown('<div class="event-card activity">', unsafe_allow_html=True)
-                            
-                            if is_current_slot:
-                                st.markdown('<div class="happening-now">● HAPPENING NOW</div>', unsafe_allow_html=True)
+                            st.markdown('<div class="event-content activity">', unsafe_allow_html=True)
                             
                             col1, col2 = st.columns([0.85, 0.15])
                             with col1:
+                                st.markdown('<div class="event-info">', unsafe_allow_html=True)
+                                
+                                if is_current_slot:
+                                    st.markdown('<span class="happening-now">● NOW</span>', unsafe_allow_html=True)
+                                
                                 badge = '<span class="user-edited-badge">EDITED</span>' if is_user_edited else ''
                                 status_icon = "✅" if is_completed else "⚫"
                                 st.markdown(f'<div class="event-title">{badge}{status_icon} {activity_name} (Session {session_part})</div>', unsafe_allow_html=True)
                                 
-                                completed_sessions = sum(1 for s in dashboard_data.get('activities_data', {}).get(activity_name, {}).get('sessions_data', []) if s.get('is_completed', False))
+                                completed_sessions_act = sum(1 for s in dashboard_data.get('activities_data', {}).get(activity_name, {}).get('sessions_data', []) if s.get('is_completed', False))
                                 total_sessions_act = len(dashboard_data.get('activities_data', {}).get(activity_name, {}).get('sessions_data', []))
                                 
-                                st.markdown(f'<div class="event-details">Progress: {completed_sessions}/{total_sessions_act} sessions • {progress["completed"]:.1f}h / {progress["total"]}h</div>', unsafe_allow_html=True)
+                                st.markdown(f'<div class="event-details">Progress: {completed_sessions_act}/{total_sessions_act} sessions • {progress["completed"]:.1f}h / {progress["total"]}h</div>', unsafe_allow_html=True)
+                                st.markdown('</div>', unsafe_allow_html=True)
                             
                             with col2:
                                 if is_completed:
@@ -640,27 +633,40 @@ with tab1:
                                             st.rerun()
                             
                             st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="event-time">{event["start"]} - {event["end"]}</div>', unsafe_allow_html=True)
                         
                         elif event["type"] == "SCHOOL":
-                            st.markdown('<div class="event-card school">', unsafe_allow_html=True)
+                            st.markdown('<div class="event-content school">', unsafe_allow_html=True)
+                            st.markdown('<div class="event-info">', unsafe_allow_html=True)
+                            
                             if is_current_slot:
-                                st.markdown('<div class="happening-now">● HAPPENING NOW</div>', unsafe_allow_html=True)
-                            st.markdown(f'<div class="event-title">🏫 {event["name"]}</div>', unsafe_allow_html=True)
-                            st.markdown(f'<div class="event-details">School Class</div>', unsafe_allow_html=True)
+                                st.markdown('<span class="happening-now">● NOW</span>', unsafe_allow_html=True)
+                            
+                            st.markdown(f'<div class="event-title">🏫 School/Work</div>', unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="event-time">{event["start"]} - {event["end"]}</div>', unsafe_allow_html=True)
                         
                         elif event["type"] == "COMPULSORY":
-                            st.markdown('<div class="event-card compulsory">', unsafe_allow_html=True)
+                            st.markdown('<div class="event-content compulsory">', unsafe_allow_html=True)
+                            st.markdown('<div class="event-info">', unsafe_allow_html=True)
+                            
                             if is_current_slot:
-                                st.markdown('<div class="happening-now">● HAPPENING NOW</div>', unsafe_allow_html=True)
+                                st.markdown('<span class="happening-now">● NOW</span>', unsafe_allow_html=True)
+                            
                             st.markdown(f'<div class="event-title">🔴 {event["name"]}</div>', unsafe_allow_html=True)
                             st.markdown(f'<div class="event-details">Compulsory Event</div>', unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="event-time">{event["start"]} - {event["end"]}</div>', unsafe_allow_html=True)
                         
                         else:  # BREAK
-                            st.markdown('<div class="event-card break">', unsafe_allow_html=True)
+                            st.markdown('<div class="event-content break">', unsafe_allow_html=True)
+                            st.markdown('<div class="event-info">', unsafe_allow_html=True)
                             st.markdown(f'<div class="event-title">⚪ Break</div>', unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="event-time">{event["start"]} - {event["end"]}</div>', unsafe_allow_html=True)
                         
                         st.markdown('</div>', unsafe_allow_html=True)
     else:
@@ -682,8 +688,12 @@ with tab2:
         col3, col4 = st.columns(2)
         with col3:
             min_s = st.number_input("Min Session (min)", 15, 180, 30, 15, key="min_s")
+            # Round to nearest 15
+            min_s = ((min_s + 7) // 15) * 15
         with col4:
             max_s = st.number_input("Max Session (min)", 30, 240, 120, 15, key="max_s")
+            # Round to nearest 15
+            max_s = ((max_s + 7) // 15) * 15
             if max_s < min_s:
                 max_s = min_s
         
@@ -778,6 +788,8 @@ with tab2:
                                             step=15,
                                             key=f"dur_{session_id}"
                                         )
+                                        # Round to nearest 15
+                                        new_duration = ((new_duration + 7) // 15) * 15
                                     
                                     col_btn1, col_btn2 = st.columns(2)
                                     with col_btn1:
@@ -874,21 +886,19 @@ with tab3:
 
 # ==================== SCHOOL TAB ====================
 with tab4:
-    st.header("School Schedule")
+    st.header("School/Work Schedule")
     
-    with st.expander("➕ Add Class", expanded=False):
+    with st.expander("➕ Add Schedule", expanded=False):
         col1, col2 = st.columns(2)
         with col1:
             from Timetable_Generation import WEEKDAY_NAMES
             day = st.selectbox("Day", WEEKDAY_NAMES, key="school_day")
-            subject = st.text_input("Subject (optional)", key="school_subject", placeholder="Class")
         with col2:
             start = st.time_input("Start", key="school_start")
             end = st.time_input("End", key="school_end")
         
         if st.button("Add", type="primary", use_container_width=True, key="btn_add_school"):
-            subject_name = subject.strip() if subject.strip() else "Class"
-            result = NeroTimeLogic.add_school_schedule(day, start.strftime("%H:%M"), end.strftime("%H:%M"), subject_name)
+            result = NeroTimeLogic.add_school_schedule(day, start.strftime("%H:%M"), end.strftime("%H:%M"), "School/Work")
             if result["success"]:
                 st.success("✓ Added")
                 st.rerun()
@@ -903,19 +913,19 @@ with tab4:
         from Timetable_Generation import WEEKDAY_NAMES
         for day in WEEKDAY_NAMES:
             if day in school_data['schedule']:
-                with st.expander(f"{day} ({len(school_data['schedule'][day])} classes)"):
+                with st.expander(f"{day} ({len(school_data['schedule'][day])} slots)"):
                     for idx, cls in enumerate(school_data['schedule'][day]):
                         col1, col2 = st.columns([4, 1])
                         with col1:
-                            st.write(f"**{cls['subject']}**")
+                            st.write(f"**School/Work**")
                             st.caption(f"{cls['start_time']} - {cls['end_time']}")
                         with col2:
-                            if st.button("×", key=f"del_school_{day}_{idx}_{cls['subject']}"):
+                            if st.button("×", key=f"del_school_{day}_{idx}"):
                                 result = NeroTimeLogic.delete_school_schedule(day, idx)
                                 if result["success"]:
                                     st.rerun()
     else:
-        st.info("No classes")
+        st.info("No schedule")
 
 # ==================== SETTINGS TAB ====================
 with tab5:
