@@ -14,193 +14,186 @@ st.set_page_config(page_title="NERO-TIME", page_icon="🕛", layout="wide")
 # Custom CSS - CLEAN PROFESSIONAL DESIGN
 st.markdown("""
 <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    
-    .stApp {
-        background: #f8f9fa;
-    }
-    
-    .block-container {
-        background: white;
-        border-radius: 8px;
-        padding: 2rem;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-    }
-    
-    .stButton > button {
-        font-size: 14px;
-        padding: 8px 16px;
-        border-radius: 6px;
-        border: 1px solid #e0e0e0;
-        background: white;
-        color: #424242;
-        font-weight: 500;
-        transition: all 0.2s ease;
-    }
-    
-    .stButton > button:hover {
-        background: #f5f5f5;
-        border-color: #bdbdbd;
-    }
-    
-    .stButton > button[kind="primary"] {
-        background: #2196F3;
-        color: white;
-        border: none;
-    }
-    
-    .stButton > button[kind="primary"]:hover {
-        background: #1976D2;
-    }
-    
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 4px;
-        background: #f5f5f5;
-        padding: 4px;
-        border-radius: 8px;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        height: 40px;
-        padding: 0 16px;
-        background: transparent;
-        border-radius: 6px;
-        color: #616161;
-        font-weight: 500;
-    }
-    
-    .stTabs [aria-selected="true"] {
-        background: white !important;
-        color: #2196F3 !important;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    }
-    
-    .stProgress > div > div > div > div {
-        background: #2196F3;
-    }
-    
-    [data-testid="stMetricValue"] {
-        font-size: 28px;
-        font-weight: 600;
-        color: #212121;
-    }
-    
-    .stTextInput > div > div > input,
-    .stNumberInput > div > div > input {
-        border-radius: 6px;
-        border: 1px solid #e0e0e0;
-    }
-    
-    .stTextInput > div > div > input:focus,
-    .stNumberInput > div > div > input:focus {
-        border-color: #2196F3;
-        box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
-    }
-    
-    .event-activity {
-        border-left: 4px solid #2196F3;
-        padding: 12px;
-        margin: 8px 0;
-        background: #f5f9ff;
-        border-radius: 4px;
-    }
-    
-    .event-school {
-        border-left: 4px solid #FF9800;
-        padding: 12px;
-        margin: 8px 0;
-        background: #fff8f0;
-        border-radius: 4px;
-    }
-    
-    .event-compulsory {
-        border-left: 4px solid #F44336;
-        padding: 12px;
-        margin: 8px 0;
-        background: #fff5f5;
-        border-radius: 4px;
-    }
-    
-    .event-break {
-        border-left: 4px solid #9E9E9E;
-        padding: 12px;
-        margin: 8px 0;
-        background: #fafafa;
-        border-radius: 4px;
-    }
-    
-    .happening-now {
-        background: #4CAF50;
-        color: white;
-        padding: 6px 12px;
-        border-radius: 4px;
-        display: inline-block;
-        font-weight: 600;
-        font-size: 13px;
-        margin-bottom: 8px;
-    }
-    
-    .user-edited-badge {
-        background: #00BCD4;
-        color: white;
-        padding: 3px 8px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 600;
-        margin-right: 8px;
-    }
-    
-    h1 {
-        color: #212121;
-        font-weight: 700;
-    }
-    
-    h2, h3 {
-        color: #424242;
-        font-weight: 600;
-    }
-    
-    hr {
-        margin: 1.5rem 0;
-        border: none;
-        height: 1px;
-        background: #e0e0e0;
-    }
-    
-    .streamlit-expanderHeader {
-        background: #fafafa;
-        border-radius: 6px;
-        padding: 10px 14px;
-        border: 1px solid #e0e0e0;
-        font-weight: 500;
-    }
-    
-    .streamlit-expanderHeader:hover {
-        background: #f5f5f5;
-        border-color: #bdbdbd;
-    }
-    
-    .stSuccess {
-        background: #f1f8f4 !important;
-        border-left: 4px solid #4CAF50 !important;
-    }
-    
-    .stError {
-        background: #fef5f5 !important;
-        border-left: 4px solid #F44336 !important;
-    }
-    
-    .stWarning {
-        background: #fff8f0 !important;
-        border-left: 4px solid #FF9800 !important;
-    }
-    
-    .stInfo {
-        background: #f5f9ff !important;
-        border-left: 4px solid #2196F3 !important;
-    }
+/* --------------------------------------------------
+   GLOBAL THEME-AWARE COLORS
+-------------------------------------------------- */
+
+:root {
+    --bg: var(--background-color);
+    --bg-secondary: var(--secondary-background-color);
+    --text: var(--text-color);
+    --primary: var(--primary-color);
+}
+
+/* --------------------------------------------------
+   BASE APP
+-------------------------------------------------- */
+
+#MainMenu { visibility: hidden; }
+footer { visibility: hidden; }
+
+.stApp {
+    background: var(--bg);
+    color: var(--text);
+}
+
+.block-container {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+/* --------------------------------------------------
+   HEADINGS & TEXT
+-------------------------------------------------- */
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text);
+    font-weight: 600;
+}
+
+p, span, label, div {
+    color: var(--text);
+}
+
+/* --------------------------------------------------
+   BUTTONS
+-------------------------------------------------- */
+
+.stButton > button {
+    font-size: 14px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid rgba(128,128,128,0.4);
+    background: var(--bg);
+    color: var(--text);
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.stButton > button:hover {
+    background: var(--bg-secondary);
+}
+
+.stButton > button[kind="primary"] {
+    background: var(--primary);
+    color: white;
+    border: none;
+}
+
+.stButton > button[kind="primary"]:hover {
+    filter: brightness(0.9);
+}
+
+/* --------------------------------------------------
+   TABS
+-------------------------------------------------- */
+
+.stTabs [data-baseweb="tab-list"] {
+    gap: 4px;
+    background: var(--bg);
+    padding: 4px;
+    border-radius: 8px;
+}
+
+.stTabs [data-baseweb="tab"] {
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 6px;
+    color: var(--text);
+}
+
+.stTabs [aria-selected="true"] {
+    background: var(--bg-secondary);
+    color: var(--primary);
+}
+
+/* --------------------------------------------------
+   INPUTS
+-------------------------------------------------- */
+
+.stTextInput input,
+.stNumberInput input,
+.stDateInput input,
+.stTimeInput input {
+    border-radius: 6px;
+    border: 1px solid rgba(128,128,128,0.4);
+    background: var(--bg);
+    color: var(--text);
+}
+
+.stTextInput input:focus,
+.stNumberInput input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(33,150,243,0.25);
+}
+
+/* --------------------------------------------------
+   METRICS
+-------------------------------------------------- */
+
+[data-testid="stMetricValue"] {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+/* --------------------------------------------------
+   EVENTS
+-------------------------------------------------- */
+
+.event-activity,
+.event-school,
+.event-compulsory,
+.event-break {
+    padding: 12px;
+    margin: 8px 0;
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--text);
+}
+
+.event-activity { border-left: 4px solid var(--primary); }
+.event-school { border-left: 4px solid #FF9800; }
+.event-compulsory { border-left: 4px solid #F44336; }
+.event-break { border-left: 4px solid #9E9E9E; }
+
+.happening-now {
+    background: #4CAF50;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+/* --------------------------------------------------
+   EXPANDERS
+-------------------------------------------------- */
+
+.streamlit-expanderHeader {
+    background: var(--bg);
+    border-radius: 6px;
+    padding: 10px 14px;
+    border: 1px solid rgba(128,128,128,0.4);
+    color: var(--text);
+}
+
+.streamlit-expanderHeader:hover {
+    background: var(--bg-secondary);
+}
+
+/* --------------------------------------------------
+   ALERTS
+-------------------------------------------------- */
+
+.stSuccess, .stError, .stWarning, .stInfo {
+    color: var(--text);
+    background: var(--bg-secondary) !important;
+}
 </style>
+
 """, unsafe_allow_html=True)
 
 # Initialize session state
