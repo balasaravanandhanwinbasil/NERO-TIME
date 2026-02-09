@@ -1079,9 +1079,10 @@ with tab5:
 with tab6:
    Badge = 0
    st.header("Achievements")
-   st.subheader(f"**Hours of work done:** {total_hours_completed:.1f}h,**Total activities:** {total_activities}h,**Total Sessions:** {total_sessions}h,**Badges Earnt:** {Badge}h")
+   st.subheader(f"**Hours of work done:** {total_hours_completed:.1f}h,**Total activities:** {total_activities} Activites,**Total Sessions:** {completed_sessions/total_sessions} Sessions,**Badges Earnt:** {Badge} Badges")
    col1, col2, col3 = st.columns(3)
    with col1:
+      st.markdown("<h1 style='text-align: center; margin-bottom: 1rem; color: #FFFFFF;'>✅", unsafe_allow_html=True)
       st.write("You Just started. Achieve:", f"{total_hours_completed:.1f}/0 hours to get this badge")
       if total_hours_completed > 0:
          st.write("UNLOCKED 🔓")
