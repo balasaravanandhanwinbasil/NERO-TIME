@@ -1085,7 +1085,7 @@ with tab6:
       st.markdown("<h1 style='text-align: center; margin-top: 5rem; color: #FFFFFF;'>✅", unsafe_allow_html=True)
       st.write("You Just started. Achieve:", f"{total_hours_completed:.1f}/0 hours to get this badge")
       if total_hours_completed > 0:
-         st.write("UNLOCKED 🔓")
+         st.markdown("<h1 style='text-align: center; margin-top: 5rem; color: #FFFFFF;'> UNLOCKED 🔓", unsafe_allow_html=True)
 
 # Auto-refresh for live clock (every 1 second)
 st.markdown("""
