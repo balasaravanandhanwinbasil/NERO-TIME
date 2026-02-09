@@ -1082,8 +1082,8 @@ with tab6:
    st.subheader(f"**Hours of work done:** {total_hours_completed:.1f}h,**Total activities:** {total_activities} Activites,**Badges Earnt:** {Badge} Badges")
    col1, col2, col3 = st.columns(3)
    with col1:
-      if total_hours_completed > 0:
-         st.markdown("<h1 style='text-align: center; margin-top: 5rem; color: #FFFFFF;'>✅", unsafe_allow_html=True)
+      st.markdown("<h1 style='text-align: center; margin-top: 5rem; color: #FFFFFF;'>✅", unsafe_allow_html=True)
+      if total_hours_completed >= 0:
          st.markdown("<h1 style='text-align: center; margin-top: 1rem; color: #FFFFFF;'> UNLOCKED 🔓", unsafe_allow_html=True)
       st.write("You Just started. Achieve:", f"{total_hours_completed:.1f}/0 hours to get this badge")
 
