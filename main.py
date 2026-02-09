@@ -1076,8 +1076,10 @@ with tab5:
 # ==================== ACHIEVEMENTS TAB ====================
 with tab6:
    st.header("Achievements")
+   col0 = st.colums(1)
+   with col0:
+      st.write(f"**Hours of work done:** {total_hours_completed:.1f}h")
    col1, col2, col3 = st.columns(3)
-   st.write(f"**Hours of work done:** {total_hours_completed:.1f}h")
    with col1:
       st.write("You Just started. Achieve:", f"{total_hours_completed:.1f}/0 hours to get this badge")
       if total_hours_completed > 0:
