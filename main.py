@@ -1077,8 +1077,9 @@ with tab5:
 
 # ==================== ACHIEVEMENTS TAB ====================
 with tab6:
+   Badge = 0
    st.header("Achievements")
-   st.subheader(f"**Hours of work done:** {total_hours_completed:.1f}h")
+   st.subheader(f"**Hours of work done:** {total_hours_completed:.1f}h,**Total activities:** {total_activities:.1f}h,**Total Sessions:** {total_sessions:.1f}h,**Badges Earnt:** {Badge:.1f}h")
    col1, col2, col3 = st.columns(3)
    with col1:
       st.write("You Just started. Achieve:", f"{total_hours_completed:.1f}/0 hours to get this badge")
