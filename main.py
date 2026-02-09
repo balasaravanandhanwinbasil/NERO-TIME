@@ -1078,11 +1078,13 @@ with tab6:
    st.header("Achievements")
    col1, col2, col3 = st.columns(3)
    row1,row2,row3 = st.row(3)
-    st.write(f"**Hours of work done:** {total_hours_completed:.1f}h")
-    with col1:
-        st.write("You Just started. Achieve:", f"{total_hours_completed:.1f}/0 hours to get this badge")
-       with row1:
-        if total_hours_completed > 0:
+   with row3:
+      st.write(f"**Hours of work done:** {total_hours_completed:.1f}h")
+   with col1:
+      with row1:
+         st.write("You Just started. Achieve:", f"{total_hours_completed:.1f}/0 hours to get this badge")
+      with row2:
+         if total_hours_completed > 0:
             st.write("UNLOCKED 🔓")
 
 # Auto-refresh for live clock (every 1 second)
