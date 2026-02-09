@@ -470,7 +470,8 @@ if not st.session_state.user_id:
 st.markdown("<h1 style='text-align: center; margin-bottom: 1rem; color: #E91E63;'>🕛 NERO-Time</h1>", unsafe_allow_html=True)
 
 # Live Clock
-now = datetime.now()
+sg_tz = pytz.timezone('Asia/Singapore')
+now = datetime.now(sg_tz)
 st.markdown(f"""
 <div class='live-clock'>
     <div class='clock-time'>{now.strftime('%H:%M:%S')}</div>
