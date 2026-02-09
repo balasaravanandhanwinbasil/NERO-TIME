@@ -1076,7 +1076,7 @@ with tab5:
 # ==================== ACHIEVEMENTS TAB ====================
 with tab6:
    st.header("Achievements")
-   col0 = st.colums(1)
+   col0 = st.columns(1)
    with col0:
       st.write(f"**Hours of work done:** {total_hours_completed:.1f}h")
    col1, col2, col3 = st.columns(3)
