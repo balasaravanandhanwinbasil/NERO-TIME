@@ -1,5 +1,5 @@
 """
-NERO-time backend
+NEKO-TIME COMMUNICATIONS
 """
 
 import streamlit as st
@@ -12,16 +12,17 @@ from Firebase_Function import save_to_firebase, load_from_firebase, save_timetab
 from Timetable_Generation import time_str_to_minutes, WEEKDAY_NAMES, get_month_days
 
 def round_to_15_minutes(minutes):
-    """Round minutes to nearest 15-minute interval"""
+    """Rounding minutes to nearest 15-minute interval"""
     return ((minutes + 7) // 15) * 15
 
 
 class NeroTimeLogic:
-    """Simplified backend logic for NERO-Time"""
+    """BACKEND LOGIC USED FOR APP"""
     
     @staticmethod
     def initialize_session_state():
         """Initialize all session state variables"""
+        
         if 'user_id' not in st.session_state:
             st.session_state.user_id = None
         if 'current_year' not in st.session_state:
@@ -46,12 +47,13 @@ class NeroTimeLogic:
     @staticmethod
     def login_user(user_id: str) -> Dict:
         """Login user and load their data"""
+        
         if not user_id:
             return {"success": False, "message": "User ID is required"}
         
         st.session_state.user_id = user_id
         
-        # Load all user data from Firebase
+        # Load all user data from Firebase and place them inside the session state variables, unless they are empty
         st.session_state.list_of_activities = load_from_firebase(user_id, 'activities') or []
         st.session_state.list_of_compulsory_events = load_from_firebase(user_id, 'events') or []
         st.session_state.school_schedule = load_from_firebase(user_id, 'school_schedule') or {}
@@ -70,8 +72,9 @@ class NeroTimeLogic:
         return {"success": True, "message": f"Logged in as {user_id}"}
     
     @staticmethod
+    # USED TO CHECK FOR COMPLETED / EXPIRED SESSIONS
     def check_expired_sessions():
-        """Check for past incomplete sessions and prompt user"""
+        """Check for past incomplete sessions"""
         today = datetime.now().date()
         
         for activity in st.session_state.list_of_activities:
@@ -101,7 +104,7 @@ class NeroTimeLogic:
     
     @staticmethod
     def mark_past_session_complete(activity_name: str, session_id: str, completed: bool) -> Dict:
-        """Mark a past session as completed or not completed"""
+        """Mark a session who's timing has ALREADY PASSED as completed or not completed"""
         try:
             activity = next((a for a in st.session_state.list_of_activities 
                            if a['activity'] == activity_name), None)
@@ -117,7 +120,7 @@ class NeroTimeLogic:
             
             session['is_completed'] = completed
             
-            # Remove from past incomplete list if marked as complete
+            # remove from past incomplete if completed 
             if completed and 'past_incomplete_sessions' in st.session_state:
                 if activity_name in st.session_state.past_incomplete_sessions:
                     st.session_state.past_incomplete_sessions[activity_name] = [
@@ -126,7 +129,7 @@ class NeroTimeLogic:
                     ]
                     if not st.session_state.past_incomplete_sessions[activity_name]:
                         del st.session_state.past_incomplete_sessions[activity_name]
-            
+
             save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
             
             return {"success": True, "message": "Session status updated"}
@@ -135,7 +138,7 @@ class NeroTimeLogic:
     
     @staticmethod
     def show_pending_verifications():
-        """Placeholder - not needed in simplified system"""
+        """TO-DO (low prio)"""
         pass
     
     @staticmethod
@@ -144,7 +147,6 @@ class NeroTimeLogic:
         month_days = get_month_days(st.session_state.current_year, st.session_state.current_month)
         current_day, current_time = NeroTimeLogic._get_current_time_slot()
         
-        # Enrich timetable events
         enriched_timetable = {}
         for day_display, events in st.session_state.timetable.items():
             enriched_events = []
@@ -166,10 +168,11 @@ class NeroTimeLogic:
     
     @staticmethod
     def get_activities_data() -> Dict:
-        """Get activities with scheduled sessions"""
+        """Get activities with specified scheduled sessions"""
         enriched_activities = []
         for activity in st.session_state.list_of_activities:
             enriched = activity.copy()
+            
             # Calculate progress from scheduled sessions
             scheduled_sessions = activity.get('sessions', [])
             completed_hours = sum(s['duration_hours'] for s in scheduled_sessions if s.get('is_completed', False))
@@ -178,7 +181,8 @@ class NeroTimeLogic:
                 'total': activity['timing'],
                 'percentage': (completed_hours / activity['timing'] * 100) if activity['timing'] > 0 else 0
             }
-            # Add sessions_data for UI compatibility
+            
+            # Add to sessions_data 
             enriched['sessions_data'] = scheduled_sessions
             enriched_activities.append(enriched)
         
@@ -195,7 +199,7 @@ class NeroTimeLogic:
     
     @staticmethod
     def get_school_schedule() -> Dict:
-        """Get weekly school schedule"""
+        """Get weekly school/work schedule"""
         return {"schedule": st.session_state.school_schedule}
     
     @staticmethod
@@ -211,7 +215,7 @@ class NeroTimeLogic:
             today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
             days_left = (deadline_dt.replace(hour=0, minute=0, second=0, microsecond=0) - today).days
             
-            # Round min/max to 15-minute intervals
+            # MIN_SESSION AND MAX_SESSION TIMINGS ARE AUTOMATICALLY ROUNDED TO 15 minutes
             min_session = round_to_15_minutes(min_session)
             max_session = round_to_15_minutes(max_session)
             
@@ -223,7 +227,7 @@ class NeroTimeLogic:
                 "min_session_minutes": min_session,
                 "max_session_minutes": max_session,
                 "allowed_days": allowed_days or WEEKDAY_NAMES,
-                "sessions": []  # Will be filled by timetable generation
+                "sessions": []  # will be added to by the timetable generation code
             }
             
             st.session_state.list_of_activities.append(new_activity)
@@ -513,9 +517,7 @@ class NeroTimeLogic:
             return {"success": True, "message": "All data cleared"}
         except Exception as e:
             return {"success": False, "message": f"Error: {str(e)}"}
-    
-    # ==================== PRIVATE HELPER METHODS ====================
-    
+        
     @staticmethod
     def _get_current_time_slot():
         """Get current day and time slot"""
