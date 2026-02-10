@@ -1092,6 +1092,17 @@ with tab6:
          st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {0 - total_hours_completed}h to obtain this badge.</h1>", unsafe_allow_html=True)
 
       st.write("You Just started. Achieve:", f"{total_hours_completed:.1f}/0 hours to get this badge")
+   with col2:
+      if total_hours_completed >= 24:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #FFFFFF;'>✅", unsafe_allow_html=True)
+         st.markdown("<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #00FF00;'> UNLOCKED 🔓", unsafe_allow_html=True)
+         Badge+=1
+         st.subheader(f"**Hours of work done:** {total_hours_completed:.1f}h,**Total activities:** {total_activities} Activites,**Badges Earnt:** {Badge} Badges")
+      else:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {24 - total_hours_completed}h to obtain this badge.</h1>", unsafe_allow_html=True)
+
+      st.write("A day of work! Achieve:", f"{total_hours_completed:.1f}/24 hours to get this badge")
 
 # Auto-refresh for live clock (every 1 second)
 st.markdown("""
