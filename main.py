@@ -1119,7 +1119,7 @@ with tab6:
          Badge+=1
       else:
          st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
-         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {5 - total_activites} activites to obtain this badge.</h1>", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {5 - total_activities} more activites to obtain this badge.</h1>", unsafe_allow_html=True)
 
       st.write("My first assignments! Achieve:", f"{total_activities:.1f}/5 activites to get this badge")
    with col5:
