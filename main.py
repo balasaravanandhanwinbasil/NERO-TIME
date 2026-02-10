@@ -1108,7 +1108,7 @@ with tab6:
          st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
          st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {3- Badge} more badges to obtain this badge.</h1>", unsafe_allow_html=True)
 
-      st.write("My first assignments! Achieve:", f"{Badge}/3 Badges to get this badge")
+      st.write("My first achievements! Achieve:", f"{Badge}/3 Badges to get this badge")
    with col2:
       if total_hours_completed >= 24:
          st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #FFFFFF;'>📅", unsafe_allow_html=True)
@@ -1128,15 +1128,15 @@ with tab6:
          st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {20 - total_activities} more activites to obtain this badge.</h1>", unsafe_allow_html=True)
 
       st.write("Schedule getting tough! Achieve:", f"{total_activities}/20 activites to get this badge")
-      if Badge >= 3:
-         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #FFFFFF;'>🏆", unsafe_allow_html=True)
+      if Badge >= 5:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #FFFFFF;'>🎖️", unsafe_allow_html=True)
          st.markdown("<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #00FF00;'> UNLOCKED 🔓", unsafe_allow_html=True)
          Badge+=1
       else:
          st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
-         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {3- Badge} more badges to obtain this badge.</h1>", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {5- Badge} more badges to obtain this badge.</h1>", unsafe_allow_html=True)
 
-      st.write("My first assignments! Achieve:", f"{Badge}/3 Badges to get this badge")
+      st.write("Wow! Acomplished! Achieve:", f"{Badge}/5 Badges to get this badge")
    with col3:
       if total_hours_completed >= 168:
          st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #FFFFFF;'>👍", unsafe_allow_html=True)
@@ -1156,15 +1156,15 @@ with tab6:
          st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {50 - total_activities} more activites to obtain this badge.</h1>", unsafe_allow_html=True)
 
       st.write("Can you manage? Achieve:", f"{total_activities}/50 activites to get this badge")
-      if Badge >= 3:
-         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #FFFFFF;'>🏆", unsafe_allow_html=True)
+      if Badge >= 8:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #FFFFFF;'>🥳", unsafe_allow_html=True)
          st.markdown("<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #00FF00;'> UNLOCKED 🔓", unsafe_allow_html=True)
          Badge+=1
       else:
          st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
-         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {3- Badge} more badges to obtain this badge.</h1>", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {8- Badge} more badges to obtain this badge.</h1>", unsafe_allow_html=True)
 
-      st.write("My first assignments! Achieve:", f"{Badge}/3 Badges to get this badge")
+      st.write("Collector, I see! Achieve:", f"{Badge}89 Badges to get this badge")
       
 
 # Auto-refresh for live clock (every 1 second)
