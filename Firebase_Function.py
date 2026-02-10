@@ -1,24 +1,27 @@
+'''
+FIREBASE STORAGE AND RETRIEVAL
+'''
 import streamlit as st
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-# Global db variable
+# db variable for Firebase
 db = None
 
 def init_firebase():
-    """Initialize Firebase app and return Firestore client"""
+    """Initialise Firebase app and return Firestore information"""
     global db
     
     try:
-        # Check if already initialized
+        # Check if already initialised
         firebase_admin.get_app()
     except ValueError:
-        # Try to use JSON file first (for local development)
+        # JSON File (for vscode)
         try:
             cred = credentials.Certificate('firebase-credentials.json')
             firebase_admin.initialize_app(cred)
         except FileNotFoundError:
-            # Fall back to Streamlit secrets (for cloud deployment)
+            # STREAMLIT Secrets folder for Firebase info
             cred_dict = {
                 "type": st.secrets["firebase"]["type"],
                 "project_id": st.secrets["firebase"]["project_id"],
@@ -32,9 +35,10 @@ def init_firebase():
                 "client_x509_cert_url": st.secrets["firebase"]["client_x509_cert_url"]
             }
             cred = credentials.Certificate(cred_dict)
+
             firebase_admin.initialize_app(cred)
     
-    # Initialize db if not already done
+    # Initialize db 
     if db is None:
         db = firestore.client()
     
@@ -43,6 +47,8 @@ def init_firebase():
 def save_to_firebase(user_id, data_type, data):
     """Save data to Firebase"""
     global db
+
+    # INITIALISE db IF NOT DONE ALREADY
     if db is None:
         db = init_firebase()
     
@@ -71,7 +77,7 @@ def load_from_firebase(user_id, data_type):
         return None
 
 def save_timetable_snapshot(user_id, timetable, activities, events):
-    """Save a complete timetable snapshot with timestamp"""
+    """Saving a Timetable inside timetable_history"""
     global db
     if db is None:
         db = init_firebase()
@@ -90,7 +96,7 @@ def save_timetable_snapshot(user_id, timetable, activities, events):
         return False
 
 def get_timetable_history(user_id, limit=10):
-    """Get timetable history"""
+    """Retrieving Timetable History"""
     global db
     if db is None:
         db = init_firebase()
