@@ -45,7 +45,7 @@ def init_firebase():
     return db
 
 def save_to_firebase(user_id, data_type, data):
-    """Save data to Firebase"""
+    """Save data to Firebase of a certain data type"""
     global db
 
     # INITIALISE db IF NOT DONE ALREADY
@@ -61,7 +61,7 @@ def save_to_firebase(user_id, data_type, data):
         return False
 
 def load_from_firebase(user_id, data_type):
-    """Load data from Firebase"""
+    """Load data from Firebase of a certain data type"""
     global db
     if db is None:
         db = init_firebase()
