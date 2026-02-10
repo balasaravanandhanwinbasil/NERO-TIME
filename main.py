@@ -1164,7 +1164,7 @@ with tab6:
          st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
          st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {8- Badge} more badges to obtain this badge.</h1>", unsafe_allow_html=True)
 
-      st.write("Collector, I see! Achieve:", f"{Badge}89 Badges to get this badge")
+      st.write("Collector, I see! Achieve:", f"{Badge}/8 Badges to get this badge")
       
 
 # Auto-refresh for live clock (every 1 second)
