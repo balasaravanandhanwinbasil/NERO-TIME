@@ -1101,6 +1101,16 @@ with tab6:
          st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {24 - total_hours_completed}h to obtain this badge.</h1>", unsafe_allow_html=True)
 
       st.write("A day of work! Achieve:", f"{total_hours_completed:.1f}/24 hours to get this badge")
+   with col3:
+      if total_hours_completed >= 168:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #FFFFFF;'>👍", unsafe_allow_html=True)
+         st.markdown("<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #00FF00;'> UNLOCKED 🔓", unsafe_allow_html=True)
+         Badge+=1
+      else:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {168 - total_hours_completed}h to obtain this badge.</h1>", unsafe_allow_html=True)
+
+      st.write("Commitment! Achieve:", f"{total_hours_completed:.1f}/168 hours to get this badge")
 
 # Auto-refresh for live clock (every 1 second)
 st.markdown("""
