@@ -964,10 +964,10 @@ with tab2:
                     result = NeroTimeLogic.reset_activity_progress(act['activity'])
                     if result["success"]:
                         st.rerun()
-               if col3.button("Add", key=f"reset_activity_{idx}_{act['activity']}"):
-                  result = NeroTimeLogic.add_activity_progress(act['activity'])
-                  if result["success"]:
-                     st.rerun()
+                if col3.button("Add", key=f"reset_activity_{idx}_{act['activity']}"):
+                    result = NeroTimeLogic.add_activity_progress(act['activity'])
+                    if result["success"]:
+                        st.rerun()
     else:
         st.info("No activities")
 
