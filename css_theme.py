@@ -247,6 +247,12 @@ p, span, label, div {
     background: linear-gradient(to right, rgba(33, 150, 243, 0.05), var(--bg));
 }
 
+.timetable-row.skipped {
+    border-left-color: #F44336;
+    background: linear-gradient(to right, rgba(244, 67, 54, 0.05), var(--bg));
+    opacity: 0.85;
+}
+
 .event-info {
     flex: 1;
     min-width: 0;
@@ -375,5 +381,4 @@ details summary::-webkit-details-marker {
 }
 
 </style>
-
 """
