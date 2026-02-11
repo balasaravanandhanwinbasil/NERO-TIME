@@ -9,12 +9,12 @@ from datetime import datetime, time, timedelta
 from nero_logic import NeroTimeLogic
 from Firebase_Function import load_from_firebase
 
-from css_theme import css_colours
+from css_style import css_scheme
 
 st.set_page_config(page_title="NERO-TIME", page_icon="🕛", layout="wide")
 
 # TIMETABLE COLOURS IN CSS
-st.markdown(css_colours, unsafe_allow_html=True)
+st.markdown(css_scheme, unsafe_allow_html=True)
 
 # Initialize session state
 NeroTimeLogic.initialize_session_state()

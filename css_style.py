@@ -1,4 +1,4 @@
-css_colours = """
+css_scheme = """
 <style>
 /* --------------------------------------------------
    GLOBAL THEME-AWARE COLORS
