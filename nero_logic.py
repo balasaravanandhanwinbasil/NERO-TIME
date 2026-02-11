@@ -364,6 +364,8 @@ class NeroTimeLogic:
             return {"success": True, "message": f"Sessions cleared for '{activity_name}'"}
         except Exception as e:
             return {"success": False, "message": f"Error: {str(e)}"}
+    def add_activitiy_progress(activity_name: str) -> Dict:
+        '''Manually add progress into activity'''
     
     @staticmethod
     def add_event(name: str, event_date: str, start_time: str, end_time: str) -> Dict:
