@@ -9,10 +9,9 @@ from datetime import datetime, time, timedelta
 from nero_logic import NeroTimeLogic
 from Firebase_Function import load_from_firebase
 
-# Page configuration
 st.set_page_config(page_title="NERO-TIME", page_icon="🕛", layout="wide")
 
-# Custom CSS - TIMETABLE STYLE DESIGN
+# TIMETABLE COLOURS IN CSS
 st.markdown("""
 <style>
 /* --------------------------------------------------
@@ -32,6 +31,7 @@ st.markdown("""
     --school-color: #FF9800;
     --compulsory-color: #F44336;
     --break-color: #9E9E9E;
+    --finished-color: #2196F3;
 }
 
 /* --------------------------------------------------
@@ -214,52 +214,57 @@ p, span, label, div {
 }
 
 /* --------------------------------------------------
-   TIMETABLE ROW - REORGANIZED LAYOUT
+   TIMETABLE ROW - HORIZONTAL LAYOUT (INFO LEFT, TIME+ACTIONS RIGHT)
 -------------------------------------------------- */
 
 .timetable-row {
     display: flex;
-    align-items: stretch;
+    align-items: center;
+    justify-content: space-between;
     margin: 12px 0;
-    min-height: 70px;
-}
-
-.event-content {
-    flex: 1;
     padding: 16px 20px;
     border-radius: 10px;
     background: var(--bg);
     box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     border-left: 5px solid;
     transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 20px;
+    min-height: 70px;
 }
 
-.event-content:hover {
+.timetable-row:hover {
     box-shadow: 0 4px 16px rgba(0,0,0,0.1);
     transform: translateX(4px);
 }
 
-.event-content.activity {
+.timetable-row.activity {
     border-left-color: var(--activity-color);
     background: linear-gradient(to right, rgba(233, 30, 99, 0.02), var(--bg));
 }
 
-.event-content.school {
+.timetable-row.school {
     border-left-color: var(--school-color);
     background: linear-gradient(to right, rgba(255, 152, 0, 0.02), var(--bg));
 }
 
-.event-content.compulsory {
+.timetable-row.compulsory {
     border-left-color: var(--compulsory-color);
     background: linear-gradient(to right, rgba(244, 67, 54, 0.02), var(--bg));
 }
 
-.event-content.break {
+.timetable-row.break {
     border-left-color: var(--break-color);
     opacity: 0.7;
+}
+
+.timetable-row.finished {
+    border-left-color: var(--finished-color);
+    background: linear-gradient(to right, rgba(33, 150, 243, 0.05), var(--bg));
+}
+
+.timetable-row.skipped {
+    border-left-color: #F44336;
+    background: linear-gradient(to right, rgba(244, 67, 54, 0.05), var(--bg));
+    opacity: 0.85;
 }
 
 .event-info {
@@ -289,10 +294,9 @@ p, span, label, div {
 
 .event-right-section {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 10px;
-    min-width: 130px;
+    align-items: center;
+    gap: 20px;
+    min-width: fit-content;
 }
 
 .event-time {
@@ -301,8 +305,9 @@ p, span, label, div {
     color: var(--text);
     opacity: 0.85;
     white-space: nowrap;
-    text-align: right;
     font-family: 'Courier New', monospace;
+    min-width: 130px;
+    text-align: right;
 }
 
 .event-actions {
@@ -330,6 +335,17 @@ p, span, label, div {
     animation: pulse 2s infinite;
 }
 
+.finished-badge {
+    background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.7rem;
+    display: inline-block;
+    box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
+}
+
 @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.8; }
@@ -345,7 +361,7 @@ p, span, label, div {
 }
 
 /* --------------------------------------------------
-   EXPANDERS - PURPLE THEME
+   EXPANDERS 
 -------------------------------------------------- */
 
 .streamlit-expanderHeader {
@@ -365,7 +381,7 @@ p, span, label, div {
 }
 
 /* --------------------------------------------------
-   PROGRESS BAR - PURPLE
+   PROGRESS BAR
 -------------------------------------------------- */
 
 .stProgress > div > div > div {
@@ -430,6 +446,7 @@ if not st.session_state.data_loaded and st.session_state.user_id:
         
         st.session_state.data_loaded = True
 
+
 # ==================== LOGIN SCREEN ====================
 if not st.session_state.user_id:
     st.markdown("""
@@ -437,33 +454,105 @@ if not st.session_state.user_id:
         <h1 style='font-size: 4rem; margin-bottom: 0.5rem;'>🕛</h1>
         <h1 style='font-size: 3rem; margin-bottom: 0.5rem; color: #E91E63;'>NERO-Time</h1>
         <p style='font-size: 1.1rem; color: #757575; margin-bottom: 3rem;'>
-            Simple. Powerful. Time Management.
+            Finish all of your tasks on time. On Neko-Time.
         </p>
     </div>
     """, unsafe_allow_html=True)
     
+    # Initialize login mode state
+    if 'login_mode' not in st.session_state:
+        st.session_state.login_mode = 'login'  # 'login' or 'register'
+    
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("### Welcome")
-        user_input = st.text_input(
-          "Email",
-          placeholder="your.email@example.com",
-          label_visibility="collapsed",
-          key="login_email"
-      )
-
+        # Toggle between Login and Register
+        tab1, tab2 = st.tabs(["Login", "Register"])
         
-        if st.button("Sign In", type="primary", use_container_width=True, key="btn_signin"):
-            if user_input:
-                with st.spinner("Signing in..."):
-                    result = NeroTimeLogic.login_user(user_input)
-                if result["success"]:
-                    st.success("✓ " + result["message"])
-                    st.rerun()
+        with tab1:
+            st.markdown("### Welcome Back")
+            
+            login_username = st.text_input(
+                "Username",
+                placeholder="Enter your username",
+                key="login_username"
+            )
+            
+            login_password = st.text_input(
+                "Password",
+                type="password",
+                placeholder="Enter your password",
+                key="login_password"
+            )
+            
+            if st.button("Sign In", type="primary", use_container_width=True, key="btn_signin"):
+                if login_username and login_password:
+                    with st.spinner("Signing in..."):
+                        from Firebase_Function import authenticate_user
+                        result = authenticate_user(login_username, login_password)
+                    
+                    if result["success"]:
+                        st.session_state.user_id = result["user_id"]
+                        st.session_state.username = login_username
+                        st.success("✓ " + result["message"])
+                        st.rerun()
+                    else:
+                        st.error("✗ " + result["message"])
                 else:
-                    st.error("✗ " + result["message"])
-            else:
-                st.error("Please enter your email")
+                    st.error("Please enter both username and password")
+        
+        with tab2:
+            st.markdown("### Create Account")
+            
+            reg_username = st.text_input(
+                "Username",
+                placeholder="Choose a username",
+                key="reg_username",
+                help="Must be unique"
+            )
+            
+            reg_email = st.text_input(
+                "Email (optional)",
+                placeholder="your.email@example.com",
+                key="reg_email"
+            )
+            
+            reg_password = st.text_input(
+                "Password",
+                type="password",
+                placeholder="Choose a strong password",
+                key="reg_password"
+            )
+            
+            reg_password_confirm = st.text_input(
+                "Confirm Password",
+                type="password",
+                placeholder="Re-enter your password",
+                key="reg_password_confirm"
+            )
+            
+            if st.button("Create Account", type="primary", use_container_width=True, key="btn_register"):
+                if not reg_username:
+                    st.error("Username is required")
+                elif not reg_password:
+                    st.error("Password is required")
+                elif reg_password != reg_password_confirm:
+                    st.error("Passwords do not match")
+                elif len(reg_password) < 6:
+                    st.error("Password must be at least 6 characters")
+                else:
+                    with st.spinner("Creating account..."):
+                        from Firebase_Function import create_user
+                        result = create_user(reg_username, reg_password, reg_email)
+                    
+                    if result["success"]:
+                        st.success("✓ " + result["message"])
+                        st.info("You can now login with your credentials!")
+                        # Auto-login after registration
+                        st.session_state.user_id = result["user_id"]
+                        st.session_state.username = reg_username
+                        st.rerun()
+                    else:
+                        st.error("✗ " + result["message"])
     
     st.stop()
 
@@ -497,7 +586,7 @@ total_sessions = sum(
 )
 total_hours_completed = sum(act['progress']['completed'] for act in activities_preview['activities'])
 
-# Ensure integers for session counts
+# ensure integers for session counts
 completed_sessions = int(completed_sessions)
 total_sessions = int(total_sessions)
 
@@ -511,17 +600,25 @@ with col_stat4:
     completion_rate = (completed_sessions / total_sessions * 100) if total_sessions > 0 else 0
     st.metric("Complete", f"{int(completion_rate)}%")
 
-st.caption(f"👤 {st.session_state.user_id}")
+st.caption(f"👤 {st.session_state.get('username', st.session_state.user_id)}")
 st.divider()
 
-# Navigation
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Dashboard", "Activities", "Events", "School", "Settings", "Achievements"])
+# NAVIGATION TABS
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "Dashboard", 
+    "Activities", 
+    "Events & Schedule",
+    "Verification",
+    "Achievements",
+    "Settings"
+    ])
 
 # ==================== DASHBOARD TAB ====================
 with tab1:
+    # get data needed to be displayed on dashboard
     dashboard_data = NeroTimeLogic.get_dashboard_data()
     
-    # Month navigation
+    # Month navigation part ui formatting
     col1, col2, col3, col4, col5 = st.columns([1, 1, 2, 1, 1])
     
     with col2:
@@ -544,14 +641,14 @@ with tab1:
     
     st.divider()
     
-    # Display warnings from last generation (BEFORE the button) - COLLAPSIBLE
+    # WARNINGS DISPLAY
     if 'timetable_warnings' in st.session_state and st.session_state.timetable_warnings:
-        # Count warning types
-        errors = sum(1 for w in st.session_state.timetable_warnings if w.startswith('❌'))
+        # Count amount of warnings using emoji markers
+        errors = sum(1 for w in st.session_state.timetable_warnings if w.startswith('❌')) 
         warnings_count = sum(1 for w in st.session_state.timetable_warnings if w.startswith('⚠️'))
         success_count = sum(1 for w in st.session_state.timetable_warnings if w.startswith('✓'))
         
-        # Create header based on content
+        # Header warning based on errro
         if errors > 0:
             header = f"⚠️ Timetable Warnings ({errors} error(s), {warnings_count} warning(s))"
             expanded = True
@@ -564,6 +661,7 @@ with tab1:
         
         with st.expander(header, expanded=expanded):
             for warning in st.session_state.timetable_warnings:
+                # warning message = warning 
                 if warning.startswith('❌'):
                     st.error(warning)
                 elif warning.startswith('⚠️'):
@@ -575,7 +673,7 @@ with tab1:
         st.divider()
     
     # Generate timetable - BIG BUTTON
-    if st.button("🚀 GENERATE TIMETABLE", type="primary", use_container_width=True, key="btn_generate_timetable"):
+    if st.button("* GENERATE TIMETABLE *", type="primary", use_container_width=True, key="btn_generate_timetable"):
         if st.session_state.list_of_activities or st.session_state.list_of_compulsory_events or st.session_state.school_schedule:
             with st.spinner("Generating your perfect schedule..."):
                 result = NeroTimeLogic.generate_timetable()
@@ -589,7 +687,7 @@ with tab1:
     
     st.divider()
     
-    # Event filter
+    # EVENT FILTER
     st.markdown("### 📅 Events")
     
     # Filter buttons
@@ -618,7 +716,7 @@ with tab1:
     
     st.divider()
     
-    # Filter events based on selection
+    # Filter events based on year, month, or week
     def filter_events_by_period(month_days, filter_type):
         """Filter days based on weekly/monthly/yearly view"""
         today = datetime.now().date()
@@ -636,6 +734,8 @@ with tab1:
     
     filtered_days = filter_events_by_period(dashboard_data['month_days'], st.session_state.event_filter)
     
+    # ACTUAL TIMETABLE DISPLAY
+
     if dashboard_data['timetable'] and filtered_days:
         for day_info in filtered_days:
             day_display = day_info['display']
@@ -651,10 +751,13 @@ with tab1:
                 
                 with st.expander(f"{'🟢 ' if is_current_day else ''}📅 {formatted_date}", expanded=is_current_day):
                     for idx, event in enumerate(events):
-                        # Check if current
+                        # Check if current or finished
                         is_current_slot = False
+                        is_finished = event.get('is_finished', False)
+                        
                         if is_current_day and dashboard_data['current_time']:
                             from Timetable_Generation import time_str_to_minutes
+                            
                             event_start = time_str_to_minutes(event['start'])
                             event_end = time_str_to_minutes(event['end'])
                             current_minutes = time_str_to_minutes(dashboard_data['current_time'])
@@ -667,20 +770,36 @@ with tab1:
                             is_completed = event.get('is_completed', False)
                             is_user_edited = event.get('is_user_edited', False)
                             
-                            st.markdown('<div class="timetable-row">', unsafe_allow_html=True)
-                            st.markdown('<div class="event-content activity">', unsafe_allow_html=True)
+                            # Determine CSS class
+                            css_class = "timetable-row activity"
+                            is_skipped = is_finished and not event['can_verify'] and not is_completed
+                            if is_skipped:
+                                css_class += " skipped"
+                            elif is_finished and not is_completed:
+                                css_class += " finished"
+                            
+                            st.markdown(f'<div class="{css_class}">', unsafe_allow_html=True)
                             
                             # Left: Event info
                             st.markdown('<div class="event-info">', unsafe_allow_html=True)
                             
-                            # Title row with badges
+                            # Title row 
                             title_parts = []
                             if is_current_slot:
                                 title_parts.append('<span class="happening-now">● LIVE NOW</span>')
+                            if is_finished and not is_completed:
+                                title_parts.append('<span class="finished-badge">⏰ FINISHED</span>')
                             if is_user_edited:
                                 title_parts.append('<span class="user-edited-badge">EDITED</span>')
                             
                             status_icon = "✅" if is_completed else "⚫"
+                            
+                            # Check if session was skipped (is_finished but can't verify and not completed)
+                            is_skipped = is_finished and not event['can_verify'] and not is_completed
+                            if is_skipped:
+                                status_icon = "❌"
+                                title_parts.append('<span class="user-edited-badge" style="background: #F44336;">SKIPPED</span>')
+                            
                             title_parts.append(f'{status_icon} <strong>{activity_name}</strong>')
                             title_parts.append(f'<span style="opacity: 0.7;">Session {session_part}</span>')
                             
@@ -703,18 +822,16 @@ with tab1:
                                     unsafe_allow_html=True
                                 )
                             
-                            st.markdown('</div>', unsafe_allow_html=True)  # Close event-info
-                            
-                            # Right: Time + Actions stacked vertically
+                            st.markdown('</div>', unsafe_allow_html=True)  
+
+            
                             st.markdown('<div class="event-right-section">', unsafe_allow_html=True)
                             st.markdown(f'<div class="event-time">{event["start"]} — {event["end"]}</div>', unsafe_allow_html=True)
-                            st.markdown('</div>', unsafe_allow_html=True)  # Close event-right-section
+                            st.markdown('</div>', unsafe_allow_html=True)  
                             
-                            st.markdown('</div>', unsafe_allow_html=True)  # Close event-content
-                            st.markdown('</div>', unsafe_allow_html=True)  # Close timetable-row
+                            st.markdown('</div>', unsafe_allow_html=True)  
                             
-                            # Buttons OUTSIDE the card, right-aligned below it
-                            if not is_completed and event['can_verify']:
+                            if is_finished and not is_completed and event['can_verify']:
                                 col_spacer, col_buttons = st.columns([0.75, 0.25])
                                 with col_buttons:
                                     col_check, col_skip = st.columns(2)
@@ -736,10 +853,14 @@ with tab1:
                                 col_spacer, col_check_display = st.columns([0.85, 0.15])
                                 with col_check_display:
                                     st.markdown('<div style="text-align: center; font-size: 24px;">✅</div>', unsafe_allow_html=True)
+                            elif not event['can_verify']:
+                                # Session was skipped/marked as not done
+                                col_spacer, col_skip_display = st.columns([0.85, 0.15])
+                                with col_skip_display:
+                                    st.markdown('<div style="text-align: center; font-size: 24px;">❌</div>', unsafe_allow_html=True)
                         
                         elif event["type"] == "SCHOOL":
-                            st.markdown('<div class="timetable-row">', unsafe_allow_html=True)
-                            st.markdown('<div class="event-content school">', unsafe_allow_html=True)
+                            st.markdown('<div class="timetable-row school">', unsafe_allow_html=True)
                             
                             st.markdown('<div class="event-info">', unsafe_allow_html=True)
                             
@@ -756,12 +877,10 @@ with tab1:
                             st.markdown(f'<div class="event-time">{event["start"]} — {event["end"]}</div>', unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
                             
-                            st.markdown('</div>', unsafe_allow_html=True)  # Close event-content
-                            st.markdown('</div>', unsafe_allow_html=True)  # Close timetable-row
+                            st.markdown('</div>', unsafe_allow_html=True)
                         
                         elif event["type"] == "COMPULSORY":
-                            st.markdown('<div class="timetable-row">', unsafe_allow_html=True)
-                            st.markdown('<div class="event-content compulsory">', unsafe_allow_html=True)
+                            st.markdown('<div class="timetable-row compulsory">', unsafe_allow_html=True)
                             
                             st.markdown('<div class="event-info">', unsafe_allow_html=True)
                             
@@ -778,12 +897,10 @@ with tab1:
                             st.markdown(f'<div class="event-time">{event["start"]} — {event["end"]}</div>', unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
                             
-                            st.markdown('</div>', unsafe_allow_html=True)  # Close event-content
-                            st.markdown('</div>', unsafe_allow_html=True)  # Close timetable-row
+                            st.markdown('</div>', unsafe_allow_html=True)
                         
                         else:  # BREAK
-                            st.markdown('<div class="timetable-row">', unsafe_allow_html=True)
-                            st.markdown('<div class="event-content break">', unsafe_allow_html=True)
+                            st.markdown('<div class="timetable-row break">', unsafe_allow_html=True)
                             
                             st.markdown('<div class="event-info">', unsafe_allow_html=True)
                             st.markdown('<div class="event-title">⚪ <strong>Break</strong></div>', unsafe_allow_html=True)
@@ -794,8 +911,7 @@ with tab1:
                             st.markdown(f'<div class="event-time">{event["start"]} — {event["end"]}</div>', unsafe_allow_html=True)
                             st.markdown('</div>', unsafe_allow_html=True)
                             
-                            st.markdown('</div>', unsafe_allow_html=True)  # Close event-content
-                            st.markdown('</div>', unsafe_allow_html=True)  # Close timetable-row
+                            st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.info("No events for this period")
 
@@ -805,30 +921,47 @@ with tab2:
     
     with st.expander("➕ Add Activity", expanded=False):
         name = st.text_input("Name", key="activity_name")
+        
+        # Session mode selection
+        session_mode = st.radio(
+            "Session Mode",
+            ["Automatic", "Manual"],
+            help="Automatic: AI schedules sessions. Manual: You add sessions yourself",
+            horizontal=True,
+            key="session_mode"
+        )
+        
         col1, col2 = st.columns(2)
         with col1:
             deadline = st.date_input("Deadline", min_value=datetime.now().date(), key="activity_deadline")
         with col2:
             hours = st.number_input("Hours", 1, 100, 1, key="activity_hours")
         
-        col3, col4 = st.columns(2)
-        with col3:
-            min_s = st.number_input("Min Session (min)", 15, 180, 30, 15, key="min_s")
-            # Round to nearest 15
-            min_s = ((min_s + 7) // 15) * 15
-        with col4:
-            max_s = st.number_input("Max Session (min)", 30, 240, 120, 15, key="max_s")
-            # Round to nearest 15
-            max_s = ((max_s + 7) // 15) * 15
-            if max_s < min_s:
-                max_s = min_s
-        
-        from Timetable_Generation import WEEKDAY_NAMES
-        days = st.multiselect("Days", WEEKDAY_NAMES, WEEKDAY_NAMES, key="activity_days")
+        if session_mode == "Automatic":
+            col3, col4 = st.columns(2)
+            with col3:
+                min_s = st.number_input("Min Session (min)", 15, 180, 30, 15, key="min_s")
+                # Round to nearest 15
+                min_s = int(((min_s + 7) // 15) * 15)
+            with col4:
+                max_s = st.number_input("Max Session (min)", 30, 240, 120, 15, key="max_s")
+                # Round to nearest 15
+                max_s = int(((max_s + 7) // 15) * 15)
+                if max_s < min_s:
+                    max_s = min_s
+            
+            from Timetable_Generation import WEEKDAY_NAMES
+            days = st.multiselect("Days", WEEKDAY_NAMES, WEEKDAY_NAMES, key="activity_days")
+        else:
+            # Default values for manual mode
+            min_s, max_s, days = 30, 120, None
         
         if st.button("Add", type="primary", use_container_width=True, key="btn_add_activity"):
             if name:
-                result = NeroTimeLogic.add_activity(name, 3, deadline.isoformat(), hours, min_s, max_s, days)
+                result = NeroTimeLogic.add_activity(
+                    name, 3, deadline.isoformat(), hours, min_s, max_s, days,
+                    session_mode="manual" if session_mode == "Manual" else "automatic"
+                )
                 if result["success"]:
                     st.success("✓ Added")
                     st.rerun()
@@ -841,9 +974,36 @@ with tab2:
     
     if activities_data['activities']:
         for idx, act in enumerate(activities_data['activities']):
-            with st.expander(f"{idx+1}. {act['activity']} ({act['progress']['completed']:.1f}h/{act['timing']:.1f}h)"):
+            mode_badge = "🤖 Auto" if act.get('session_mode') == 'automatic' else "✋ Manual"
+            with st.expander(f"{idx+1}. {act['activity']} ({act['progress']['completed']:.1f}h/{act['timing']:.1f}h) - {mode_badge}"):
                 st.progress(act['progress']['percentage'] / 100)
                 st.caption(f"Deadline: {act['deadline']} days")
+                
+                # Manual session adding for manual mode activities
+                if act.get('session_mode') == 'manual':
+                    with st.form(key=f"add_manual_session_{idx}"):
+                        st.markdown("**➕ Add Manual Session**")
+                        col_dur, col_day = st.columns(2)
+                        with col_dur:
+                            manual_duration = st.number_input("Duration (min)", 15, 240, 60, 15, key=f"manual_dur_{idx}")
+                            manual_duration = int(((manual_duration + 7) // 15) * 15)
+                        with col_day:
+                            from Timetable_Generation import WEEKDAY_NAMES
+                            preferred_day = st.selectbox("Preferred Day (optional)", ["Any"] + WEEKDAY_NAMES, key=f"manual_day_{idx}")
+                        
+                        if st.form_submit_button("Add Session", use_container_width=True):
+                            result = NeroTimeLogic.add_manual_session(
+                                act['activity'], 
+                                int(manual_duration),
+                                None if preferred_day == "Any" else preferred_day
+                            )
+                            if result["success"]:
+                                st.success("✓ Session added!")
+                                st.rerun()
+                            else:
+                                st.error(result["message"])
+                    
+                    st.divider()
                 
                 # Show sessions
                 st.markdown("#### 📋 Sessions")
@@ -971,28 +1131,56 @@ with tab2:
     else:
         st.info("No activities")
 
-# ==================== EVENTS TAB ====================
+# ==================== EVENTS & SCHEDULE TAB ====================
 with tab3:
-    st.header("Events")
+    st.header("All Events")
     
-    with st.expander("➕ Add Event", expanded=False):
+    with st.expander("➕ Add Event/Schedule", expanded=False):
         event_name = st.text_input("Name", key="event_name")
+        
+        recurrence_type = st.radio(
+            "Type",
+            ["One-time Event", "Weekly", "Bi-weekly", "Monthly"],
+            horizontal=True,
+            key="recurrence_type"
+        )
+        
         col1, col2 = st.columns(2)
         with col1:
-            event_date = st.date_input("Date", min_value=datetime.now().date(), key="event_date")
-        with col2:
-            from Timetable_Generation import WEEKDAY_NAMES
-            st.text_input("Day", value=WEEKDAY_NAMES[event_date.weekday()], disabled=True, key="event_day_display")
-        
-        col3, col4 = st.columns(2)
-        with col3:
             start_t = st.time_input("Start", key="event_start_time")
-        with col4:
+        with col2:
             end_t = st.time_input("End", key="event_end_time")
+        
+        if recurrence_type in ["Weekly", "Bi-weekly"]:
+            from Timetable_Generation import WEEKDAY_NAMES
+            selected_days = st.multiselect("Days", WEEKDAY_NAMES, key="event_days")
+            event_date = None
+        else:
+            selected_days = None
+            event_date = st.date_input("Date", min_value=datetime.now().date(), key="event_date")
         
         if st.button("Add", type="primary", use_container_width=True, key="btn_add_event"):
             if event_name:
-                result = NeroTimeLogic.add_event(event_name, event_date.isoformat(), start_t.strftime("%H:%M"), end_t.strftime("%H:%M"))
+                if recurrence_type == "One-time Event":
+                    result = NeroTimeLogic.add_event(
+                        event_name, event_date.isoformat(), 
+                        start_t.strftime("%H:%M"), end_t.strftime("%H:%M")
+                    )
+                else:
+                    recurrence_map = {
+                        "Weekly": "weekly",
+                        "Bi-weekly": "bi-weekly",
+                        "Monthly": "monthly"
+                    }
+                    result = NeroTimeLogic.add_recurring_event(
+                        event_name,
+                        start_t.strftime("%H:%M"),
+                        end_t.strftime("%H:%M"),
+                        recurrence_map[recurrence_type],
+                        selected_days,
+                        event_date.isoformat() if event_date else None
+                    )
+                
                 if result["success"]:
                     st.success("✓ Added")
                     st.rerun()
@@ -1001,6 +1189,33 @@ with tab3:
     
     st.divider()
     
+    # Display recurring schedules
+    st.markdown("### 📅 Recurring Events")
+    school_data = NeroTimeLogic.get_school_schedule()
+    
+    if school_data['schedule']:
+        from Timetable_Generation import WEEKDAY_NAMES
+        for day in WEEKDAY_NAMES:
+            if day in school_data['schedule']:
+                with st.expander(f"{day} ({len(school_data['schedule'][day])} slots)"):
+                    for idx, cls in enumerate(school_data['schedule'][day]):
+                        col1, col2 = st.columns([4, 1])
+                        with col1:
+                            recurrence_badge = cls.get('recurrence', 'weekly').title()
+                            st.write(f"**{cls['subject']}** ({recurrence_badge})")
+                            st.caption(f"{cls['start_time']} - {cls['end_time']}")
+                        with col2:
+                            if st.button("×", key=f"del_school_{day}_{idx}"):
+                                result = NeroTimeLogic.delete_school_schedule(day, idx)
+                                if result["success"]:
+                                    st.rerun()
+    else:
+        st.info("No recurring schedules")
+    
+    st.divider()
+    
+    # Display one-time events
+    st.markdown("### 📌 One-time Events")
     events_data = NeroTimeLogic.get_events_data()
     
     if events_data['events']:
@@ -1012,75 +1227,77 @@ with tab3:
                     if result["success"]:
                         st.rerun()
     else:
-        st.info("No events")
+        st.info("No one-time events")
 
-# ==================== SCHOOL TAB ====================
+# ==================== VERIFICATION TAB ====================
 with tab4:
-    st.header("School/Work Schedule")
+    st.header("Session Verification")
+    st.markdown("Verify finished sessions as completed or not completed.")
     
-    with st.expander("➕ Add Schedule", expanded=False):
-        col1, col2 = st.columns(2)
-        with col1:
-            from Timetable_Generation import WEEKDAY_NAMES
-            day = st.selectbox("Day", WEEKDAY_NAMES, key="school_day")
-        with col2:
-            start = st.time_input("Start", key="school_start")
-            end = st.time_input("End", key="school_end")
-        
-        if st.button("Add", type="primary", use_container_width=True, key="btn_add_school"):
-            result = NeroTimeLogic.add_school_schedule(day, start.strftime("%H:%M"), end.strftime("%H:%M"), "School/Work")
-            if result["success"]:
-                st.success("✓ Added")
-                st.rerun()
-            else:
-                st.error(result["message"])
+    finished_sessions = st.session_state.get('finished_sessions', [])
     
-    st.divider()
-    
-    school_data = NeroTimeLogic.get_school_schedule()
-    
-    if school_data['schedule']:
-        from Timetable_Generation import WEEKDAY_NAMES
-        for day in WEEKDAY_NAMES:
-            if day in school_data['schedule']:
-                with st.expander(f"{day} ({len(school_data['schedule'][day])} slots)"):
-                    for idx, cls in enumerate(school_data['schedule'][day]):
-                        col1, col2 = st.columns([4, 1])
-                        with col1:
-                            st.write(f"**School/Work**")
-                            st.caption(f"{cls['start_time']} - {cls['end_time']}")
-                        with col2:
-                            if st.button("×", key=f"del_school_{day}_{idx}"):
-                                result = NeroTimeLogic.delete_school_schedule(day, idx)
-                                if result["success"]:
-                                    st.rerun()
+    if not finished_sessions:
+        st.info("No finished sessions to verify yet. Sessions will appear here after their scheduled time has passed.")
     else:
-        st.info("No schedule")
-
-# ==================== SETTINGS TAB ====================
-with tab5:
-    st.header("Settings")
-    
-    st.write(f"**User:** {st.session_state.user_id}")
-    
-    st.divider()
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Logout", type="primary", use_container_width=True, key="btn_logout"):
-            st.session_state.user_id = None
-            st.session_state.data_loaded = False
-            st.rerun()
-    
-    with col2:
-        if st.button("Clear Data", use_container_width=True, key="btn_clear_data"):
-            result = NeroTimeLogic.clear_all_data()
-            if result["success"]:
-                st.warning("Data cleared")
-                st.rerun()
+        # Group by activity
+        activities_with_finished = {}
+        for fs in finished_sessions:
+            activity_name = fs.get('activity', 'Unknown')
+            if activity_name not in activities_with_finished:
+                activities_with_finished[activity_name] = []
+            activities_with_finished[activity_name].append(fs)
+        
+        # Display by activity
+        for activity_name, sessions in activities_with_finished.items():
+            with st.expander(f"**{activity_name}** ({len(sessions)} finished sessions)", expanded=True):
+                for session in sessions:
+                    is_verified = session.get('is_verified', False)
+                    session_id = session.get('session_id')
+                    session_num = session.get('session_num', '?')
+                    scheduled_date = session.get('scheduled_date', 'Unknown')
+                    scheduled_time = session.get('scheduled_time', 'Unknown')
+                    duration_minutes = session.get('duration_minutes', 0)
+                    
+                    # Create horizontal layout
+                    col1, col2, col3 = st.columns([3, 1, 1])
+                    
+                    with col1:
+                        status_icon = "✅" if is_verified else "⏰"
+                        st.markdown(f"{status_icon} **Session {session_num}**")
+                        st.caption(f"📅 {scheduled_date} at {scheduled_time} ({duration_minutes} min)")
+                    
+                    with col2:
+                        if not is_verified:
+                            if st.button("✓ Done", key=f"verify_yes_{session_id}", use_container_width=True):
+                                result = NeroTimeLogic.verify_finished_session(session_id, True)
+                                if result["success"]:
+                                    st.success("Verified!")
+                                    st.rerun()
+                                else:
+                                    st.error(result.get("message", "Error"))
+                    
+                    with col3:
+                        if is_verified:
+                            if st.button("✗ Undo", key=f"verify_no_{session_id}", use_container_width=True):
+                                result = NeroTimeLogic.verify_finished_session(session_id, False)
+                                if result["success"]:
+                                    st.warning("Unverified")
+                                    st.rerun()
+                                else:
+                                    st.error(result.get("message", "Error"))
+                        else:
+                            if st.button("✗ Skip", key=f"verify_skip_{session_id}", use_container_width=True):
+                                result = NeroTimeLogic.verify_finished_session(session_id, False)
+                                if result["success"]:
+                                    st.warning("Skipped")
+                                    st.rerun()
+                                else:
+                                    st.error(result.get("message", "Error"))
+                    
+                    st.divider()
 
 # ==================== ACHIEVEMENTS TAB ====================
-with tab6:
+with tab5:
    Badge = 0
    st.header("Achievements")
    col1, col2, col3 = st.columns(3)
@@ -1091,7 +1308,7 @@ with tab6:
          Badge+=1
       else:
          st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
-         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {0 - total_hours_completed}h to obtain this badge.</h1>", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {int(abs(0 - total_hours_completed))}h to obtain this badge.</h1>", unsafe_allow_html=True)
          
       st.write("You Just started. Achieve:", f"{total_hours_completed:.1f}/0 hours to get this badge")
       if total_activities >= 5:
@@ -1100,7 +1317,7 @@ with tab6:
          Badge+=1
       else:
          st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
-         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {5 - total_activities} more activites to obtain this badge.</h1>", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {int(5 - total_activities)} more activites to obtain this badge.</h1>", unsafe_allow_html=True)
 
       st.write("My first assignments! Achieve:", f"{total_activities}/5 activites to get this badge")
       if Badge >= 3:
@@ -1109,7 +1326,7 @@ with tab6:
          Badge+=1
       else:
          st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
-         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {3- Badge} more badges to obtain this badge.</h1>", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {int(3 - Badge)} more badges to obtain this badge.</h1>", unsafe_allow_html=True)
 
       st.write("My first achievements! Achieve:", f"{Badge}/3 Badges to get this badge")
    with col2:
@@ -1119,7 +1336,7 @@ with tab6:
          Badge+=1
       else:
          st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
-         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {24 - total_hours_completed}h to obtain this badge.</h1>", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {int(max(0, 24 - total_hours_completed))}h to obtain this badge.</h1>", unsafe_allow_html=True)
 
       st.write("A day of work! Achieve:", f"{total_hours_completed:.1f}/24 hours to get this badge")
       if total_activities >= 20:
@@ -1128,7 +1345,7 @@ with tab6:
          Badge+=1
       else:
          st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
-         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {20 - total_activities} more activites to obtain this badge.</h1>", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {int(20 - total_activities)} more activites to obtain this badge.</h1>", unsafe_allow_html=True)
 
       st.write("Schedule getting tough! Achieve:", f"{total_activities}/20 activites to get this badge")
       if Badge >= 5:
@@ -1137,7 +1354,7 @@ with tab6:
          Badge+=1
       else:
          st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
-         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {5- Badge} more badges to obtain this badge.</h1>", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {int(5 - Badge)} more badges to obtain this badge.</h1>", unsafe_allow_html=True)
 
       st.write("Wow! Acomplished! Achieve:", f"{Badge}/5 Badges to get this badge")
    with col3:
@@ -1147,7 +1364,7 @@ with tab6:
          Badge+=1
       else:
          st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
-         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {168 - total_hours_completed}h to obtain this badge.</h1>", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {int(max(0, 168 - total_hours_completed))}h to obtain this badge.</h1>", unsafe_allow_html=True)
 
       st.write("Commitment! Achieve:", f"{total_hours_completed:.1f}/168 hours to get this badge")
       if total_activities >= 50:
@@ -1156,7 +1373,7 @@ with tab6:
          Badge+=1
       else:
          st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
-         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {50 - total_activities} more activites to obtain this badge.</h1>", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {int(50 - total_activities)} more activites to obtain this badge.</h1>", unsafe_allow_html=True)
 
       st.write("Can you manage? Achieve:", f"{total_activities}/50 activites to get this badge")
       if Badge >= 8:
@@ -1165,10 +1382,185 @@ with tab6:
          Badge+=1
       else:
          st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
-         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {8- Badge} more badges to obtain this badge.</h1>", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {int(8 - Badge)} more badges to obtain this badge.</h1>", unsafe_allow_html=True)
 
       st.write("Collector, I see! Achieve:", f"{Badge}/8 Badges to get this badge")
-      
+
+# ==================== SETTINGS TAB ====================
+with tab5:
+   Badge = 0
+   st.header("Achievements")
+   col1, col2, col3 = st.columns(3)
+   with col1:
+      if total_hours_completed >= 0:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #FFFFFF;'>✅", unsafe_allow_html=True)
+         st.markdown("<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #00FF00;'> UNLOCKED 🔓", unsafe_allow_html=True)
+         Badge+=1
+      else:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {int(abs(0 - total_hours_completed))}h to obtain this badge.</h1>", unsafe_allow_html=True)
+         
+      st.write("You Just started. Achieve:", f"{total_hours_completed:.1f}/0 hours to get this badge")
+      if total_activities >= 5:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #FFFFFF;'>💼", unsafe_allow_html=True)
+         st.markdown("<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #00FF00;'> UNLOCKED 🔓", unsafe_allow_html=True)
+         Badge+=1
+      else:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {int(5 - total_activities)} more activites to obtain this badge.</h1>", unsafe_allow_html=True)
+
+      st.write("My first assignments! Achieve:", f"{total_activities}/5 activites to get this badge")
+      if Badge >= 3:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #FFFFFF;'>🏆", unsafe_allow_html=True)
+         st.markdown("<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #00FF00;'> UNLOCKED 🔓", unsafe_allow_html=True)
+         Badge+=1
+      else:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {int(3 - Badge)} more badges to obtain this badge.</h1>", unsafe_allow_html=True)
+
+      st.write("My first achievements! Achieve:", f"{Badge}/3 Badges to get this badge")
+   with col2:
+      if total_hours_completed >= 24:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #FFFFFF;'>📅", unsafe_allow_html=True)
+         st.markdown("<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #00FF00;'> UNLOCKED 🔓", unsafe_allow_html=True)
+         Badge+=1
+      else:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {int(max(0, 24 - total_hours_completed))}h to obtain this badge.</h1>", unsafe_allow_html=True)
+
+      st.write("A day of work! Achieve:", f"{total_hours_completed:.1f}/24 hours to get this badge")
+      if total_activities >= 20:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #FFFFFF;'>💪", unsafe_allow_html=True)
+         st.markdown("<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #00FF00;'> UNLOCKED 🔓", unsafe_allow_html=True)
+         Badge+=1
+      else:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {int(20 - total_activities)} more activites to obtain this badge.</h1>", unsafe_allow_html=True)
+
+      st.write("Schedule getting tough! Achieve:", f"{total_activities}/20 activites to get this badge")
+      if Badge >= 5:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #FFFFFF;'>🎖️", unsafe_allow_html=True)
+         st.markdown("<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #00FF00;'> UNLOCKED 🔓", unsafe_allow_html=True)
+         Badge+=1
+      else:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {int(5 - Badge)} more badges to obtain this badge.</h1>", unsafe_allow_html=True)
+
+      st.write("Wow! Acomplished! Achieve:", f"{Badge}/5 Badges to get this badge")
+   with col3:
+      if total_hours_completed >= 168:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #FFFFFF;'>👍", unsafe_allow_html=True)
+         st.markdown("<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #00FF00;'> UNLOCKED 🔓", unsafe_allow_html=True)
+         Badge+=1
+      else:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {int(max(0, 168 - total_hours_completed))}h to obtain this badge.</h1>", unsafe_allow_html=True)
+
+      st.write("Commitment! Achieve:", f"{total_hours_completed:.1f}/168 hours to get this badge")
+      if total_activities >= 50:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #FFFFFF;'>😓", unsafe_allow_html=True)
+         st.markdown("<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #00FF00;'> UNLOCKED 🔓", unsafe_allow_html=True)
+         Badge+=1
+      else:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {int(50 - total_activities)} more activites to obtain this badge.</h1>", unsafe_allow_html=True)
+
+      st.write("Can you manage? Achieve:", f"{total_activities}/50 activites to get this badge")
+      if Badge >= 8:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #FFFFFF;'>🥳", unsafe_allow_html=True)
+         st.markdown("<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #00FF00;'> UNLOCKED 🔓", unsafe_allow_html=True)
+         Badge+=1
+      else:
+         st.markdown("<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌", unsafe_allow_html=True)
+         st.markdown(f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>Please obtain {int(8 - Badge)} more badges to obtain this badge.</h1>", unsafe_allow_html=True)
+
+      st.write("Collector, I see! Achieve:", f"{Badge}/8 Badges to get this badge")
+
+# ==================== SETTINGS TAB ====================
+with tab6:
+    st.header("Settings")
+    
+    st.markdown("### 👤 Account Information")
+    user_info_col1, user_info_col2 = st.columns(2)
+    
+    with user_info_col1:
+        st.write(f"**Username:** {st.session_state.get('username', 'N/A')}")
+        st.write(f"**User ID:** {st.session_state.user_id[:8]}...")
+    
+    with user_info_col2:
+        if 'user_email' in st.session_state and st.session_state.user_email:
+            st.write(f"**Email:** {st.session_state.user_email}")
+        else:
+            st.write("**Email:** Not set")
+    
+    st.divider()
+    
+    # Change Password Section
+    st.markdown("### 🔐 Change Password")
+    with st.expander("Change Your Password", expanded=False):
+        with st.form(key="change_password_form"):
+            old_password = st.text_input(
+                "Current Password",
+                type="password",
+                key="old_password"
+            )
+            
+            new_password = st.text_input(
+                "New Password",
+                type="password",
+                key="new_password",
+                help="Minimum 6 characters recommended"
+            )
+            
+            confirm_new_password = st.text_input(
+                "Confirm New Password",
+                type="password",
+                key="confirm_new_password"
+            )
+            
+            col_submit, col_cancel = st.columns(2)
+            with col_submit:
+                submit_password = st.form_submit_button("Change Password", type="primary", use_container_width=True)
+            with col_cancel:
+                cancel_password = st.form_submit_button("Cancel", use_container_width=True)
+            
+            if submit_password:
+                if not old_password or not new_password or not confirm_new_password:
+                    st.error("All fields are required")
+                elif new_password != confirm_new_password:
+                    st.error("New passwords do not match")
+                elif len(new_password) < 6:
+                    st.warning("Password should be at least 6 characters")
+                else:
+                    with st.spinner("Changing password..."):
+                        from Firebase_Function import change_password
+                        result = change_password(st.session_state.user_id, old_password, new_password)
+                    
+                    if result["success"]:
+                        st.success("✓ " + result["message"])
+                    else:
+                        st.error("✗ " + result["message"])
+    
+    st.divider()
+    
+    st.markdown("### 🗂️ Data Management")
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Clear All Data", use_container_width=True, key="btn_clear_data"):
+            result = NeroTimeLogic.clear_all_data()
+            if result["success"]:
+                st.warning("⚠️ All data cleared")
+                st.rerun()
+    
+    with col2:
+        if st.button("Logout", type="primary", use_container_width=True, key="btn_logout"):
+            st.session_state.user_id = None
+            st.session_state.username = None
+            st.session_state.user_email = None
+            st.session_state.data_loaded = False
+            st.rerun()
+
+
 
 # Auto-refresh for live clock (every 1 second)
 st.markdown("""
@@ -1177,4 +1569,5 @@ st.markdown("""
         window.parent.location.reload();
     }, 1000);
 </script>
-""", unsafe_allow_html=True)
+""", 
+unsafe_allow_html=True)

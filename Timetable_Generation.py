@@ -1,5 +1,5 @@
 """
-NERO-time timetable generator
+NERO-time timetable generator - FIXED VERSION
 """
 
 from datetime import datetime, timedelta
@@ -22,6 +22,8 @@ def time_str_to_minutes(time_str):
 
 def minutes_to_time_str(minutes):
     """Convert minutes since midnight to HH:MM."""
+    # FIX: Ensure minutes is an integer
+    minutes = int(minutes)
     hours = minutes // 60
     mins = minutes % 60
     return f"{hours:02d}:{mins:02d}"
@@ -35,7 +37,8 @@ def add_minutes(time_str, minutes_to_add):
 
 def round_to_15_minutes(minutes):
     """Round minutes to nearest 15-minute interval"""
-    return ((minutes + 7) // 15) * 15
+    # FIX: Always return an integer
+    return int(((minutes + 7) // 15) * 15)
 
 def get_month_days(year, month):
     """Get all days in a month with their weekday names."""
@@ -89,6 +92,10 @@ def add_event_to_timetable(day, start_time, end_time, event_name, event_type, ac
 
 def find_free_slot(day, duration_minutes, break_minutes=30):
     """Find a free slot on a given day between 6 AM and 11:30 PM, including break."""
+    # FIX: Ensure duration_minutes is an integer
+    duration_minutes = int(duration_minutes)
+    break_minutes = int(break_minutes)
+    
     attempts = []
     
     for hour in range(WORK_START_HOUR, WORK_END_HOUR + 1):
@@ -239,7 +246,7 @@ def place_activity_sessions(activity, month_days, warnings, today):
     min_session = activity.get('min_session_minutes', 30)
     max_session = activity.get('max_session_minutes', 120)
     
-    # Round to 15-minute intervals
+    # Round to 15-minute intervals and ensure integers
     min_session = round_to_15_minutes(min_session)
     max_session = round_to_15_minutes(max_session)
     
@@ -249,7 +256,9 @@ def place_activity_sessions(activity, month_days, warnings, today):
     # Calculate remaining time based on completed sessions
     existing_sessions = activity.get('sessions', [])
     completed_hours = sum(s.get('duration_hours', 0) for s in existing_sessions if s.get('is_completed', False))
-    total_minutes = (total_hours - completed_hours) * 60
+    
+    # FIX: Ensure total_minutes is an integer
+    total_minutes = int((total_hours - completed_hours) * 60)
     
     if total_minutes <= 0:
         warnings.append(f"✓ '{activity_name}': All hours already completed!")
