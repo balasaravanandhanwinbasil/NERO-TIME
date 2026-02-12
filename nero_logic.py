@@ -555,8 +555,7 @@ class NeroTimeLogic:
                         enriched['progress'] = {
                         'completed': completed_hours,
                         'total': activity['timing'],
-                        'percentage': (completed_hours / activity['timing'] * 100) if activity['timing'] > 0 else 0
-            }
+                        'percentage': (completed_hours / activity['timing'] * 100) if activity['timing'] > 0 else 0}
                     
     
     @staticmethod
