@@ -8,7 +8,6 @@ from typing import Dict, List
 import pytz
 import math
 import random
-sg_tz = pytz.timezone('Asia/Singapore')
 from Firebase_Function import save_to_firebase, load_from_firebase, save_timetable_snapshot
 from Timetable_Generation import time_str_to_minutes, WEEKDAY_NAMES, get_month_days
 
@@ -27,9 +26,9 @@ class NeroTimeLogic:
         if 'user_id' not in st.session_state:
             st.session_state.user_id = None
         if 'current_year' not in st.session_state:
-            st.session_state.current_year = datetime.now(sg_tz).year
+            st.session_state.current_year = datetime.now().year
         if 'current_month' not in st.session_state:
-            st.session_state.current_month = datetime.now(sg_tz).month
+            st.session_state.current_month = datetime.now().month
         if 'timetable' not in st.session_state:
             st.session_state.timetable = {}
         if 'list_of_activities' not in st.session_state:
@@ -79,8 +78,8 @@ class NeroTimeLogic:
     # USED TO CHECK FOR COMPLETED / EXPIRED SESSIONS
     def check_expired_sessions():
         """Check for past incomplete sessions and mark finished sessions"""
-        today = datetime.now(sg_tz).date()
-        now = datetime.now(sg_tz)
+        today = datetime.now().date()
+        now = datetime.now()
         
         for activity in st.session_state.list_of_activities:
             activity_name = activity['activity']
@@ -288,7 +287,7 @@ class NeroTimeLogic:
                 return {"success": False, "message": "Activity name is required"}
             
             deadline_dt = datetime.fromisoformat(deadline_date)
-            today = datetime.now(sg_tz).replace(hour=0, minute=0, second=0, microsecond=0)
+            today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
             days_left = (deadline_dt.replace(hour=0, minute=0, second=0, microsecond=0) - today).days
             
             # MIN_SESSION AND MAX_SESSION TIMINGS ARE AUTOMATICALLY ROUNDED TO 15 minutes
@@ -626,7 +625,7 @@ class NeroTimeLogic:
                 else:
                     st.session_state.current_month += 1
             elif direction == "today":
-                now = datetime.now(sg_tz)
+                now = datetime.now()
                 st.session_state.current_month = now.month
                 st.session_state.current_year = now.year
             
@@ -705,7 +704,7 @@ class NeroTimeLogic:
     @staticmethod
     def _get_current_time_slot():
         """Get current day and time slot"""
-        now = datetime.now(sg_tz)
+        now = datetime.now()
         day_name = WEEKDAY_NAMES[now.weekday()]
         current_display = f"{day_name} {now.strftime('%d/%m')}"
         current_time = now.strftime("%H:%M")
@@ -714,7 +713,7 @@ class NeroTimeLogic:
     @staticmethod
     def _can_verify_event(event: Dict, day_display: str) -> bool:
         """Check if event time has passed"""
-        now = datetime.now(sg_tz)
+        now = datetime.now()
         
         try:
             date_part = day_display.split()[-1]
@@ -735,7 +734,7 @@ class NeroTimeLogic:
     @staticmethod
     def _is_event_finished(event: Dict, day_display: str) -> bool:
         """Check if event timing has finished (for FINISHED badge)"""
-        now = datetime.now(sg_tz)
+        now = datetime.now()
         
         try:
             date_part = day_display.split()[-1]
