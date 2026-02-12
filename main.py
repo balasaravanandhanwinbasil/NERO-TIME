@@ -746,7 +746,7 @@ with tab2:
                     if result["success"]:
                         st.rerun()
                 if col3.button("Add"):
-                    result = NeroTimeLogic.reset_activity_progress(act['activity'])
+                    result = NeroTimeLogic.add_activity_progress(act['activity'])
                     if result["success"]:
                         st.rerun()
     else:
