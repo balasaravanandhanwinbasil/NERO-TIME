@@ -545,6 +545,17 @@ class NeroTimeLogic:
             return {"success": False, "message": f"Error: {str(e)}"}
     def add_activitiy_progress(activity_name: str) -> Dict:
         '''Manually add progress into activity'''
+        try:
+            #Add activity session for that activity
+            for activity in st.session_state.list_of_activities:
+                if activity['activity'] == activity_name:
+                    st.write(st.session_state.list_of_activities)
+                         enriched['progress'] = {
+                        'completed': completed_hours,
+                        'total': activity['timing'],
+                        'percentage': (completed_hours / activity['timing'] * 100) if activity['timing'] > 0 else 0
+            }
+                    
     
     @staticmethod
     def add_event(name: str, event_date: str, start_time: str, end_time: str) -> Dict:
