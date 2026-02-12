@@ -1,5 +1,5 @@
 """
-NEKO-TIME COMMUNICATIONS
+NEKO-TIME COMMUNICATIONS - FIXED VERSION
 """
 
 import streamlit as st
@@ -85,8 +85,8 @@ class NeroTimeLogic:
             activity_name = activity['activity']
             sessions = activity.get('sessions', [])
             
-            past_sessions = []
             for session in sessions:
+                # Skip already completed sessions
                 if session.get('is_completed', False):
                     continue
                     
@@ -108,35 +108,28 @@ class NeroTimeLogic:
                     # Mark as FINISHED if time has passed
                     if session_end <= now:
                         session['is_finished'] = True
-                        # Add to finished sessions list if not already there
-                        session_identifier = {
-                            'activity': activity_name,
-                            'session_id': session.get('session_id'),
-                            'session_num': session.get('session_num'),
-                            'scheduled_date': scheduled_date_str,
-                            'scheduled_time': scheduled_time_str,
-                            'duration_minutes': duration_minutes,
-                            'is_verified': session.get('is_completed', False)
-                        }
+                        session_id = session.get('session_id')
                         
-                        # Check if already in finished sessions
-                        if not any(fs.get('session_id') == session.get('session_id') 
-                                  for fs in st.session_state.finished_sessions):
+                        # Add to finished sessions list if not already there
+                        if not any(fs.get('session_id') == session_id for fs in st.session_state.finished_sessions):
+                            session_identifier = {
+                                'activity': activity_name,
+                                'session_id': session_id,
+                                'session_num': session.get('session_num', 0),
+                                'scheduled_date': scheduled_date_str,
+                                'scheduled_time': scheduled_time_str,
+                                'duration_minutes': duration_minutes,
+                                'is_verified': False  # Not verified yet
+                            }
                             st.session_state.finished_sessions.append(session_identifier)
                     else:
                         session['is_finished'] = False
-                    
-                    if scheduled_date < today:
-                        past_sessions.append(session)
-                except:
+                        
+                except Exception as e:
+                    print(f"Error processing session: {e}")
                     pass
-            
-            if past_sessions:
-                if 'past_incomplete_sessions' not in st.session_state:
-                    st.session_state.past_incomplete_sessions = {}
-                st.session_state.past_incomplete_sessions[activity_name] = past_sessions
         
-        # Save finished sessions
+        # Save finished sessions and activities
         if st.session_state.user_id:
             save_to_firebase(st.session_state.user_id, 'finished_sessions', st.session_state.finished_sessions)
             save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
@@ -146,24 +139,40 @@ class NeroTimeLogic:
         """Verify a finished session as completed or not"""
         try:
             # Update in finished sessions list
+            finished_session = None
             for fs in st.session_state.finished_sessions:
                 if fs.get('session_id') == session_id:
-                    fs['is_verified'] = verified
-                    
-                    # Update in activities list
-                    for activity in st.session_state.list_of_activities:
-                        if activity['activity'] == fs['activity']:
-                            for session in activity.get('sessions', []):
-                                if session.get('session_id') == session_id:
-                                    session['is_completed'] = verified
-                                    break
+                    fs['is_verified'] = True
+                    fs['completed'] = verified  # Track whether it was completed or skipped
+                    finished_session = fs
+                    break
+            
+            if not finished_session:
+                return {"success": False, "message": "Session not found in finished sessions"}
+            
+            # Update in activities list
+            for activity in st.session_state.list_of_activities:
+                if activity['activity'] == finished_session['activity']:
+                    for session in activity.get('sessions', []):
+                        if session.get('session_id') == session_id:
+                            session['is_completed'] = verified
+                            session['is_skipped'] = not verified
                             break
                     break
+            
+            # Update in timetable
+            for day_events in st.session_state.timetable.values():
+                for event in day_events:
+                    if event.get('session_id') == session_id:
+                        event['is_completed'] = verified
+                        event['is_skipped'] = not verified
+                        break
             
             # Save to Firebase
             if st.session_state.user_id:
                 save_to_firebase(st.session_state.user_id, 'finished_sessions', st.session_state.finished_sessions)
                 save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
+                save_to_firebase(st.session_state.user_id, 'timetable', st.session_state.timetable)
             
             return {"success": True, "message": "Session verified"}
         except Exception as e:
@@ -186,11 +195,13 @@ class NeroTimeLogic:
                 return {"success": False, "message": "Session not found"}
             
             session['is_completed'] = completed
+            session['is_skipped'] = not completed
             
             # Update in finished sessions
             for fs in st.session_state.finished_sessions:
                 if fs.get('session_id') == session_id:
-                    fs['is_verified'] = completed
+                    fs['is_verified'] = True
+                    fs['completed'] = completed
                     break
             
             # remove from past incomplete if completed 
@@ -344,7 +355,8 @@ class NeroTimeLogic:
                 'is_manual': True,
                 'is_scheduled': False,  # Not scheduled to timetable yet
                 'is_completed': False,
-                'is_finished': False
+                'is_finished': False,
+                'is_skipped': False
             }
             
             activity['sessions'].append(new_session)
@@ -678,6 +690,7 @@ class NeroTimeLogic:
                             session['is_completed'] = completed
                             session['is_skipped'] = not completed  # Track if skipped
                             event['is_completed'] = completed
+                            event['is_skipped'] = not completed
                             
                             save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
                             save_to_firebase(st.session_state.user_id, 'timetable', st.session_state.timetable)
@@ -724,8 +737,12 @@ class NeroTimeLogic:
     
     @staticmethod
     def _can_verify_event(event: Dict, day_display: str) -> bool:
-        """Check if event time has passed"""
+        """Check if event time has passed and can be verified"""
         now = datetime.now()
+        
+        # Don't allow verification if already verified (completed or skipped)
+        if event.get('is_completed') or event.get('is_skipped'):
+            return False
         
         try:
             date_part = day_display.split()[-1]
