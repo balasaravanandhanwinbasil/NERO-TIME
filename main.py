@@ -7,7 +7,12 @@ import random
 import streamlit as st
 from datetime import datetime, time, timedelta
 from nero_logic import NeroTimeLogic
-from Firebase_Function import load_from_firebase
+from Firebase_Function import (
+    load_from_firebase, 
+    authenticate_user, 
+    create_user,
+    change_password
+    )
 
 from css_style import css_scheme
 
@@ -105,7 +110,6 @@ if not st.session_state.user_id:
             if st.button("Sign In", type="primary", use_container_width=True, key="btn_signin"):
                 if login_username and login_password:
                     with st.spinner("Signing in..."):
-                        from Firebase_Function import authenticate_user
                         result = authenticate_user(login_username, login_password)
                     
                     if result["success"]:
@@ -159,7 +163,6 @@ if not st.session_state.user_id:
                     st.error("Password must be at least 6 characters")
                 else:
                     with st.spinner("Creating account..."):
-                        from Firebase_Function import create_user
                         result = create_user(reg_username, reg_password, reg_email)
                     
                     if result["success"]:
@@ -1151,7 +1154,6 @@ with tab6:
                     st.warning("Password should be at least 6 characters")
                 else:
                     with st.spinner("Changing password..."):
-                        from Firebase_Function import change_password
                         result = change_password(st.session_state.user_id, old_password, new_password)
                     
                     if result["success"]:
