@@ -563,6 +563,11 @@ class NeroTimeLogic:
             #Add activity session for that activity
             for activity in st.session_state.list_of_activities:
                 if activity['activity'] == activity_name:
+                    enriched['progress'] = {
+                'completed': completed_hours,
+                'total': activity['timing'],
+                'percentage': (completed_hours / activity['timing'] * 100) if activity['timing'] > 0 else 0
+            }
                     completed_hours += 1
             return {"success": True, "message": f"Sessions cleared for '{activity_name}'"}
         except Exception as e:
