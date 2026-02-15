@@ -1117,7 +1117,7 @@ with tab2:
                 st.markdown("---")
                 
                 # Action buttons
-                col1, col2 = st.columns(2)
+                col1, col2,col3 = st.columns(3)
                 if col1.button("Delete", key=f"del_activity_{idx}_{act['activity']}"):
                     result = NeroTimeLogic.delete_activity(idx)
                     if result["success"]:
