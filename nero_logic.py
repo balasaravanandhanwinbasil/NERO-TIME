@@ -568,7 +568,7 @@ class NeroTimeLogic:
                 'total': activity['timing'],
                 'percentage': (completed_hours / activity['timing'] * 100) if activity['timing'] > 0 else 0
             }
-                    completed_hours += 1
+                    act['progress'] += 1
             return {"success": True, "message": f"Sessions cleared for '{activity_name}'"}
         except Exception as e:
             return {"success": False, "message": f"Error: {str(e)}"}
