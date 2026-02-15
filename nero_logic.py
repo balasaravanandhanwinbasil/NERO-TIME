@@ -564,7 +564,7 @@ class NeroTimeLogic:
             for activity in st.session_state.list_of_activities:
                 if activity['activity'] == activity_name:
                     st.write(st.session_state.list_of_activities)
-                    enriched['progress'] = {'completed': completed_hours,'total': activity['timing'],'percentage': (completed_hours / activity['timing'] * 100) if activity['timing'] > 0 else 0}
+                    enriched['progress'] = {'total': activity['timing']}
             return {"success": True, "message": f"Sessions cleared for '{activity_name}'"}
         except Exception as e:
             return {"success": False, "message": f"Error: {str(e)}"}
