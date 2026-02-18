@@ -1,5 +1,8 @@
 """
-NERO-time timetable generator - STARTS FROM CURRENT TIME
+NERO-time timetable generator - REFACTORED
+Sessions are the single source of truth (st.session_state.sessions).
+The timetable dict stores SCHOOL and COMPULSORY fixed events only.
+ACTIVITY rows are assembled on-the-fly by get_timetable_view().
 """
 
 from datetime import datetime, timedelta
@@ -16,7 +19,7 @@ _DEFAULT_WORK_END_MINUTES   = 23 * 60 + 30  # 23:30
 BREAK_MINUTES = 30  # Silent gap enforced between sessions (not shown in UI)
 
 
-# ── Runtime accessors — always read from session_state so user edits apply ────
+# ── Runtime accessors ─────────────────────────────────────────────────────────
 
 def get_work_start_minutes() -> int:
     return st.session_state.get('work_start_minutes', _DEFAULT_WORK_START_MINUTES)
@@ -60,50 +63,123 @@ def get_month_days(year: int, month: int) -> list:
     return days
 
 
-# ── Slot checking ──────────────────────────────────────────────────────────────
+# ── Timetable view assembly ────────────────────────────────────────────────────
+
+def get_timetable_view() -> Dict[str, list]:
+    """
+    Build the full timetable view dict on-the-fly.
+
+    - Fixed events (SCHOOL, COMPULSORY) come from st.session_state.timetable.
+    - ACTIVITY rows are generated from st.session_state.sessions.
+    - Each day list is sorted by start time.
+
+    Returns dict keyed by "Weekday DD/MM" → list of event dicts.
+    """
+    now = datetime.now()
+    view: Dict[str, list] = {}
+
+    # Copy fixed events (SCHOOL / COMPULSORY) from stored timetable
+    for day_display, events in st.session_state.timetable.items():
+        view[day_display] = [e.copy() for e in events]
+
+    # Inject ACTIVITY rows from the sessions store
+    for session in st.session_state.sessions.values():
+        day_display = session.get('scheduled_day')
+        start_time  = session.get('scheduled_time')
+        if not day_display or not start_time:
+            continue  # unscheduled manual session — skip
+
+        end_time = minutes_to_time_str(
+            time_str_to_minutes(start_time) + session['duration_minutes']
+        )
+
+        # Derive is_finished live
+        is_finished = False
+        try:
+            sched_date = datetime.fromisoformat(session['scheduled_date']).date()
+            end_dt = datetime.combine(
+                sched_date,
+                datetime.strptime(end_time, "%H:%M").time()
+            )
+            is_finished = end_dt <= now
+        except Exception:
+            pass
+
+        activity_name = session['activity_name']
+        session_num   = session['session_num']
+
+        event = {
+            "start":          start_time,
+            "end":            end_time,
+            "name":           f"{activity_name} (Session {session_num})",
+            "type":           "ACTIVITY",
+            "activity_name":  activity_name,
+            "session_num":    session_num,
+            "session_id":     session['session_id'],
+            "is_completed":   session.get('is_completed', False),
+            "is_skipped":     session.get('is_skipped', False),
+            "is_finished":    is_finished,
+            "is_user_edited": session.get('is_user_edited', False),
+        }
+
+        if day_display not in view:
+            view[day_display] = []
+        view[day_display].append(event)
+
+    # Sort each day by start time
+    for day_display in view:
+        view[day_display].sort(key=lambda x: time_str_to_minutes(x["start"]))
+
+    return view
+
+
+# ── Slot checking (against both stored fixed events AND scheduled sessions) ────
 
 def is_time_slot_free(day: str, start_time: str, end_time: str) -> bool:
     """
     Return True if [start_time, end_time) has zero overlap with every
-    already-placed event on `day`.
+    already-placed event on `day` (fixed events + sessions).
     """
-    if day not in st.session_state.timetable:
-        return True
-
     s = time_str_to_minutes(start_time)
     e = time_str_to_minutes(end_time)
 
-    for event in st.session_state.timetable[day]:
+    # Check fixed events
+    for event in st.session_state.timetable.get(day, []):
         es = time_str_to_minutes(event["start"])
         ee = time_str_to_minutes(event["end"])
         if not (e <= es or s >= ee):
             return False
+
+    # Check already-scheduled sessions
+    for session in st.session_state.sessions.values():
+        if session.get('scheduled_day') != day:
+            continue
+        sched_time = session.get('scheduled_time')
+        if not sched_time:
+            continue
+        ss = time_str_to_minutes(sched_time)
+        se = ss + session['duration_minutes']
+        if not (e <= ss or s >= se):
+            return False
+
     return True
 
 
-def add_event_to_timetable(day, start_time, end_time, event_name, event_type,
-                           activity_name=None, session_num=None, session_id=None):
-    """Insert an event and keep the day list sorted by start time."""
+def add_fixed_event_to_timetable(day: str, start_time: str, end_time: str,
+                                  event_name: str, event_type: str):
+    """Insert a SCHOOL or COMPULSORY event into the stored timetable and sort."""
     if day not in st.session_state.timetable:
         st.session_state.timetable[day] = []
 
-    event_data = {
-        "start": start_time,
-        "end": end_time,
-        "name": event_name,
-        "type": event_type,
+    st.session_state.timetable[day].append({
+        "start":        start_time,
+        "end":          end_time,
+        "name":         event_name,
+        "type":         event_type,
         "is_completed": False,
-        "is_skipped": False,
-        "is_finished": False,
-    }
-    if activity_name:
-        event_data["activity_name"] = activity_name
-    if session_num is not None:
-        event_data["session_num"] = session_num
-    if session_id:
-        event_data["session_id"] = session_id
-
-    st.session_state.timetable[day].append(event_data)
+        "is_skipped":   False,
+        "is_finished":  False,
+    })
     st.session_state.timetable[day].sort(key=lambda x: time_str_to_minutes(x["start"]))
 
 
@@ -113,13 +189,7 @@ def find_free_slot(day: str, duration_minutes: int,
                    current_time_minutes: Optional[int] = None) -> Optional[Tuple[str, str]]:
     """
     Scan every 15-minute boundary on `day` and return the first (start, end)
-    pair where:
-      1. The activity window [start, start+duration) is completely free.
-      2. The silent break gap [start+duration, start+duration+BREAK_MINUTES) is
-         also free — UNLESS the break would push past work_end, in which case
-         we only require the activity window to fit.
-
-    Returns (start_str, end_str) or None.
+    pair where the activity window + silent break gap are both free.
     """
     duration_minutes = int(duration_minutes)
     work_start = get_work_start_minutes()
@@ -132,26 +202,23 @@ def find_free_slot(day: str, duration_minutes: int,
     candidates = []
     t = earliest
     while t + duration_minutes <= work_end:
-        end_t = t + duration_minutes
+        end_t     = t + duration_minutes
         start_str = minutes_to_time_str(t)
         end_str   = minutes_to_time_str(end_t)
 
         if is_time_slot_free(day, start_str, end_str):
             break_end = end_t + BREAK_MINUTES
             if break_end <= work_end:
-                # Full check: activity + break gap must both be free
                 if is_time_slot_free(day, end_str, minutes_to_time_str(break_end)):
                     candidates.append((t, start_str, end_str))
             else:
-                # No room for break — just need the activity to fit
                 candidates.append((t, start_str, end_str))
 
-        t += 15  # Step in 15-minute increments
+        t += 15
 
     if not candidates:
         return None
 
-    # Pick from the early third to keep the schedule compact but not always identical
     candidates.sort(key=lambda x: x[0])
     pool = candidates[: max(1, len(candidates) // 3)]
     random.shuffle(pool)
@@ -175,7 +242,7 @@ def place_school_schedules(month_days: list, today: datetime):
         if day_name in st.session_state.school_schedule:
             for evt in st.session_state.school_schedule[day_name]:
                 if is_time_slot_free(day_display, evt['start_time'], evt['end_time']):
-                    add_event_to_timetable(
+                    add_fixed_event_to_timetable(
                         day_display, evt['start_time'], evt['end_time'],
                         evt['subject'], "SCHOOL"
                     )
@@ -194,10 +261,10 @@ def place_compulsory_events(today: datetime):
             year = st.session_state.get('current_year', datetime.now().year)
             event_date = datetime(year, month_num, day_num).date()
             if event_date >= today_date and is_time_slot_free(day, start_time, end_time):
-                add_event_to_timetable(day, start_time, end_time, event["event"], "COMPULSORY")
+                add_fixed_event_to_timetable(day, start_time, end_time, event["event"], "COMPULSORY")
         except Exception:
             if is_time_slot_free(day, start_time, end_time):
-                add_event_to_timetable(day, start_time, end_time, event["event"], "COMPULSORY")
+                add_fixed_event_to_timetable(day, start_time, end_time, event["event"], "COMPULSORY")
 
 
 # ── Available-day calculation ──────────────────────────────────────────────────
@@ -232,12 +299,19 @@ def get_available_days_for_activity(activity: dict, month_days: list,
 
 # ── Past-session warnings ──────────────────────────────────────────────────────
 
-def check_past_activities(activity: dict, month_days: list,
-                          today: datetime, warnings: list):
-    """Warn about sessions scheduled in the past that were never verified."""
-    today_date = today.date()
-    past = []
-    for session in activity.get('sessions', []):
+def check_past_activities(activity: dict, warnings: list, today: datetime):
+    """
+    Warn about sessions for this activity that are scheduled in the past
+    but have never been verified (not completed and not skipped).
+    Reads directly from st.session_state.sessions.
+    """
+    today_date    = today.date()
+    activity_name = activity['activity']
+    past_count    = 0
+
+    for session in st.session_state.sessions.values():
+        if session['activity_name'] != activity_name:
+            continue
         if session.get('is_completed') or session.get('is_skipped'):
             continue
         date_str = session.get('scheduled_date')
@@ -245,67 +319,68 @@ def check_past_activities(activity: dict, month_days: list,
             continue
         try:
             if datetime.fromisoformat(date_str).date() < today_date:
-                past.append(session)
+                past_count += 1
         except Exception:
             pass
 
-    if past:
-        name = activity['activity']
+    if past_count:
         warnings.append(
-            f"⚠️ '{name}' has {len(past)} past unverified session(s) that will be rescheduled."
+            f"⚠️ '{activity_name}' has {past_count} past unverified session(s) "
+            f"that will be rescheduled."
         )
-        st.session_state.past_incomplete_sessions[name] = past
 
 
 # ── Multi-pass activity scheduler ─────────────────────────────────────────────
 
 def place_activity_sessions(activity: dict, month_days: list,
-                            warnings: list, today: datetime) -> list:
+                            warnings: list, today: datetime):
     """
-    Schedule `activity` into free slots using a multi-pass strategy:
-
-    Pass 1  — try chunk sizes between min_session and max_session (spread across days).
-    Pass 2+ — if hours remain, retry with progressively smaller chunks
-              (halving each pass, down to min_session, then down to 15 min)
-              to squeeze remaining work into gaps the earlier pass missed.
+    Schedule `activity` into free slots using a multi-pass strategy.
+    Writes new sessions directly into st.session_state.sessions.
 
     Survival rules:
       COMPLETED → kept, hours deducted from remaining
-      SKIPPED / UNVERIFIED → discarded, hours added back to remaining
+      SKIPPED / UNVERIFIED past → discarded, hours added back
     """
     activity_name = activity['activity']
     total_hours   = activity['timing']
     min_session   = round_to_15_minutes(activity.get('min_session_minutes', 30))
     max_session   = round_to_15_minutes(activity.get('max_session_minutes', 120))
 
-    check_past_activities(activity, month_days, today, warnings)
+    check_past_activities(activity, warnings, today)
 
-    existing   = activity.get('sessions', [])
-    completed  = [s for s in existing if s.get('is_completed', False)]
-    comp_hours = sum(s.get('duration_hours', 0) for s in completed)
+    # Partition existing sessions for this activity
+    existing = {
+        sid: s for sid, s in st.session_state.sessions.items()
+        if s['activity_name'] == activity_name
+    }
+    completed = {sid: s for sid, s in existing.items() if s.get('is_completed', False)}
 
+    # Remove non-completed sessions — they will be rescheduled
+    for sid in existing:
+        if sid not in completed:
+            del st.session_state.sessions[sid]
+
+    comp_hours        = sum(s.get('duration_hours', 0) for s in completed.values())
     remaining_minutes = int((total_hours - comp_hours) * 60)
 
     if remaining_minutes <= 0:
         warnings.append(f"✓ '{activity_name}': All hours already completed!")
-        for s in completed:
-            _add_completed_session_to_timetable(s, activity_name)
-        return completed
+        return
 
     available_days = get_available_days_for_activity(activity, month_days, today)
 
     if not available_days:
         warnings.append(f"❌ '{activity_name}': No available days before deadline!")
-        for s in completed:
-            _add_completed_session_to_timetable(s, activity_name)
-        return completed
+        return
 
-    sessions      = list(completed)
-    session_count = len(sessions)
+    # Determine next session number (after completed ones)
+    next_session_num = (
+        max((s['session_num'] for s in completed.values()), default=0) + 1
+    )
+    session_count = next_session_num - 1  # will be incremented before use
 
-    # ── Multi-pass loop ────────────────────────────────────────────────────────
-    # Each pass uses a smaller maximum chunk size to fit into tighter gaps.
-    # Chunk sizes tried: max_session → max_session//2 → ... → min_session → 15 min
+    # ── Multi-pass chunk strategy ──────────────────────────────────────────────
     chunk_sizes = []
     c = max_session
     while c > min_session:
@@ -316,24 +391,23 @@ def place_activity_sessions(activity: dict, month_days: list,
     chunk_sizes.append(min_session)
     if min_session > 15:
         chunk_sizes.append(15)
-    # Remove duplicates while preserving order
     seen = set()
     chunk_sizes = [x for x in chunk_sizes if not (x in seen or seen.add(x))]
+
+    new_sessions_count = 0
 
     for pass_chunk in chunk_sizes:
         if remaining_minutes <= 0:
             break
 
-        # One full sweep of all available days with this chunk size
-        day_index    = 0
-        days_tried   = 0
-        max_days     = len(available_days) * 2  # allow two laps per pass
+        day_index  = 0
+        days_tried = 0
+        max_days   = len(available_days) * 2
 
         while remaining_minutes > 0 and days_tried < max_days:
             day_info    = available_days[day_index % len(available_days)]
             day_display = day_info['display']
 
-            # Clamp the chunk to what's actually left
             chunk = min(remaining_minutes, pass_chunk)
             chunk = round_to_15_minutes(chunk)
             if chunk < 15:
@@ -346,20 +420,15 @@ def place_activity_sessions(activity: dict, month_days: list,
             slot = find_free_slot(day_display, chunk, current_time_minutes=current_time_mins)
 
             if slot:
-                start_time, end_time = slot
-                session_count += 1
-                session_id    = f"{activity_name.replace(' ', '_')}_session_{session_count}"
-                session_label = f"{activity_name} (Session {session_count})"
+                start_time, _ = slot
+                session_count    += 1
+                new_sessions_count += 1
+                session_id       = f"{activity_name.replace(' ', '_')}_session_{session_count}"
 
-                add_event_to_timetable(
-                    day_display, start_time, end_time, session_label, "ACTIVITY",
-                    activity_name=activity_name,
-                    session_num=session_count,
-                    session_id=session_id,
-                )
-                sessions.append({
+                st.session_state.sessions[session_id] = {
                     'session_id':       session_id,
                     'session_num':      session_count,
+                    'activity_name':    activity_name,
                     'scheduled_day':    day_display,
                     'scheduled_date':   day_info['date'].isoformat(),
                     'scheduled_time':   start_time,
@@ -368,18 +437,13 @@ def place_activity_sessions(activity: dict, month_days: list,
                     'is_completed':     False,
                     'is_skipped':       False,
                     'is_finished':      False,
-                    'is_locked':        False,
-                })
+                    'is_user_edited':   False,
+                    'is_manual':        False,
+                }
                 remaining_minutes -= chunk
 
             day_index  += 1
             days_tried += 1
-
-    # Re-insert completed sessions with their preserved state
-    for s in completed:
-        _add_completed_session_to_timetable(s, activity_name)
-
-    new_count = session_count - len(completed)
 
     if remaining_minutes > 0:
         scheduled_h = total_hours - comp_hours - remaining_minutes / 60
@@ -391,47 +455,12 @@ def place_activity_sessions(activity: dict, month_days: list,
     elif comp_hours > 0:
         warnings.append(
             f"✓ '{activity_name}': {comp_hours:.1f}h already done, "
-            f"{(total_hours - comp_hours):.1f}h scheduled in {int(new_count)} new sessions"
+            f"{(total_hours - comp_hours):.1f}h scheduled in {new_sessions_count} new session(s)"
         )
     else:
         warnings.append(
-            f"✓ '{activity_name}': All {total_hours:.1f}h scheduled in {int(session_count)} sessions"
+            f"✓ '{activity_name}': All {total_hours:.1f}h scheduled in {session_count} session(s)"
         )
-
-    return sessions
-
-
-def _add_completed_session_to_timetable(comp_session: dict, activity_name: str):
-    """Re-insert a completed session into the timetable, preserving its state."""
-    day_display  = comp_session.get('scheduled_day')
-    start_time   = comp_session.get('scheduled_time')
-    session_num  = comp_session.get('session_num')
-    duration_mins = comp_session.get('duration_minutes', 0)
-    session_id   = comp_session.get('session_id')
-
-    if not day_display or not start_time:
-        return
-
-    end_time = minutes_to_time_str(time_str_to_minutes(start_time) + duration_mins)
-
-    if day_display not in st.session_state.timetable:
-        st.session_state.timetable[day_display] = []
-
-    st.session_state.timetable[day_display].append({
-        "start":         start_time,
-        "end":           end_time,
-        "name":          f"{activity_name} (Session {session_num})",
-        "type":          "ACTIVITY",
-        "activity_name": activity_name,
-        "session_num":   session_num,
-        "session_id":    session_id,
-        "is_completed":  True,
-        "is_skipped":    False,
-        "is_finished":   True,
-    })
-    st.session_state.timetable[day_display].sort(
-        key=lambda x: time_str_to_minutes(x["start"])
-    )
 
 
 # ── Top-level generation entry point ──────────────────────────────────────────
@@ -446,18 +475,16 @@ def generate_timetable_with_sessions(year=None, month=None):
     today      = datetime.now()
     month_days = get_month_days(year, month)
 
-    # Full reset
-    st.session_state.timetable      = {day['display']: [] for day in month_days}
-    st.session_state.current_month  = month
-    st.session_state.current_year   = year
-    st.session_state.past_incomplete_sessions = {}
+    # ── Reset stored timetable (fixed events only) ─────────────────────────────
+    st.session_state.timetable     = {day['display']: [] for day in month_days}
+    st.session_state.current_month = month
+    st.session_state.current_year  = year
 
-    # Reset non-completed session flags so they get rescheduled
-    for activity in st.session_state.list_of_activities:
-        for session in activity.get('sessions', []):
-            if not session.get('is_completed', False):
-                session['is_skipped']  = False
-                session['is_finished'] = False
+    # ── Reset non-completed session flags ──────────────────────────────────────
+    for session in st.session_state.sessions.values():
+        if not session.get('is_completed', False):
+            session['is_skipped']  = False
+            session['is_finished'] = False
 
     warnings = []
 
@@ -472,15 +499,19 @@ def generate_timetable_with_sessions(year=None, month=None):
     )
 
     for activity in sorted_activities:
-        sessions = place_activity_sessions(activity, month_days, warnings, today)
-        activity['sessions']     = sessions
-        activity['num_sessions'] = len(sessions)
+        place_activity_sessions(activity, month_days, warnings, today)
+        # Update num_sessions on the activity metadata
+        activity['num_sessions'] = sum(
+            1 for s in st.session_state.sessions.values()
+            if s['activity_name'] == activity['activity']
+        )
 
     st.session_state.timetable_warnings = warnings or []
 
     if st.session_state.user_id:
         from Firebase_Function import save_to_firebase, save_timetable_snapshot
         save_to_firebase(st.session_state.user_id, 'timetable', st.session_state.timetable)
+        save_to_firebase(st.session_state.user_id, 'sessions',  st.session_state.sessions)
         save_to_firebase(st.session_state.user_id, 'activities', st.session_state.list_of_activities)
         save_to_firebase(st.session_state.user_id, 'current_month', month)
         save_to_firebase(st.session_state.user_id, 'current_year', year)

@@ -1,5 +1,8 @@
 """
-NERO-Time - DASHBOARD / TIMETABLE TAB
+NERO-Time - DASHBOARD / TIMETABLE TAB (REFACTORED)
+
+get_dashboard_data() now returns a timetable built from get_timetable_view(),
+which merges fixed events and ACTIVITY rows derived from st.session_state.sessions.
 """
 import streamlit as st
 from datetime import datetime, timedelta
@@ -12,7 +15,7 @@ def filter_events_by_period(month_days, filter_type):
 
     if filter_type == 'weekly':
         start_of_week = today - timedelta(days=today.weekday())
-        end_of_week = start_of_week + timedelta(days=6)
+        end_of_week   = start_of_week + timedelta(days=6)
         return [d for d in month_days if start_of_week <= d['date'].date() <= end_of_week]
     elif filter_type == 'monthly':
         return [d for d in month_days if d['date'].month == today.month and d['date'].year == today.year]
@@ -28,7 +31,7 @@ def ui_dashboard_tab():
 
     dashboard_data = NeroTimeLogic.get_dashboard_data()
 
-    # Month navigation
+    # ── Month navigation ───────────────────────────────────────────────────────
     col1, col2, col3, col4, col5 = st.columns([1, 1, 2, 1, 1])
 
     with col2:
@@ -52,20 +55,20 @@ def ui_dashboard_tab():
 
     st.divider()
 
-    # Timetable warnings
+    # ── Timetable generation warnings ─────────────────────────────────────────
     if 'timetable_warnings' in st.session_state and st.session_state.timetable_warnings:
-        errors = sum(1 for w in st.session_state.timetable_warnings if w.startswith('❌'))
+        errors        = sum(1 for w in st.session_state.timetable_warnings if w.startswith('❌'))
         warnings_count = sum(1 for w in st.session_state.timetable_warnings if w.startswith('⚠️'))
-        success_count = sum(1 for w in st.session_state.timetable_warnings if w.startswith('✓'))
+        success_count  = sum(1 for w in st.session_state.timetable_warnings if w.startswith('✓'))
 
         if errors > 0:
-            header = f"⚠️ Timetable Warnings ({errors} error(s), {warnings_count} warning(s))"
+            header   = f"⚠️ Timetable Warnings ({errors} error(s), {warnings_count} warning(s))"
             expanded = True
         elif warnings_count > 0:
-            header = f"⚠️ Timetable Warnings ({warnings_count} warning(s))"
+            header   = f"⚠️ Timetable Warnings ({warnings_count} warning(s))"
             expanded = True
         else:
-            header = f"✓ Timetable Generation Info ({success_count} activity/activities)"
+            header   = f"✓ Timetable Generation Info ({success_count} activity/activities)"
             expanded = False
 
         with st.expander(header, expanded=expanded):
@@ -80,8 +83,9 @@ def ui_dashboard_tab():
                     st.info(warning)
         st.divider()
 
-    # Generate button
-    if st.button("* GENERATE TIMETABLE *", type="primary", use_container_width=True, key="btn_generate_timetable"):
+    # ── Generate button ────────────────────────────────────────────────────────
+    if st.button("* GENERATE TIMETABLE *", type="primary", use_container_width=True,
+                 key="btn_generate_timetable"):
         if (st.session_state.list_of_activities
                 or st.session_state.list_of_compulsory_events
                 or st.session_state.school_schedule):
@@ -97,7 +101,7 @@ def ui_dashboard_tab():
 
     st.divider()
 
-    # Event filter buttons
+    # ── Event filter buttons ───────────────────────────────────────────────────
     st.markdown("### 📅 Events")
 
     col_f1, col_f2, col_f3, col_f4 = st.columns([1, 1, 1, 3])
@@ -129,13 +133,14 @@ def ui_dashboard_tab():
 
     st.divider()
 
-    # Timetable display — BREAK events are filtered out (silent gaps only)
+    # ── Timetable display ──────────────────────────────────────────────────────
+    # BREAK events are filtered out (silent gaps only)
     filtered_days = filter_events_by_period(dashboard_data['month_days'], st.session_state.event_filter)
 
     if dashboard_data['timetable'] and filtered_days:
         for day_info in filtered_days:
-            day_display = day_info['display']
-            date_obj = day_info['date']
+            day_display    = day_info['display']
+            date_obj       = day_info['date']
             formatted_date = date_obj.strftime("%d %B %Y - %A")
 
             if day_display not in dashboard_data['timetable']:
@@ -143,7 +148,6 @@ def ui_dashboard_tab():
 
             is_current_day = (day_display == dashboard_data['current_day'])
 
-            # BREAK rows are never shown — they exist only to block the slot
             visible_events = [
                 e for e in dashboard_data['timetable'][day_display]
                 if e.get('type') != 'BREAK'
@@ -167,7 +171,7 @@ def _render_event_row(event, is_current_day, dashboard_data):
     from Timetable_Generation import time_str_to_minutes
 
     is_current_slot = False
-    is_finished = event.get('is_finished', False)
+    is_finished     = event.get('is_finished', False)
 
     if is_current_day and dashboard_data['current_time']:
         current_minutes = time_str_to_minutes(dashboard_data['current_time'])
@@ -184,18 +188,17 @@ def _render_event_row(event, is_current_day, dashboard_data):
         _render_school_event(event, is_current_slot)
     elif event_type == "COMPULSORY":
         _render_compulsory_event(event, is_current_slot)
-    # BREAK is intentionally omitted
 
 
 def _render_activity_event(event, is_current_slot, is_finished):
     """Render an ACTIVITY timetable row."""
-    name_parts = event['name'].split(' (Session')
-    activity_name = name_parts[0]
-    session_part = name_parts[1].rstrip(')') if len(name_parts) > 1 else "1"
+    activity_name = event.get('activity_name', event['name'].split(' (Session')[0])
+    session_num   = event.get('session_num', 1)
+    session_id    = event.get('session_id')
 
-    is_completed = event.get('is_completed', False)
+    is_completed   = event.get('is_completed', False)
+    is_skipped     = event.get('is_skipped', False) and is_finished
     is_user_edited = event.get('is_user_edited', False)
-    is_skipped = event.get('is_skipped', False) and is_finished
 
     css_class = "timetable-row activity"
     if is_skipped:
@@ -213,15 +216,20 @@ def _render_activity_event(event, is_current_slot, is_finished):
     if is_user_edited:
         badges += '<span class="user-edited-badge">EDITED</span> '
 
+    # Live progress from sessions store
     progress_html = ""
+    session = st.session_state.sessions.get(session_id) if session_id else None
     activity_obj = next(
         (a for a in st.session_state.list_of_activities if a['activity'] == activity_name), None
     )
     if activity_obj:
-        sessions = activity_obj.get('sessions', [])
-        completed_hours = sum(s.get('duration_hours', 0) for s in sessions if s.get('is_completed', False))
-        total_hours = activity_obj['timing']
-        progress_html = f'📊 {completed_hours:.1f}h / {total_hours:.1f}h completed'
+        act_sessions    = [
+            s for s in st.session_state.sessions.values()
+            if s['activity_name'] == activity_name
+        ]
+        completed_hours = sum(s.get('duration_hours', 0) for s in act_sessions if s.get('is_completed', False))
+        total_hours     = activity_obj['timing']
+        progress_html   = f'📊 {completed_hours:.1f}h / {total_hours:.1f}h completed'
 
     html = f"""
     <div class="{css_class}">
@@ -230,7 +238,7 @@ def _render_activity_event(event, is_current_slot, is_finished):
             <div class="event-text-stack">
                 <div class="event-title">
                     {badges}<strong>{activity_name}</strong>
-                    <span style="opacity:0.6; font-size:0.8em;">Session {session_part}</span>
+                    <span style="opacity:0.6; font-size:0.8em;">Session {session_num}</span>
                 </div>
                 <div class="event-details">{progress_html}</div>
             </div>
@@ -246,7 +254,6 @@ def _render_activity_event(event, is_current_slot, is_finished):
 def _render_school_event(event, is_current_slot):
     """Render a SCHOOL timetable row."""
     badge_html = '<span class="happening-now">● LIVE NOW</span> ' if is_current_slot else ""
-
     html = f"""
     <div class="timetable-row school">
         <div class="event-info">
@@ -267,7 +274,6 @@ def _render_school_event(event, is_current_slot):
 def _render_compulsory_event(event, is_current_slot):
     """Render a COMPULSORY timetable row."""
     badge_html = '<span class="happening-now">● LIVE NOW</span> ' if is_current_slot else ""
-
     html = f"""
     <div class="timetable-row compulsory">
         <div class="event-info">

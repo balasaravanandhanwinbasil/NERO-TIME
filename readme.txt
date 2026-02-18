@@ -40,14 +40,9 @@ week is Monday - Sunday btw
 # ============================================================================== TIMETABLE (very important) ==============================================================================
 
 
-# st.session_state.timetable: dict[str, list[dict]]
-This is basically the timetable that gets displayed.
-"Weekday DD/MM" (e.g. "Monday 17/02"). Values are lists of event dicts
-Will get sorted by start time.
-Re-generated from scratch each time the user clicks GENERATE TIMETABLE,
-EXCEPT for already-completed sessions which stay the same.
+# st.session_state.timetable: dictionary of [str, list[dict]]
 
-=== LAYOUT ===
+=== LAYOUT (for COMPULSORY events only) ===
 {
   "start": str
        The slot start time in "HH:MM" 24-hour format in a STRING.
@@ -57,160 +52,96 @@ EXCEPT for already-completed sessions which stay the same.
    "end": str
        The slot end time in "HH:MM" 24-hour format also in a string.
        Derived from start + duration. Capped at the end time. Must be after start time, on the same day.
-       e.g. "03:45" # 3.45am
 
    "name": str
-       There are four different categories for this to be in, depending on the type. This is the NAME of the activity that gets displayed.
-         ACTIVITY   -> "{activity_name} (Session {n})"  e.g. "Math (Session 2)"
-         COMPULSORY -> The event name from list_of_compulsory_events  e.g. "School"
+       The display name. For SCHOOL: the subject name. For COMPULSORY: the event name.
 
    "type": str
-       Determine what TYPE it is and the UI associated with it.
-       e.g. "ACTIVITY" | "SCHOOL" | "COMPULSORY" 
+       "SCHOOL" | "COMPULSORY"
+       (ACTIVITY rows are built dynamically — see st.session_state.sessions)
 
-   "is_completed": bool
-       True when the user has explicitly verified this session as DONE. Else, False. 
-       USE verify_finished_session() or verify_session() TO DO THIS.
-       Completed sessions are not changed across timetable regenerations
-       A finished COMPLETED session shows the "✅ COMPLETED"
+   "is_completed": bool   ← always False for fixed events
+   "is_skipped":   bool   ← always False for fixed events
+   "is_finished":  bool   ← always False for fixed events
+}
 
-   "is_skipped": bool
-       True when the user explicitly marked this session as NOT done. Else, false.
-       Skipped sessions are regenerated on the next timetable regeneration
-       A finished SKIPPED session shows the "❌ SKIPPED"
+=== ACTIVITY ===
 
-   "is_finished": bool
-       True when the current time is past this slots end time.
-       USE check_expired_sessions() and _is_event_finished() for this. 
-       A finished NON-COMPLETED NON-SKIPPED session shows the "⏰ FINISHED" badge in the UI.
-
-   == FOR ACTIVITY ONLY, use these for all the activity related stuff NOT the stuff above pls ==
-
-   "activity_name": str
-       ONLY the activity name (no session).
-       Used to look up the activity in list_of_activities.
-       e.g. "Computing PT" NOT "Computing PT (Session 1)
-
-   "session_num": int
-       ONLY the session number
-       e.g. 2
-
-   "session_id": str
-       Globally unique identifier for this session.
-       Format: "{activity_name_underscored}_session_{n}"
-       e.g. "Math_Revision_session_2"
-       Used to cross-reference the session across timetable, activities, and
-       finished_sessions without relying on positional index.
-
-   "is_user_edited": bool
-       Causes the "EDITED" badge to appear in the UI.
-       This session usually won't be affected by the timetable generator and would leave it untouched.
-
-   "can_verify": bool
-       USE get_dashboard_data() / _can_verify_event() to get this
-       True when the slot's scheduled time has passed AND the session has not yet been verified (neither completed nor skipped).
-       This is to make the UI elements for verification show up.
- }
+{
+   "start":          str   — session['scheduled_time']
+   "end":            str   — derived from start + duration_minutes
+   "name":           str   — "{activity_name} (Session {n})"
+   "type":           "ACTIVITY"
+   "activity_name":  str   — ONLY the activity name (no session suffix)
+   "session_num":    int   — session number
+   "session_id":     str   — cross-reference key into st.session_state.sessions
+   "is_completed":   bool  — from session dict
+   "is_skipped":     bool  — from session dict
+   "is_finished":    bool  — derived live (end time <= now)
+   "is_user_edited": bool  — from session dict
+}
 
 # st.session_state.timetable_warnings: list of str ["", ""]
 This shows any warnings if not all activities can be placed.
 Displayed on the Dashboard tab.
-USE EMOJIS BEFORE LIKE EVERYTHIGN
-   "✅ ..."  — success (ALL sessions for it have been placed.)
+USE EMOJIS BEFORE LIKE EVERYTHING
+   "✓ ..."  — success (ALL sessions for it have been placed.)
    "⚠️ ..." — warning (e.g. could not fit all required hours before deadline)
    "❌ ..."  — error   (e.g. no free days available before an activity's deadline)
 
 
 
-# ============================================================================== ACTIVITIES ==============================================================================
+# ============================================================================== SESSIONS ==============================================================================
 
+To get finished sessions:     NeroTimeLogic.get_finished_sessions()
+To get pending verification:  NeroTimeLogic.get_pending_verification()
+To get reviewed sessions:     NeroTimeLogic.get_reviewed_sessions()
+All three are just filters on this one, of course.
 
-# st.session_state.list_of_activities: list of dict [{}, {}]
-The master list of all user-created activities. From the activities_tab.
+Sessions are just for each activity..
 
-For each activity dict...
+st.session_state.sessions = dict[dict]
+
+session_id: {session dict}
+\
+=== Session dict ===
 {
-   "activity": str
-       The display name for the activity
-       The one given by the user
-       e.g. "Math Revision"
-
-   "priority": int
-       HARDCODED to 3 right now for all activities
-       Can go from (1-5) 
-       For future development.
-
-   "deadline": int
-       Days remaining from today until this activity must be completed.
-       Calculated ONCE.
-       Used to determine last possible day for an activity for timetable generation.
-
-   "timing": float
-       Total number of hours the activity requires to complete. 
-       The timetable generator fills sessions until this many hours are covered.
-       e.g. 3.0
-
-   "min_session_minutes": int
-       Minimum length (in minutes) of a single scheduled session.
-       Always a multiple of 15. The generator will not create sessions shorter
-       than this unless fewer minutes remain overall.
-       e.g. 30
-
-   "max_session_minutes": int
-       Maximum length (in minutes) of a single scheduled session.
-       Always a multiple of 15. The generator caps each session at this length. Unless it cannot fit everything.
-       e.g. 120
-
-   "allowed_days": list of str [str]
-       Days were the user wants to do the activity, from all the days in one week.
-       The generator skips days not in this list when looking for free slots.
-       e.g. ["Monday", "Wednesday", "Friday"]
-
-   "session_mode": str
-      Controls how sessions are created for this activity. (used in activity_tab)
-       "automatic" — timetable generator will CREATE and place sessions.
-       "manual"    — user will CREATE sessions individually via the Activities tab and timetable will place afterwards.
-
-   "num_sessions": int
-       Total number of sessions (completed + pending) after the last generation.
-       Set by generate_timetable_with_sessions() after placing all sessions.
-       e.g. 4
-
-   "sessions": list[dict]
-       The individual work blocks that make up this activity.
-       is below for each one
- }
-
- === Session ===
- {
    "session_id": str
-       Format: "{activity_name_spaces_replaced_with_underscores}_session_{n}"
+        Format: "{activity_name_underscored}_session_{n}"
        e.g. "Math_Revision_session_1"
+       Used as the dict key AND stored inside the dict for convenience.
 
    "session_num": int
-       Matches session_num on the corresponding timetable event dict.
+       The session number for this activity.
        e.g. 1
 
-   "scheduled_day": str
+   "activity_name": str
+       The display name of the parent activity (no session suffix).
+       Used to look up the activity in list_of_activities.
+       e.g. "Math Revision"
+
+   "scheduled_day": str | None
        The day-display key this session is placed on.
        Format: "Weekday DD/MM"  e.g. "Monday 17/02"
-       Matches a key in st.session_state.timetable.
+       None if the session hasn't been scheduled yet (manual mode, pre-generation).
 
-   "scheduled_date": str
+   "scheduled_date": str | None
        Full ISO date string for the scheduled day.
        Used by check_expired_sessions() to compare against today's date.
        e.g. "2026-02-17"
+       None if not yet scheduled.
 
-   "scheduled_time": str
+   "scheduled_time": str | None
        "HH:MM" start time of this session.
-        e.g. "14:00"
+       e.g. "14:00"
+       None if not yet scheduled.
 
    "duration_minutes": int
        Length of the session in minutes. Always a multiple of 15.
        e.g. 60
 
    "duration_hours": float
-       duration_minutes / 60, pre-computed and stored for convenience.
+       duration_minutes / 60, pre-computed for convenience.
        Used when summing completed hours for progress display.
        e.g. 1.0
 
@@ -225,25 +156,93 @@ For each activity dict...
    "is_finished": bool
        True when the real-world clock is past this session's end time.
        Set by check_expired_sessions(). A finished session awaits verification.
+       Also derived live in get_timetable_view() for display purposes.
 
-   === FOR MANUAL MODE ===
-  "day_of_week": str | None
+   "is_user_edited": bool
+       True when the user has manually edited this session's time/date/duration.
+       Causes the "EDITED" badge to appear in the UI.
+       The timetable generator leaves user-edited sessions untouched.
+
+   "is_manual": bool
+       True for sessions created by the user in manual mode (not by the generator).
+
+   === FOR MANUAL MODE ONLY ===
+   "day_of_week": str | None
        Optional scheduling preference provided by the user when adding a manual
-       session (e.g. "Tuesday"). The generator attempts to use this but will
-       use other days if no slot is available on the preferred day.
+       session (e.g. "Tuesday"). The generator attempts to honour this but will
+       fall back to other days if no slot is available.
        None if the user selected "Any".
- }
+}
 
 
-============================================================================== EVENTS ==============================================================================
+# ============================================================================== ACTIVITIES ==============================================================================
 
-st.session_state.list_of_compulsory_events: list[dict]
-Fixed one-time/weekly/bi-weekly/monthly events that block out timetable slots
+
+# st.session_state.list_of_activities: list of dict -> [{}, {}]
+
+The master list of all user-created activities. From the activities_tab.
+Sessions are stored in st.session_state.sessions and filtered by activity_name.
+
+For each activity dict...
+{
+   "activity": str
+       The display name for the activity.
+       e.g. "Math Revision"
+
+   "priority": int
+       HARDCODED to 3 right now for all activities.
+       Can go from (1-5). For future development.
+
+   "deadline": int
+       Days remaining from today until this activity must be completed.
+       Calculated ONCE when the activity is added.
+       Used to determine the last possible day for timetable generation.
+
+   "timing": float
+       Total number of hours the activity requires to complete.
+       The timetable generator fills sessions until this many hours are covered.
+       e.g. 3.0
+
+   "min_session_minutes": int
+       Minimum length (in minutes) of a single scheduled session.
+       Always a multiple of 15.
+       e.g. 30
+
+   "max_session_minutes": int
+       Maximum length (in minutes) of a single scheduled session.
+       Always a multiple of 15.
+       e.g. 120
+
+   "allowed_days": list of str [str]
+       Days where the user wants to do the activity.
+       The generator skips days not in this list.
+       e.g. ["Monday", "Wednesday", "Friday"]
+
+   "session_mode": str
+       Controls how sessions are created for this activity by the generator
+       "automatic" — timetable generator will CREATE and place sessions.
+       "manual"    — user will CREATE sessions individually via the Activities tab;
+                     the generator will then place them into free slots.
+
+   "num_sessions": int
+       Total number of sessions (completed + pending) after the last generation.
+       Updated by generate_timetable_with_sessions().
+       e.g. 4
+}
+
+To get sessions for an activity, filter st.session_state.sessions:
+    [s for s in st.session_state.sessions.values() if s['activity_name'] == name]
+
+
+# ============================================================================== EVENTS ==============================================================================
+
+# st.session_state.list_of_compulsory_events: list[dict]
+Fixed one-time/weekly/bi-weekly/monthly events that block out timetable slots.
 
 === Event dict ===
- {
+{
    "event": str
-      The display name for this event.
+       The display name for this event.
        Shown directly on the timetable row.
        e.g. "Doctor Appointment"
 
@@ -252,7 +251,7 @@ Fixed one-time/weekly/bi-weekly/monthly events that block out timetable slots
        e.g. "10:00"
 
    "end_time": str
-       "HH:MM" end time. must be after start time.
+       "HH:MM" end time. Must be after start time.
        e.g. "11:00"
 
    "day": str
@@ -260,32 +259,12 @@ Fixed one-time/weekly/bi-weekly/monthly events that block out timetable slots
        Format: "Weekday DD/MM"  e.g. "Wednesday 25/02"
 
    "date": str
-      ISO datetime string for the event date (time component is midnight).
+       ISO datetime string for the event date (time component is midnight).
        Used to check whether the event is in the future before placing it.
        e.g. "2026-02-25T00:00:00"
 
    "recurrence": str   ← monthly recurring events only
        Always "monthly" for events added via add_recurring_event().
        Absent on one-time events added via add_event().
- }
+}
 
-
-# st.session_state.past_incomplete_sessions: dict[str, list[dict]]
-Sessions that were scheduled in the past but have no completion record.
-Populated during timetable generation by check_past_activities().
-Keys are activity names; values are lists of session dicts using the same
-shape as the session dicts inside list_of_activities.
-#Shown as warnings in the timetable generation expander.
-Example: { "Math Revision": [ { "session_id": "...", ... } ] }
-
-st.session_state.activity_progress: any
-# Loaded from Firebase under 'activity_progress'.
-# Legacy field from an earlier version of the app where progress was stored
-# separately. Progress is now derived live by summing duration_hours across
-# completed sessions in list_of_activities, so this field is unused.
-
-st.session_state.session_completion: any
-# Loaded from Firebase under 'session_completion'.
-# Legacy field from an earlier version where completion state was stored in a
-# separate collection. Completion is now stored directly on each session dict
-# (is_completed / is_skipped) inside list_of_activities, so this field is unused.

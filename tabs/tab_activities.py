@@ -1,5 +1,8 @@
 """
-NERO-Time - ACTIVITIES TAB
+NERO-Time - ACTIVITIES TAB (REFACTORED)
+
+Sessions are read from st.session_state.sessions (keyed by session_id),
+not from activity['sessions']. Activity dicts contain metadata only.
 """
 import streamlit as st
 from datetime import datetime
@@ -12,7 +15,6 @@ def ui_activities_tab():
     st.header("Activities")
 
     _render_add_activity_form()
-
     st.divider()
 
     activities_data = NeroTimeLogic.get_activities_data()
@@ -68,7 +70,6 @@ def _render_add_activity_form():
                 max_s = int(((max_s + 7) // 15) * 15)
                 if max_s < min_s:
                     max_s = min_s
-
             days = st.multiselect("Days", WEEKDAY_NAMES, WEEKDAY_NAMES, key="activity_days")
         else:
             min_s, max_s, days = 30, 120, None
@@ -111,25 +112,33 @@ def _render_manual_session_form(act, idx):
 
 
 def _render_sessions_list(act):
-    """Render the sessions list for an activity."""
+    """
+    Render the sessions list for an activity.
+    Sessions are read from st.session_state.sessions filtered by activity_name.
+    """
     st.markdown("#### 📋 Sessions")
-    sessions_data = act.get('sessions', [])
 
-    if sessions_data:
-        for sess_idx, session in enumerate(sessions_data):
-            session_id = session.get('session_id', f"session_{sess_idx}")
-            is_completed = session.get('is_completed', False)
-            duration_hours = session.get('duration_hours', 0)
+    # Pull sessions for this activity from the unified store, sorted by session_num
+    act_sessions = sorted(
+        [s for s in st.session_state.sessions.values() if s['activity_name'] == act['activity']],
+        key=lambda s: s['session_num']
+    )
+
+    if act_sessions:
+        for sess_idx, session in enumerate(act_sessions):
+            session_id       = session['session_id']
+            is_completed     = session.get('is_completed', False)
             duration_minutes = session.get('duration_minutes', 0)
-            scheduled_day = session.get('scheduled_day')
-            scheduled_time = session.get('scheduled_time')
+            duration_hours   = session.get('duration_hours', 0)
+            scheduled_day    = session.get('scheduled_day')
+            scheduled_time   = session.get('scheduled_time')
 
             with st.container():
                 col_s1, col_s2, col_s3 = st.columns([2, 2, 1])
 
                 with col_s1:
                     status = "✅ Completed" if is_completed else "⚫ Pending"
-                    st.markdown(f"**Session {sess_idx + 1}** - {status}")
+                    st.markdown(f"**Session {session['session_num']}** - {status}")
                     st.caption(f"Duration: {duration_hours:.1f}h ({duration_minutes} min)")
 
                 with col_s2:
@@ -152,7 +161,7 @@ def _render_sessions_list(act):
 
                 st.divider()
     else:
-        st.info("No sessions generated yet - generate a timetable to create sessions")
+        st.info("No sessions yet — generate a timetable (or add manual sessions) to create sessions")
 
 
 def _render_session_edit_form(act, session_id, scheduled_time, duration_minutes, edit_state_key):
@@ -183,7 +192,7 @@ def _render_session_edit_form(act, session_id, scheduled_time, duration_minutes,
                 "Duration (min)",
                 min_value=15,
                 max_value=240,
-                value=duration_minutes,
+                value=duration_minutes or 60,
                 step=15,
                 key=f"dur_{session_id}"
             )
@@ -221,8 +230,8 @@ def _render_session_edit_form(act, session_id, scheduled_time, duration_minutes,
 
 
 def _render_activity_action_buttons(act, idx):
-    """Render Delete / Reset / Add buttons for an activity."""
-    col1, col2, col3 = st.columns(3)
+    """Render Delete / Reset buttons for an activity."""
+    col1, col2 = st.columns(2)
 
     if col1.button("Delete", key=f"del_activity_{idx}_{act['activity']}"):
         result = NeroTimeLogic.delete_activity(idx)
@@ -231,10 +240,5 @@ def _render_activity_action_buttons(act, idx):
 
     if col2.button("Reset", key=f"reset_activity_{idx}_{act['activity']}"):
         result = NeroTimeLogic.reset_activity_progress(act['activity'])
-        if result["success"]:
-            st.rerun()
-
-    if col3.button("Add", key=f"add_activity_{idx}_{act['activity']}"):
-        result = NeroTimeLogic.add_activity_progress(act['activity'])
         if result["success"]:
             st.rerun()
