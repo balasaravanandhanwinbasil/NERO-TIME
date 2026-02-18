@@ -45,6 +45,10 @@ class NeroTimeLogic:
             st.session_state.past_incomplete_sessions = {}
         if 'finished_sessions' not in st.session_state:
             st.session_state.finished_sessions = []
+        if 'work_start_minutes' not in st.session_state:
+            st.session_state.work_start_minutes = 6 * 60        # 06:00
+        if 'work_end_minutes' not in st.session_state:
+            st.session_state.work_end_minutes = 23 * 60 + 30    # 23:30
     
     @staticmethod
     def login_user(user_id: str) -> Dict:

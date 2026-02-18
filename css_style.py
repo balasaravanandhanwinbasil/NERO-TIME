@@ -257,8 +257,15 @@ p, span, label, div {
     flex: 1;
     min-width: 0;
     display: flex;
+    flex-direction: row; 
+    align-items: flex-start;
+    gap: 12px; 
+}
+
+.event-text-stack {
+    display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
 }
 
 .event-title {
