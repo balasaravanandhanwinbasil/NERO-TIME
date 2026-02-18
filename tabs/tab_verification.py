@@ -1,19 +1,24 @@
 """
-NERO-Time - VERIFICATION TAB (REFACTORED)
-
-Reads finished sessions directly from st.session_state.sessions.
-No separate finished_sessions list needed.
+NERO-Time - VERIFICATION TAB 
 
   ✅  is_completed=True   → marked done
   ❌  is_skipped=True     → marked not done (will be rescheduled)
   ⬜  neither             → awaiting user action
 """
+
 import streamlit as st
 from nero_logic import NeroTimeLogic
 
 
 def ui_verification_tab():
     """Render the Verification tab — a TODO list of finished sessions."""
+
+    # debugger
+    if st.button("⚠️ DEBUG: Mark all sessions finished"):
+        for session in st.session_state.sessions.values():
+            session['is_finished'] = True
+        st.rerun()
+
     st.header("✅ Session Verification")
     st.caption(
         "Mark each finished session as **done** or **not done**. "
@@ -92,9 +97,6 @@ def _render_session_group(sessions: list):
                 ):
                     result = NeroTimeLogic.verify_finished_session(session_id, True)
                     if result["success"]:
-                        if result.get("activity_completed"):
-                            st.balloons()
-                            st.success(f"🎉 Activity fully completed and moved to achievements!")
                         st.rerun()
                     else:
                         st.error(result.get("message", "Error"))

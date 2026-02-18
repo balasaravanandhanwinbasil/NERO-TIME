@@ -89,29 +89,64 @@ def _render_add_activity_form():
 
 def _render_manual_session_form(act, idx):
     """Render the Add Manual Session form for manual-mode activities."""
+    # Calculate remaining minutes upfront so we can show it and cap the input
+    existing_sessions = [
+        s for s in st.session_state.sessions.values()
+        if s['activity_name'] == act['activity']
+    ]
+    total_scheduled_minutes = sum(s.get('duration_minutes', 0) for s in existing_sessions)
+    total_allowed_minutes = int(act['timing'] * 60)
+    remaining_minutes = total_allowed_minutes - total_scheduled_minutes
+
+    if remaining_minutes <= 0:
+        st.info(
+            f"✅ All {act['timing']:.1f}h ({total_allowed_minutes} min) of activity has been scheduled. "
+            "Edit sessions or reset to add more."
+        )
+        return
+
     with st.form(key=f"add_manual_session_{idx}"):
-        st.markdown("**➕ Add Manual Session**")
+        st.markdown(
+            f"**➕ Add Manual Session** "
+            f"<span style='color:gray;font-size:0.85em;'>"
+            f"({remaining_minutes} min / {remaining_minutes/60:.1f}h remaining)</span>",
+            unsafe_allow_html=True
+        )
         col_dur, col_day = st.columns(2)
         with col_dur:
-            manual_duration = st.number_input("Duration (min)", 15, 240, 60, 15, key=f"manual_dur_{idx}")
+            # Cap max value to whatever is still available (rounded down to nearest 15)
+            max_allowed = int((remaining_minutes // 15) * 15) or 15
+            default_dur = min(60, max_allowed)
+            manual_duration = st.number_input(
+                "Duration (min)",
+                min_value=15,
+                max_value=max_allowed,
+                value=default_dur,
+                step=15,
+                key=f"manual_dur_{idx}"
+            )
             manual_duration = int(((manual_duration + 7) // 15) * 15)
         with col_day:
             preferred_day = st.selectbox("Preferred Day (optional)", ["Any"] + WEEKDAY_NAMES, key=f"manual_day_{idx}")
 
         if st.form_submit_button("Add Session", use_container_width=True):
-            result = NeroTimeLogic.add_manual_session(
-                act['activity'],
-                int(manual_duration),
-                None if preferred_day == "Any" else preferred_day
-            )
-            if result["success"]:
-                if result.get("warning"):
-                    st.warning(result["warning"])
-                else:
-                    st.success("✓ Session added!")
-                st.rerun()
+            # Final guard in case the rounded-up duration still overshoots
+            if manual_duration > remaining_minutes:
+                st.error(
+                    f"❌ {manual_duration} min exceeds the {remaining_minutes} min remaining "
+                    f"({act['timing']:.1f}h total). Please reduce the duration."
+                )
             else:
-                st.error(result["message"])
+                result = NeroTimeLogic.add_manual_session(
+                    act['activity'],
+                    int(manual_duration),
+                    None if preferred_day == "Any" else preferred_day
+                )
+                if result["success"]:
+                    st.success("✓ Session added!")
+                    st.rerun()
+                else:
+                    st.error(result["message"])
 
 
 def _render_sessions_list(act):

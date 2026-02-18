@@ -1,41 +1,19 @@
 """
-NERO-Time - ACHIEVEMENTS TAB (REFACTORED)
+NERO-Time - ACHIEVEMENTS TAB
 """
 import streamlit as st
-from datetime import datetime
 
 
 def ui_achievements_tab(total_hours_completed: float, total_activities: int):
-    """Render the Achievements tab content."""
-    Badge = 0
-    completed_activities = st.session_state.get('completed_activities', [])
-    total_completed_activities = len(completed_activities)
+    """Render the Achievements tab content.
 
+    INPUTS:
+        total_hours_completed: Total hours completed across all activities.
+        total_activities: Total number of activities.
+    """
+    Badge = 0
     st.header("Achievements")
 
-    # ── Completed Activities ───────────────────────────────────────────────────
-    if completed_activities:
-        st.markdown("### 🎓 Completed Activities")
-        for record in completed_activities:
-            completed_at = record.get('completed_at', '')
-            try:
-                completed_dt = datetime.fromisoformat(completed_at)
-                date_str = completed_dt.strftime("%d %b %Y, %H:%M")
-            except Exception:
-                date_str = completed_at
-
-            with st.expander(f"✅ {record['activity']} — {date_str}"):
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.write(f"**Total Hours:** {record['timing']:.1f}h")
-                    st.write(f"**Sessions:** {record.get('num_sessions', '—')}")
-                with col2:
-                    st.write(f"**Completed:** {date_str}")
-                    st.write(f"**Mode:** {'🤖 Auto' if record.get('session_mode') == 'automatic' else '✋ Manual'}")
-
-        st.divider()
-
-    # ── Badge grid ─────────────────────────────────────────────────────────────
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -52,8 +30,8 @@ def ui_achievements_tab(total_hours_completed: float, total_activities: int):
             condition=total_activities >= 5,
             icon="💼",
             unlock_label="UNLOCKED 🔓",
-            locked_msg=f"Please obtain {int(5 - total_activities)} more activities to obtain this badge.",
-            description=f"My first assignments! Achieve: {total_activities}/5 activities to get this badge",
+            locked_msg=f"Please obtain {int(5 - total_activities)} more activites to obtain this badge.",
+            description=f"My first assignments! Achieve: {total_activities}/5 activites to get this badge",
             badge_count=Badge
         )
 
@@ -80,8 +58,8 @@ def ui_achievements_tab(total_hours_completed: float, total_activities: int):
             condition=total_activities >= 20,
             icon="💪",
             unlock_label="UNLOCKED 🔓",
-            locked_msg=f"Please obtain {int(20 - total_activities)} more activities to obtain this badge.",
-            description=f"Schedule getting tough! Achieve: {total_activities}/20 activities to get this badge",
+            locked_msg=f"Please obtain {int(20 - total_activities)} more activites to obtain this badge.",
+            description=f"Schedule getting tough! Achieve: {total_activities}/20 activites to get this badge",
             badge_count=Badge
         )
 
@@ -90,7 +68,7 @@ def ui_achievements_tab(total_hours_completed: float, total_activities: int):
             icon="🎖️",
             unlock_label="UNLOCKED 🔓",
             locked_msg=f"Please obtain {int(5 - Badge)} more badges to obtain this badge.",
-            description=f"Wow! Accomplished! Achieve: {Badge}/5 Badges to get this badge",
+            description=f"Wow! Acomplished! Achieve: {Badge}/5 Badges to get this badge",
             badge_count=Badge
         )
 
@@ -108,18 +86,8 @@ def ui_achievements_tab(total_hours_completed: float, total_activities: int):
             condition=total_activities >= 50,
             icon="😓",
             unlock_label="UNLOCKED 🔓",
-            locked_msg=f"Please obtain {int(50 - total_activities)} more activities to obtain this badge.",
-            description=f"Can you manage? Achieve: {total_activities}/50 activities to get this badge",
-            badge_count=Badge
-        )
-
-        # Completion-based badge — unlocked by finishing activities
-        Badge = _render_badge(
-            condition=total_completed_activities >= 1,
-            icon="🎓",
-            unlock_label="UNLOCKED 🔓",
-            locked_msg="Complete your first activity to obtain this badge.",
-            description=f"Graduate! Completed: {total_completed_activities}/1 activity",
+            locked_msg=f"Please obtain {int(50 - total_activities)} more activites to obtain this badge.",
+            description=f"Can you manage? Achieve: {total_activities}/50 activites to get this badge",
             badge_count=Badge
         )
 
@@ -135,6 +103,19 @@ def ui_achievements_tab(total_hours_completed: float, total_activities: int):
 
 def _render_badge(condition: bool, icon: str, unlock_label: str,
                   locked_msg: str, description: str, badge_count: int) -> int:
+    """Render a single achievement badge and return updated badge count.
+
+    Args:
+        condition: Whether the badge has been unlocked.
+        icon: Emoji icon to display.
+        unlock_label: Label shown when unlocked.
+        locked_msg: Message shown when locked.
+        description: Progress description shown below the badge.
+        badge_count: Current badge count before this badge.
+
+    Returns:
+        Updated badge count (incremented by 1 if condition is True).
+    """
     if condition:
         st.markdown(
             f"<h1 style='text-align: center; font-size: 10rem; color: #FFFFFF;'>{icon}",
