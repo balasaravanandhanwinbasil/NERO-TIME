@@ -105,7 +105,10 @@ def _render_manual_session_form(act, idx):
                 None if preferred_day == "Any" else preferred_day
             )
             if result["success"]:
-                st.success("✓ Session added!")
+                if result.get("warning"):
+                    st.warning(result["warning"])
+                else:
+                    st.success("✓ Session added!")
                 st.rerun()
             else:
                 st.error(result["message"])

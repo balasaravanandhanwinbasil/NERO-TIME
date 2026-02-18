@@ -1,5 +1,22 @@
 """
-NERO-Time BACKEND LOGIC 
+NERO-Time BACKEND LOGIC - REFACTORED
+
+Session state shape (key changes):
+
+  st.session_state.sessions: dict[str, dict]
+      Flat dict keyed by session_id. Single source of truth for ALL activity
+      sessions. Replaces:
+        - list_of_activities[n]['sessions']  (removed from activity metadata)
+        - st.session_state.finished_sessions  (removed — filter sessions instead)
+        - st.session_state.activity_progress  (legacy, removed)
+        - st.session_state.session_completion (legacy, removed)
+
+  st.session_state.timetable: dict[str, list[dict]]
+      Stores SCHOOL and COMPULSORY fixed events only.
+      ACTIVITY rows are derived on-the-fly via get_timetable_view().
+
+  st.session_state.list_of_activities: list[dict]
+      Activity metadata only — no 'sessions' key embedded.
 """
 
 import streamlit as st
@@ -46,6 +63,7 @@ class NeroTimeLogic:
             'list_of_compulsory_events': [],
             'school_schedule':     {},
             'timetable_warnings':  [],
+            'completed_activities': [],            # activities auto-removed on full completion
             'work_start_minutes':  6 * 60,        # 06:00
             'work_end_minutes':    23 * 60 + 30,  # 23:30
         }
@@ -178,17 +196,77 @@ class NeroTimeLogic:
     # ── Verification ──────────────────────────────────────────────────────────
 
     @staticmethod
-    def verify_finished_session(session_id: str, verified: bool) -> Dict:
-        """Mark a finished session as completed (True) or skipped (False)."""
+    def verify_finished_session(session_id: str, completed: bool) -> Dict:
+        """
+        Mark a finished session as completed (True) or skipped (False).
+
+        COMPLETED → stays in sessions permanently, counts toward progress.
+                    Will NOT be rescheduled on next generation.
+        SKIPPED   → flagged for rescheduling on next timetable generation.
+                    Will be discarded and replaced with a new session.
+
+        After marking completed, checks whether the parent activity is now
+        fully done and auto-removes it if so.
+        """
         session = st.session_state.sessions.get(session_id)
         if not session:
             return {"success": False, "message": "Session not found"}
 
-        session['is_completed'] = verified
-        session['is_skipped']   = not verified
+        session['is_completed'] = completed
+        session['is_skipped']   = not completed
 
-        NeroTimeLogic._save('sessions', st.session_state.sessions)
-        return {"success": True, "message": "Session verified"}
+        activity_completed = False
+        if completed:
+            # Check if this activity is now fully done
+            activity_name = session['activity_name']
+            activity = next(
+                (a for a in st.session_state.list_of_activities if a['activity'] == activity_name),
+                None
+            )
+            if activity:
+                act_sessions    = [s for s in st.session_state.sessions.values()
+                                   if s['activity_name'] == activity_name]
+                completed_hours = sum(s['duration_hours'] for s in act_sessions
+                                      if s.get('is_completed', False))
+                if completed_hours >= activity['timing']:
+                    activity_completed = True
+                    NeroTimeLogic._complete_activity(activity_name)
+
+        NeroTimeLogic._save('sessions',   st.session_state.sessions)
+        NeroTimeLogic._save('activities', st.session_state.list_of_activities)
+        NeroTimeLogic._save('completed_activities', st.session_state.completed_activities)
+
+        return {
+            "success":            True,
+            "message":            "Session verified",
+            "activity_completed": activity_completed,
+        }
+
+    @staticmethod
+    def _complete_activity(activity_name: str):
+        """
+        Move a fully-completed activity from list_of_activities into
+        completed_activities. Keeps its sessions in the sessions store
+        (all marked is_completed=True) for historical display.
+        """
+        activity = next(
+            (a for a in st.session_state.list_of_activities if a['activity'] == activity_name),
+            None
+        )
+        if not activity:
+            return
+
+        # Record completion
+        record = {
+            **activity,
+            'completed_at': datetime.now().isoformat(),
+        }
+        st.session_state.completed_activities.append(record)
+
+        # Remove from active activities
+        st.session_state.list_of_activities = [
+            a for a in st.session_state.list_of_activities if a['activity'] != activity_name
+        ]
 
     # ── Events / schedules data ────────────────────────────────────────────────
 
@@ -291,7 +369,11 @@ class NeroTimeLogic:
     @staticmethod
     def add_manual_session(activity_name: str, duration_minutes: int,
                            day_of_week: str = None) -> Dict:
-        """Add an unscheduled manual session (placed by next timetable generation)."""
+        """
+        Add an unscheduled manual session (placed by next timetable generation).
+        Warns if adding this session would exceed the activity's total required hours.
+        Hard-blocks if total scheduled hours already meet or exceed timing.
+        """
         try:
             activity = next(
                 (a for a in st.session_state.list_of_activities if a['activity'] == activity_name),
@@ -303,25 +385,50 @@ class NeroTimeLogic:
                 return {"success": False, "message": "Activity is not in manual mode"}
 
             duration_minutes = int(round_to_15_minutes(duration_minutes))
+            duration_hours   = round(duration_minutes / 60, 2)
+            total_hours      = activity['timing']
 
-            # Next session number for this activity
-            existing_nums = [
-                s['session_num'] for s in st.session_state.sessions.values()
+            # Sum all existing sessions (scheduled + unscheduled, completed or not)
+            existing_sessions = [
+                s for s in st.session_state.sessions.values()
                 if s['activity_name'] == activity_name
             ]
-            session_num = max(existing_nums, default=0) + 1
-            session_id  = f"{activity_name.replace(' ', '_')}_manual_{session_num}"
+            existing_hours = sum(s['duration_hours'] for s in existing_sessions)
+
+            # Hard block: already at or over the limit
+            if existing_hours >= total_hours:
+                return {
+                    "success": False,
+                    "message": (
+                        f"Cannot add session — you've already scheduled {existing_hours:.1f}h "
+                        f"which meets the required {total_hours:.1f}h for this activity."
+                    ),
+                }
+
+            # Soft warn: this session pushes over the limit
+            warning = None
+            if existing_hours + duration_hours > total_hours:
+                over_by = (existing_hours + duration_hours) - total_hours
+                warning = (
+                    f"⚠️ This session puts you {over_by:.1f}h over the required "
+                    f"{total_hours:.1f}h. The excess won't count toward completion."
+                )
+
+            # Next session number for this activity
+            existing_nums = [s['session_num'] for s in existing_sessions]
+            session_num   = max(existing_nums, default=0) + 1
+            session_id    = f"{activity_name.replace(' ', '_')}_manual_{session_num}"
 
             st.session_state.sessions[session_id] = {
                 'session_id':       session_id,
                 'session_num':      session_num,
                 'activity_name':    activity_name,
-                'scheduled_day':    None,   # not scheduled yet
+                'scheduled_day':    None,
                 'scheduled_date':   None,
                 'scheduled_time':   None,
                 'duration_minutes': duration_minutes,
-                'duration_hours':   round(duration_minutes / 60, 2),
-                'day_of_week':      day_of_week,  # scheduling preference
+                'duration_hours':   duration_hours,
+                'day_of_week':      day_of_week,
                 'is_manual':        True,
                 'is_completed':     False,
                 'is_skipped':       False,
@@ -330,7 +437,11 @@ class NeroTimeLogic:
             }
 
             NeroTimeLogic._save('sessions', st.session_state.sessions)
-            return {"success": True, "message": f"Manual session added to '{activity_name}'"}
+            return {
+                "success": True,
+                "message": f"Manual session added to '{activity_name}'",
+                "warning": warning,
+            }
         except Exception as e:
             return {"success": False, "message": f"Error: {e}"}
 
@@ -526,8 +637,9 @@ class NeroTimeLogic:
             st.session_state.timetable                   = {}
             st.session_state.sessions                    = {}
             st.session_state.timetable_warnings          = []
+            st.session_state.completed_activities        = []
 
-            for key in ('activities', 'events', 'school_schedule', 'timetable', 'sessions'):
+            for key in ('activities', 'events', 'school_schedule', 'timetable', 'sessions', 'completed_activities'):
                 NeroTimeLogic._save(key, {} if key in ('timetable', 'sessions', 'school_schedule') else [])
 
             return {"success": True, "message": "All data cleared"}

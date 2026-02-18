@@ -92,6 +92,9 @@ def _render_session_group(sessions: list):
                 ):
                     result = NeroTimeLogic.verify_finished_session(session_id, True)
                     if result["success"]:
+                        if result.get("activity_completed"):
+                            st.balloons()
+                            st.success(f"🎉 Activity fully completed and moved to achievements!")
                         st.rerun()
                     else:
                         st.error(result.get("message", "Error"))

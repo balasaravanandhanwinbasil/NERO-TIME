@@ -45,6 +45,7 @@ if not st.session_state.data_loaded and st.session_state.user_id:
         loaded_school      = load_from_firebase(uid, 'school_schedule')
         loaded_timetable   = load_from_firebase(uid, 'timetable')   # fixed events only
         loaded_sessions    = load_from_firebase(uid, 'sessions')    # unified session store
+        loaded_completed   = load_from_firebase(uid, 'completed_activities')
         loaded_month       = load_from_firebase(uid, 'current_month')
         loaded_year        = load_from_firebase(uid, 'current_year')
         loaded_work_start  = load_from_firebase(uid, 'work_start_minutes')
@@ -57,6 +58,7 @@ if not st.session_state.data_loaded and st.session_state.user_id:
         if loaded_school:                  st.session_state.school_schedule            = loaded_school
         if loaded_timetable:              st.session_state.timetable                  = loaded_timetable
         if loaded_sessions:               st.session_state.sessions                   = loaded_sessions
+        if loaded_completed:              st.session_state.completed_activities        = loaded_completed
         if loaded_month:                   st.session_state.current_month             = loaded_month
         if loaded_year:                    st.session_state.current_year              = loaded_year
 
@@ -167,7 +169,7 @@ with col_stat4: st.metric("Complete",   f"{int(completion_rate)}%")
 st.caption(f"👤 {st.session_state.get('username', st.session_state.user_id)}")
 st.divider()
 
-# === Navigation tabs ===
+# === Navigation ===
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "Dashboard", "Activities", "Events & Schedule",
     "Verification", "Achievements", "Settings"

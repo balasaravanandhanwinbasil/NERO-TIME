@@ -354,18 +354,34 @@ def place_activity_sessions(activity: dict, month_days: list,
         sid: s for sid, s in st.session_state.sessions.items()
         if s['activity_name'] == activity_name
     }
+
+    # COMPLETED        -> keep forever, deduct from remaining hours
+    # SKIPPED          -> discard and reschedule
+    # FINISHED/PENDING -> keep as-is; their slots block is_time_slot_free()
+    #                     so the generator won't double-book, but hours are
+    #                     NOT yet earned so subtract them separately
     completed = {sid: s for sid, s in existing.items() if s.get('is_completed', False)}
+    skipped   = {sid: s for sid, s in existing.items() if s.get('is_skipped', False)}
 
-    # Remove non-completed sessions — they will be rescheduled
-    for sid in existing:
-        if sid not in completed:
-            del st.session_state.sessions[sid]
+    # Remove only skipped sessions
+    for sid in skipped:
+        del st.session_state.sessions[sid]
 
-    comp_hours        = sum(s.get('duration_hours', 0) for s in completed.values())
-    remaining_minutes = int((total_hours - comp_hours) * 60)
+    comp_hours = sum(s.get('duration_hours', 0) for s in completed.values())
+
+    # Hours covered by surviving non-completed sessions (pending + unverified finished)
+    surviving = {sid: s for sid, s in existing.items()
+                 if sid not in skipped and sid not in completed}
+    surviving_minutes = int(sum(s.get('duration_hours', 0) for s in surviving.values()) * 60)
+
+    # Remaining = total needed - already done - already scheduled but not yet verified
+    remaining_minutes = int((total_hours - comp_hours) * 60) - surviving_minutes
 
     if remaining_minutes <= 0:
-        warnings.append(f"✓ '{activity_name}': All hours already completed!")
+        if comp_hours >= total_hours:
+            warnings.append(f"✓ '{activity_name}': All hours already completed!")
+        else:
+            warnings.append(f"✓ '{activity_name}': All hours already scheduled.")
         return
 
     available_days = get_available_days_for_activity(activity, month_days, today)
@@ -374,11 +390,9 @@ def place_activity_sessions(activity: dict, month_days: list,
         warnings.append(f"❌ '{activity_name}': No available days before deadline!")
         return
 
-    # Determine next session number (after completed ones)
-    next_session_num = (
-        max((s['session_num'] for s in completed.values()), default=0) + 1
-    )
-    session_count = next_session_num - 1  # will be incremented before use
+    # Next session number = highest existing session_num across ALL surviving sessions
+    all_surviving = {**completed, **surviving}
+    session_count = max((s['session_num'] for s in all_surviving.values()), default=0)
 
     # ── Multi-pass chunk strategy ──────────────────────────────────────────────
     chunk_sizes = []
