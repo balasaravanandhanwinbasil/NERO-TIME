@@ -3,3 +3,5 @@ pandas
 numpy
 firebase-admin
 openai
+pytz
+nest-asyncio
