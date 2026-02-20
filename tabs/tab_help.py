@@ -50,8 +50,12 @@ def ui_help_tab():
 def _render_FAQ():
     st.markdown("## ❓F&Q❓")
 
-    with large_expander("Insert Question Here?", expanded=False, size=26):
+    with large_expander("Insert Question Here?", expanded=False, size=24):
         st.text("Hi. Insert answer here.")
+    with large_expander("Insert Question Here?", expanded=False, size=24):
+        st.text("Hi. Insert answer here.")
+    with large_expander("Is my personal information safe?", expanded=False, size=24):
+        st.text("Yes, your personal information is secure and unaccessable to anyone except for Nero-Time. We can assure full, unexploitable safety of information data.")
 
 #=============
 #Chatbot here!!!!!
@@ -59,7 +63,7 @@ def _render_FAQ():
 
 def _render_chatbot():
     
-    with large_expander("🤖 AI Assistant", expanded = False, size = 26):
+    with large_expander("🤖 AI Assistant", expanded = False, size = 30):
         # Initialize session chat
         if "nero_chat_messages" not in st.session_state:
             st.session_state.nero_chat_messages = []
