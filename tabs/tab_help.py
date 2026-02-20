@@ -59,61 +59,60 @@ def _render_FAQ():
 def _render_chatbot():
     st.markdown("## 🤖 AI Assistant")  # Always visible title
 
-    with large_expander("Chat with the AI", expanded=True, size=26):
-        # Initialize session chat
-        if "nero_chat_messages" not in st.session_state:
+    # Initialize session chat
+    if "nero_chat_messages" not in st.session_state:
+        st.session_state.nero_chat_messages = []
+
+    # Clear button
+    col1, col2 = st.columns([6, 1])
+    with col2:
+        if st.button("🗑️ Clear Chat"):
             st.session_state.nero_chat_messages = []
+            st.rerun()
 
-        # Clear button
-        col1, col2 = st.columns([6, 1])
-        with col2:
-            if st.button("🗑️ Clear Chat"):
-                st.session_state.nero_chat_messages = []
-                st.rerun()
-
-        #chat history
+    with st.container():  # Keeps messages in a separate container
         for msg in st.session_state.nero_chat_messages:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
-        #user input
-        prompt = st.chat_input("Ask me anything about NERO-Time...")
+    # i really hope this works ive been trying to get the chat input to be at the very bottom
+    prompt = st.chat_input("Ask me anything about NERO-Time...")
 
-        if prompt:
-            # Save user message
-            st.session_state.nero_chat_messages.append({
-                "role": "user",
-                "content": prompt
-            })
+    if prompt:
+        # Save user message
+        st.session_state.nero_chat_messages.append({
+            "role": "user",
+            "content": prompt
+        })
 
-            # Render user message immediately above input
-            with st.chat_message("user"):
-                st.markdown(prompt)
+        # Display user message immediately
+        with st.chat_message("user"):
+            st.markdown(prompt)
 
-            # Build messages with system prompt
-            messages = [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                *st.session_state.nero_chat_messages
-            ]
+        # Build messages with system prompt
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            *st.session_state.nero_chat_messages
+        ]
 
-            # Render assistant response above input
-            with st.chat_message("assistant") as msg_placeholder:
-                placeholder = st.empty()
-                full_response = ""
+        # Display AI assistant response
+        with st.chat_message("assistant"):
+            placeholder = st.empty()
+            full_response = ""
 
-                stream = client.chat.completions.create(
-                    model=MODEL,
-                    messages=messages,
-                    stream=True
-                )
+            stream = client.chat.completions.create(
+                model=MODEL,
+                messages=messages,
+                stream=True
+            )
 
-                for chunk in stream:
-                    delta = chunk.choices[0].delta.content or ""
-                    full_response += delta
-                    placeholder.markdown(full_response)
+            for chunk in stream:
+                delta = chunk.choices[0].delta.content or ""
+                full_response += delta
+                placeholder.markdown(full_response)
 
-            # Save assistant message
-            st.session_state.nero_chat_messages.append({
-                "role": "assistant",
-                "content": full_response
-            })
+        # Save assistant message
+        st.session_state.nero_chat_messages.append({
+            "role": "assistant",
+            "content": full_response
+        })
