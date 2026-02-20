@@ -84,7 +84,8 @@ def create_user(username, password, email=None):
             'email': email,
             'password_hash': password_hash,
             'salt': salt,
-            'created_at': firestore.SERVER_TIMESTAMP
+            'created_at': firestore.SERVER_TIMESTAMP,
+            'tutorial_completed': False
         }
         
         doc_ref = users_ref.add(user_data)
@@ -127,7 +128,8 @@ def authenticate_user(username, password):
                 "message": "Login successful!",
                 "user_id": user_doc.id,
                 "username": user_data.get('username'),
-                "email": user_data.get('email')
+                "email": user_data.get('email'),
+                "tutorial_completed": user_data.get("tutorial_completed", False)
             }
         else:
             return {"success": False, "message": "Invalid username or password"}
