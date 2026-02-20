@@ -25,7 +25,7 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 #The singular code for the expander box but I can change the text size simply because I wanted the UI to look slightly nicer
 
-def large_expander(label, expanded=False, size):
+def large_expander(label, expanded=False, size=24):
     st.markdown(f"""
     <style>
     div[data-testid="stExpander"] > details > summary p {{
