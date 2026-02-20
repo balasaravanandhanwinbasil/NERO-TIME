@@ -13,4 +13,3 @@ def ui_help_tab():
 
 def _render_FAQ():
   st.markdown("## ❓F&Q❓")
-  st.markdown()
