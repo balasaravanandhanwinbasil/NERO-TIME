@@ -9,30 +9,24 @@ from datetime import datetime
 import pytz
 import asyncio
 import nest_asyncio
-nest_asyncio.apply()
+from streamlit_autorefresh import st_autorefresh
 
-def create_clock_placeholder():
-    """Returns a Streamlit placeholder for the live clock"""
-    return st.empty()
+def show_live_clock(timezone_str="Asia/Singapore"):
+    """
+    Display a live updating clock in Streamlit.
+    Call this function in your main app where you want the clock to appear.
+    """
+    # Auto-refresh the page every 1 second
+    st_autorefresh(interval=1000, limit=None, key="nero_live_clock")
 
-async def _update_clock(clock_placeholder, timezone_str="Asia/Singapore"):
+    # Timezone setup
     tz = pytz.timezone(timezone_str)
-    while True:
-        now = datetime.now(tz)
-        clock_placeholder.markdown(f"""
-        <div class='live-clock'>
-            <div class='clock-time'>{now.strftime('%H:%M:%S')}</div>
-            <div class='clock-date'>{now.strftime('%A, %B %d, %Y')}</div>
-        </div>
-        """, unsafe_allow_html=True)
-        await asyncio.sleep(1)
+    now = datetime.now(tz)
 
-def start_live_clock(clock_placeholder, timezone_str="Asia/Singapore"):
-    """Starts the live clock asynchronously"""
-    try:
-        asyncio.run(_update_clock(clock_placeholder, timezone_str))
-    except RuntimeError:
-        # Handles "asyncio.run() cannot be called from a running event loop" because without these lines my code decides to not work. 
-        asyncio.get_event_loop().run_until_complete(
-            _update_clock(clock_placeholder, timezone_str)
-        )
+    # Display clock
+    st.markdown(f"""
+    <div class='live-clock'>
+        <div class='clock-time'>{now.strftime('%H:%M:%S')}</div>
+        <div class='clock-date'>{now.strftime('%A, %B %d, %Y')}</div>
+    </div>
+    """, unsafe_allow_html=True)
