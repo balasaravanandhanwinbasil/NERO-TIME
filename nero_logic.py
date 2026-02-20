@@ -215,7 +215,7 @@ class NeroTimeLogic:
             if not name:
                 return {"success": False, "message": "Activity name is required"}
             for i in range(len(st.session_state.list_of_activities)):
-                if name in st.session_state.list_of_activities[1]{"activity"}:
+                if name in st.session_state.list_of_activities[i]['activity']:
                     return {"success": False, "message": "Activity name is cannot be the same as a previous activity name"}
 
             deadline_dt = datetime.fromisoformat(deadline_date)
