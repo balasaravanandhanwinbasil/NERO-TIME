@@ -23,7 +23,7 @@ from tabs.tab_verification  import ui_verification_tab
 from tabs.tab_achievements  import ui_achievements_tab
 from tabs.tab_settings      import ui_settings_tab
 from tabs.tab_help          import ui_help_tab
-from nero_clock import create_clock_placeholder, start_live_clock
+from nero_clock import show_live_clock
 
 st.set_page_config(page_title="NERO-TIME", page_icon="🕛", layout="wide")
 st.markdown(css_scheme, unsafe_allow_html=True)
