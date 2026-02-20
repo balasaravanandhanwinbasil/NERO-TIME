@@ -140,17 +140,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Live clock
-sg_tz = pytz.timezone('Asia/Singapore')
-now   = datetime.now(sg_tz)
-st.markdown(f"""
-<div class='live-clock'>
-    <div class='clock-time'>{now.strftime('%H:%M:%S')}</div>
-    <div class='clock-date'>{now.strftime('%A, %B %d, %Y')}</div>
-</div>
-""", unsafe_allow_html=True)
-
-
 # ── Stats bar ──────────────────────────────────────────────────────────────────
 activities_preview  = NeroTimeLogic.get_activities_data()
 total_activities    = len(activities_preview['activities'])
