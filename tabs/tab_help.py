@@ -96,7 +96,7 @@ def _render_chatbot():
             ]
     
             # Assistant response
-            with st.chat_message("assistant"):
+            with st.chat_message("assistant") as msg_placeholder:
     
                 placeholder = st.empty()
                 full_response = ""
