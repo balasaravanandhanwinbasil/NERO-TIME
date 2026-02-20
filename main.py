@@ -22,6 +22,7 @@ from tabs.tab_events        import ui_events_tab
 from tabs.tab_verification  import ui_verification_tab
 from tabs.tab_achievements  import ui_achievements_tab
 from tabs.tab_settings      import ui_settings_tab
+from tabs.tab_help          import ui_help_tab
 
 st.set_page_config(page_title="NERO-TIME", page_icon="🕛", layout="wide")
 st.markdown(css_scheme, unsafe_allow_html=True)
@@ -170,9 +171,9 @@ st.caption(f"👤 {st.session_state.get('username', st.session_state.user_id)}")
 st.divider()
 
 # === Navigation ===
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "Dashboard", "Activities", "Events & Schedule",
-    "Verification", "Achievements", "Settings"
+    "Verification", "Achievements", "Settings", "Help"
 ])
 
 with tab1: ui_dashboard_tab()
@@ -181,6 +182,7 @@ with tab3: ui_events_tab()
 with tab4: ui_verification_tab()
 with tab5: ui_achievements_tab(total_hours_completed, total_activities)
 with tab6: ui_settings_tab()
+with tab7: ui_help_tab()
 
 # Auto-refresh for live clock
 st.markdown("""
