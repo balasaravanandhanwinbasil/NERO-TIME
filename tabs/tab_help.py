@@ -23,6 +23,6 @@ def ui_help_tab():
 
 def _render_FAQ():
   st.markdown("## ❓F&Q❓")
-  with st.expander("Insert Question Here?", expanded=False):
+  with st.large_expander("Insert Question Here?", expanded=False, size=26):
     st.text("Hi. Insert answer here.")
   
