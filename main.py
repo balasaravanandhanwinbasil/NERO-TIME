@@ -187,8 +187,5 @@ with tab6: ui_settings_tab()
 with tab7: ui_help_tab()
 
 #clock
-clock_placeholder = create_clock_placeholder()
-
-# more clock activity
-start_live_clock(clock_placeholder)
+show_live_clock()
 
