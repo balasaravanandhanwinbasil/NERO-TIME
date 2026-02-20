@@ -214,7 +214,7 @@ class NeroTimeLogic:
         try:
             if not name:
                 return {"success": False, "message": "Activity name is required"}
-            for i in range(len(st.session_state.list_of_activities))"
+            for i in range(len(st.session_state.list_of_activities))
                 if name in st.session_state.list_of_activities[1]{"activity"}:
                     return {"success": False, "message": "Activity name is cannot be the same as a previous activity name"}
 
