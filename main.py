@@ -148,7 +148,7 @@ st.markdown(f"""
     <div class='clock-date'>{now.strftime('%A, %B %d, %Y')}</div>
 </div>
 """, unsafe_allow_html=True)
-await asyncio.sleep(1)
+
 
 # ── Stats bar ──────────────────────────────────────────────────────────────────
 activities_preview  = NeroTimeLogic.get_activities_data()
