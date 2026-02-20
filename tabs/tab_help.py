@@ -1,4 +1,4 @@
-aaa"""
+"""
 NERO-Time - HELP TAB
 """
 
