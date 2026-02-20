@@ -17,6 +17,8 @@ Your goals:
 - Answer questions clearly
 - Be friendly and concise
 - Give practical guidance
+- Refuse to answer anything other than time management/app related stuff
+- 
 """
 
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
@@ -55,64 +57,63 @@ def _render_FAQ():
 #Chatbot here!!!!!
 #=============
 def _render_chatbot():
-
-    st.markdown("## 🤖 AI Assistant")
-
-    # Initialize session chat
-    if "nero_chat_messages" not in st.session_state:
-        st.session_state.nero_chat_messages = []
-
-    # Clear button
-    col1, col2 = st.columns([6,1])
-    with col2:
-        if st.button("🗑️ Clear"):
+    
+    with large_expander("🤖 AI Assistant", expanded = False, size = 26):
+        # Initialize session chat
+        if "nero_chat_messages" not in st.session_state:
             st.session_state.nero_chat_messages = []
-            st.rerun()
-
-    # Display history
-    for msg in st.session_state.nero_chat_messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-
-    # User input
-    prompt = st.chat_input("Ask me anything about NERO-Time...")
-
-    if prompt:
-
-        # Save user message
-        st.session_state.nero_chat_messages.append({
-            "role": "user",
-            "content": prompt
-        })
-
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        # Build messages with system prompt
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            *st.session_state.nero_chat_messages
-        ]
-
-        # Assistant response (streaming)
-        with st.chat_message("assistant"):
-
-            placeholder = st.empty()
-            full_response = ""
-
-            stream = client.chat.completions.create(
-                model=MODEL,
-                messages=messages,
-                stream=True
-            )
-
-            for chunk in stream:
-                delta = chunk.choices[0].delta.content or ""
-                full_response += delta
-                placeholder.markdown(full_response)
-
-        # Save assistant message
-        st.session_state.nero_chat_messages.append({
-            "role": "assistant",
-            "content": full_response
-        })
+    
+        # Clear button
+        col1, col2 = st.columns([6,1])
+        with col2:
+            if st.button("🗑️ Clear"):
+                st.session_state.nero_chat_messages = []
+                st.rerun()
+    
+        # Display history
+        for msg in st.session_state.nero_chat_messages:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+    
+        # User input
+        prompt = st.chat_input("Ask me anything about NERO-Time...")
+    
+        if prompt:
+    
+            # Save user message
+            st.session_state.nero_chat_messages.append({
+                "role": "user",
+                "content": prompt
+            })
+    
+            with st.chat_message("user"):
+                st.markdown(prompt)
+    
+            # Build messages with system prompt
+            messages = [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                *st.session_state.nero_chat_messages
+            ]
+    
+            # Assistant response
+            with st.chat_message("assistant"):
+    
+                placeholder = st.empty()
+                full_response = ""
+    
+                stream = client.chat.completions.create(
+                    model=MODEL,
+                    messages=messages,
+                    stream=True
+                )
+    
+                for chunk in stream:
+                    delta = chunk.choices[0].delta.content or ""
+                    full_response += delta
+                    placeholder.markdown(full_response)
+    
+            # Save assistant message
+            st.session_state.nero_chat_messages.append({
+                "role": "assistant",
+                "content": full_response
+            })
