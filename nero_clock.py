@@ -12,18 +12,16 @@ import nest_asyncio
 from streamlit_autorefresh import st_autorefresh
 
 def show_live_clock(timezone_str="Asia/Singapore"):
-    """
-    Display a live updating clock in Streamlit.
-    Call this function in your main app where you want the clock to appear.
-    """
-    # Auto-refresh the page every 1 second
+    #displays a clock in the streamlit that actually updates!!!!!!
+    #why does streamlit make clocks so harrd to code :(
+    # refreshes the page every 1 second
     st_autorefresh(interval=1000, limit=None, key="nero_live_clock")
 
-    # Timezone setup
+    # timezone setup
     tz = pytz.timezone(timezone_str)
     now = datetime.now(tz)
 
-    # Display clock
+    # show the clock in 24h
     st.markdown(f"""
     <div class='live-clock'>
         <div class='clock-time'>{now.strftime('%H:%M:%S')}</div>
