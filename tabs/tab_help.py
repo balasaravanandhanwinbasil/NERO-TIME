@@ -63,7 +63,7 @@ def _render_FAQ():
 
 def _render_chatbot():
     
-    with large_expander("🤖 AI Assistant", True, size = 30):
+    with large_expander("🤖 AI Assistant", expanded = True, size = 30):
         # Initialize session chat
         if "nero_chat_messages" not in st.session_state:
             st.session_state.nero_chat_messages = []
