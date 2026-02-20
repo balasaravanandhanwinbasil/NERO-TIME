@@ -133,6 +133,8 @@ if not st.session_state.user_id:
 
     st.stop()
 
+show_live_clock()
+
 
 # ── MAIN APP ───────────────────────────────────────────────────────────────────
 st.markdown(
@@ -176,5 +178,4 @@ with tab6: ui_settings_tab()
 with tab7: ui_help_tab()
 
 #clock
-show_live_clock()
 
