@@ -133,14 +133,14 @@ if not st.session_state.user_id:
 
     st.stop()
 
-show_live_clock()
-
 
 # ── MAIN APP ───────────────────────────────────────────────────────────────────
 st.markdown(
     "<h1 style='text-align: center; margin-bottom: 1rem; color: #E91E63;'>🕛 NERO-TIME</h1>",
     unsafe_allow_html=True
 )
+#clock
+show_live_clock()
 
 # ── Stats bar ──────────────────────────────────────────────────────────────────
 activities_preview  = NeroTimeLogic.get_activities_data()
@@ -176,6 +176,3 @@ with tab4: ui_verification_tab()
 with tab5: ui_achievements_tab(total_hours_completed, total_activities)
 with tab6: ui_settings_tab()
 with tab7: ui_help_tab()
-
-#clock
-
