@@ -23,7 +23,7 @@ from tabs.tab_verification  import ui_verification_tab
 from tabs.tab_achievements  import ui_achievements_tab
 from tabs.tab_settings      import ui_settings_tab
 
-st.set_page_config(page_title="NERO-TIME", page_icon="🕛", layout="wide")
+st.set_page_config(page_title="RE:FRAME", page_icon="🕛", layout="wide")
 st.markdown(css_scheme, unsafe_allow_html=True)
 
 NeroTimeLogic.initialize_session_state()
@@ -70,9 +70,9 @@ if not st.session_state.user_id:
     st.markdown("""
     <div style='text-align: center; padding: 4rem 0 2rem 0;'>
         <h1 style='font-size: 4rem; margin-bottom: 0.5rem;'>🕛</h1>
-        <h1 style='font-size: 3rem; margin-bottom: 0.5rem; color: #E91E63;'>NERO-Time</h1>
+        <h1 style='font-size: 3rem; margin-bottom: 0.5rem; color: #E91E63;'>RE:FRAME</h1>
         <p style='font-size: 1.1rem; color: #757575; margin-bottom: 3rem;'>
-            Finish all of your tasks on time. On NERO-Time.
+            Finish all of your tasks on time. On RE:FRAME.
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -134,7 +134,7 @@ if not st.session_state.user_id:
 
 # ── MAIN APP ───────────────────────────────────────────────────────────────────
 st.markdown(
-    "<h1 style='text-align: center; margin-bottom: 1rem; color: #E91E63;'>🕛 NERO-Time</h1>",
+    "<h1 style='text-align: center; margin-bottom: 1rem; color: #E91E63;'>🕛 RE:FRAME</h1>",
     unsafe_allow_html=True
 )
 
