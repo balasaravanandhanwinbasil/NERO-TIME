@@ -57,44 +57,38 @@ def _render_FAQ():
 #Chatbot here!!!!!
 #=============
 
-def render_chatbot():
-    st.markdown("## 🤖 AI Assistant")
-    with large_expander("Ask Questions Here"):
-
+def _render_chatbot():
+    
+    with large_expander("🤖 AI Assistant", expanded = False, size = 26):
         # Initialize session chat
         if "nero_chat_messages" not in st.session_state:
             st.session_state.nero_chat_messages = []
     
-        #clearchat
-        col1, col2 = st.columns([6, 1])
+        # Clear button
+        col1, col2 = st.columns([6,1])
         with col2:
-            if st.button("🗑️ Clear Chat"):
+            if st.button("🗑️ Clear"):
                 st.session_state.nero_chat_messages = []
                 st.rerun()
     
+        # Display history
+        for msg in st.session_state.nero_chat_messages:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
     
-        #chat fee(t) (get it bc its like chat feed)
-        # Use a container so messages stay above input
-        chat_container = st.container()
-        with chat_container:
-            for msg in st.session_state.nero_chat_messages:
-                with st.chat_message(msg["role"]):
-                    st.markdown(msg["content"])
-    
-        #input box 
+        # User input
         prompt = st.chat_input("Ask me anything about NERO-Time...")
     
         if prompt:
+    
             # Save user message
             st.session_state.nero_chat_messages.append({
                 "role": "user",
                 "content": prompt
             })
     
-            # Display user message immediately
-            with chat_container:
-                with st.chat_message("user"):
-                    st.markdown(prompt)
+            with st.chat_message("user"):
+                st.markdown(prompt)
     
             # Build messages with system prompt
             messages = [
@@ -102,22 +96,22 @@ def render_chatbot():
                 *st.session_state.nero_chat_messages
             ]
     
-            # Generate AI response
-            with chat_container:
-                with st.chat_message("assistant"):
-                    placeholder = st.empty()
-                    full_response = ""
+            # Assistant response
+            with st.chat_message("assistant"):
     
-                    stream = client.chat.completions.create(
-                        model=MODEL,
-                        messages=messages,
-                        stream=True
-                    )
+                placeholder = st.empty()
+                full_response = ""
     
-                    for chunk in stream:
-                        delta = chunk.choices[0].delta.content or ""
-                        full_response += delta
-                        placeholder.markdown(full_response)
+                stream = client.chat.completions.create(
+                    model=MODEL,
+                    messages=messages,
+                    stream=True
+                )
+    
+                for chunk in stream:
+                    delta = chunk.choices[0].delta.content or ""
+                    full_response += delta
+                    placeholder.markdown(full_response)
     
             # Save assistant message
             st.session_state.nero_chat_messages.append({
