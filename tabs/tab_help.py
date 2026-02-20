@@ -1,4 +1,4 @@
-"""
+aaa"""
 NERO-Time - HELP TAB
 """
 
@@ -25,7 +25,7 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 #The singular code for the expander box but I can change the text size simply because I wanted the UI to look slightly nicer
 
-def large_expander(label, expanded=False, size=22):
+def large_expander(label, expanded=False, size):
     st.markdown(f"""
     <style>
     div[data-testid="stExpander"] > details > summary p {{
@@ -50,7 +50,7 @@ def ui_help_tab():
 def _render_FAQ():
     st.markdown("## ❓F&Q❓")
 
-    with large_expander("Insert Question Here?", expanded=False, size=20):
+    with large_expander("## Insert Question Here?", expanded=False, size=20):
         st.text("Hi. Insert answer here.")
     with large_expander("Insert Question Here?", expanded=False, size=20):
         st.text("Hi. Insert answer here.")
@@ -63,7 +63,7 @@ def _render_FAQ():
 
 def _render_chatbot():
     
-    with large_expander("🤖 AI Assistant", expanded = True, size = 30):
+    with large_expander("🤖 AI Assistant", True, size = 30):
         # Initialize session chat
         if "nero_chat_messages" not in st.session_state:
             st.session_state.nero_chat_messages = []
