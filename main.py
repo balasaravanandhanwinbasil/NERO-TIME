@@ -136,7 +136,7 @@ if not st.session_state.user_id:
 
 # ── MAIN APP ───────────────────────────────────────────────────────────────────
 st.markdown(
-    "<h1 style='text-align: center; margin-bottom: 0.5rem; color: #E91E63;'>🕛 NERO-TIME</h1>",
+    "<h1 style='text-align: center; margin-bottom: 0.1rem; color: #E91E63;'>🕛 NERO-TIME</h1>",
     unsafe_allow_html=True
 )
 #clock
