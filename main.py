@@ -186,10 +186,9 @@ with tab5: ui_achievements_tab(total_hours_completed, total_activities)
 with tab6: ui_settings_tab()
 with tab7: ui_help_tab()
 
-# Auto-refresh for live clock
-st.markdown("""
-<script>
-    setTimeout(function() { window.parent.location.reload(); }, 1000);
-</script>
-""", unsafe_allow_html=True)
+#clock
+clock_placeholder = create_clock_placeholder()
+
+# more clock activity
+start_live_clock(clock_placeholder)
 
