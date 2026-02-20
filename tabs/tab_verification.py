@@ -12,13 +12,7 @@ from nero_logic import NeroTimeLogic
 
 def ui_verification_tab():
     """Render the Verification tab — a TODO list of finished sessions."""
-
-    # debugger
-    if st.button("⚠️ DEBUG: Mark all sessions finished"):
-        for session in st.session_state.sessions.values():
-            session['is_finished'] = True
-        st.rerun()
-
+  
     st.header("✅ Session Verification")
     st.caption(
         "Mark each finished session as **done** or **not done**. "
