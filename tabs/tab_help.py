@@ -13,5 +13,6 @@ def ui_help_tab():
 
 def _render_FAQ():
   st.markdown("## ❓F&Q❓")
-  st.markdown("###         Penis?")
-  st.text("Testes")
+  with st.expander("Insert Question Here?", expanded=False):
+    st.text("Hi. Insert answer here.")
+  
