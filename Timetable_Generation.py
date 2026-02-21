@@ -1,8 +1,5 @@
 """
-NERO-time timetable generator - REFACTORED
-Sessions are the single source of truth (st.session_state.sessions).
-The timetable dict stores SCHOOL and COMPULSORY fixed events only.
-ACTIVITY rows are assembled on-the-fly by get_timetable_view().
+NERO-time
 """
 
 from datetime import datetime, timedelta
@@ -12,14 +9,14 @@ from typing import Dict, List, Optional, Tuple
 
 WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
-# ── Fallback defaults (overridden by st.session_state at runtime) ─────────────
+# Fallback defaults (overridden by st.session_state at runtime)
 _DEFAULT_WORK_START_MINUTES = 6 * 60        # 06:00
 _DEFAULT_WORK_END_MINUTES   = 23 * 60 + 30  # 23:30
 
-BREAK_MINUTES = 30  # Silent gap enforced between sessions (not shown in UI)
+BREAK_MINUTES = 30  # enforced break in between activities
 
 
-# ── Runtime accessors ─────────────────────────────────────────────────────────
+# Get starting time and ending time
 
 def get_work_start_minutes() -> int:
     return st.session_state.get('work_start_minutes', _DEFAULT_WORK_START_MINUTES)
@@ -28,27 +25,31 @@ def get_work_end_minutes() -> int:
     return st.session_state.get('work_end_minutes', _DEFAULT_WORK_END_MINUTES)
 
 
-# ── Time utilities ─────────────────────────────────────────────────────────────
+# TIME UTILITIES
 
 def time_str_to_minutes(time_str: str) -> int:
     """Convert HH:MM to minutes since midnight."""
+
     h, m = time_str.split(":")
     return int(h) * 60 + int(m)
 
 
 def minutes_to_time_str(minutes: int) -> str:
     """Convert minutes since midnight to HH:MM."""
+
     minutes = int(minutes)
     return f"{minutes // 60:02d}:{minutes % 60:02d}"
 
 
 def round_to_15_minutes(minutes: int) -> int:
     """Round to nearest 15-minute interval."""
+
     return int(((int(minutes) + 7) // 15) * 15)
 
 
 def get_month_days(year: int, month: int) -> list:
     """Return all days in the given month as a list of dicts."""
+
     from calendar import monthrange
     num_days = monthrange(year, month)[1]
     days = []
@@ -60,10 +61,11 @@ def get_month_days(year: int, month: int) -> list:
             'day_name': day_name,
             'display': f"{day_name} {date_obj.strftime('%d/%m')}"
         })
+
     return days
 
 
-# ── Timetable view assembly ────────────────────────────────────────────────────
+# === TIMETABLE ==
 
 def get_timetable_view() -> Dict[str, list]:
     """
@@ -133,7 +135,7 @@ def get_timetable_view() -> Dict[str, list]:
     return view
 
 
-# ── Slot checking (against both stored fixed events AND scheduled sessions) ────
+# === Slot checking (against both stored fixed events AND scheduled sessions) ===
 
 def is_time_slot_free(day: str, start_time: str, end_time: str) -> bool:
     """
