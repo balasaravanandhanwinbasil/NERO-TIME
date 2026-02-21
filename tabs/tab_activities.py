@@ -1,9 +1,10 @@
 """
-NERO-Time - ACTIVITIES TAB (REFACTORED)
+NERO-Time - ACTIVITIES TAB 
 
-Sessions are read from st.session_state.sessions (keyed by session_id),
-not from activity['sessions']. Activity dicts contain metadata only.
+Sessions are read from st.session_state.sessions, which is a dict of session_id -> session_data.
+Activities are read from NeroTimeLogic.get_activities_data(), which returns a dict with an 'activities' key containing a list of activitid
 """
+
 import streamlit as st
 from datetime import datetime
 from nero_logic import NeroTimeLogic
@@ -11,17 +12,22 @@ from Timetable_Generation import WEEKDAY_NAMES
 
 
 def ui_activities_tab():
-    """Render the Activities tab content."""
-    st.header("Activities")
-
-    _render_add_activity_form()
-    st.divider()
-
+    """UI for activities tab"""
+    st.header("Activities", help="This tab is where you can manage your activities that you want to do. Add activities, view their sessions, and track their progress here.")
     activities_data = NeroTimeLogic.get_activities_data()
 
-    if activities_data['activities']:
-        for idx, act in enumerate(activities_data['activities']):
-            mode_badge = "🤖 Auto" if act.get('session_mode') == 'automatic' else "✋ Manual"
+    _add_activity_form() # ui for add activity form
+    with st.expander("🏆 Completed Activities", expanded=False): # ui for completed activities
+        _completed_activities_list([x for x in activities_data['activities'] if x['progress']['percentage'] >= 100]) 
+
+    st.divider()
+
+    incomplete_activities = [x for x in activities_data['activities'] if x['progress']['percentage'] < 100]
+
+    # displaying the sessions in a list
+    if incomplete_activities:
+        for idx, act in enumerate(incomplete_activities):
+            mode_badge = "🤖 Auto" if act.get('session_mode') == 'automatic' else "👨 Manual"
             with st.expander(
                 f"{idx+1}. {act['activity']} "
                 f"({act['progress']['completed']:.1f}h/{act['timing']:.1f}h) - {mode_badge}"
@@ -30,55 +36,65 @@ def ui_activities_tab():
                 st.caption(f"Deadline: {act['deadline']} days")
 
                 if act.get('session_mode') == 'manual':
-                    _render_manual_session_form(act, idx)
+                    _manual_session_form(act, idx)
                     st.divider()
 
-                _render_sessions_list(act)
+                _sessions_list(act) # list of sessions for one activitiy
 
                 st.markdown("---")
-                _render_activity_action_buttons(act, idx)
+                _activity_action_buttons(act, idx)
     else:
         st.info("No activities")
 
 
-def _render_add_activity_form():
-    """Render the Add Activity expander form."""
+
+def _add_activity_form():
+    """UI for Add Activity expander form."""
+
     with st.expander("➕ Add Activity", expanded=False):
         name = st.text_input("Name", key="activity_name")
 
         session_mode = st.radio(
             "Session Mode",
             ["Automatic", "Manual"],
-            help="Automatic: AI schedules sessions. Manual: You add sessions yourself",
+            help="Automatic: We schedule the sessions for you. Manual: You add sessions yourself",
             horizontal=True,
             key="session_mode"
         )
 
         col1, col2 = st.columns(2)
         with col1:
-            deadline = st.date_input("Deadline", min_value=datetime.now().date(), key="activity_deadline")
+            deadline = st.date_input("Deadline/Due Date", min_value=datetime.now().date(), key="activity_deadline")
         with col2:
-            hours = st.number_input("Hours", 1, 100, 1, key="activity_hours")
+            hours = st.number_input("Time needed to complete (in hours)", 1, 200, 1, key="activity_hours") 
 
         if session_mode == "Automatic":
             col3, col4 = st.columns(2)
             with col3:
-                min_s = st.number_input("Min Session (min)", 15, 180, 30, 15, key="min_s")
-                min_s = int(((min_s + 7) // 15) * 15)
+                min_s = st.number_input("Min Session Time (min)", 15, 180, 30, 15, key="min_s", help = "NOTE: Sessions timings will be rounded to the nearest 15 minutes.")
+                min_s = int(((min_s + 7) // 15) * 15) # will get rounded to nearest 15
             with col4:
-                max_s = st.number_input("Max Session (min)", 30, 240, 120, 15, key="max_s")
-                max_s = int(((max_s + 7) // 15) * 15)
+                max_s = st.number_input("Max Session Time (min)", 30, 240, 120, 15, key="max_s", help = "NOTE: Sessions timings will be rounded to the nearest 15 minutes.")
+                max_s = int(((max_s + 7) // 15) * 15) # will get rounded to nearest 15 here as well
+
                 if max_s < min_s:
                     max_s = min_s
-            days = st.multiselect("Days", WEEKDAY_NAMES, WEEKDAY_NAMES, key="activity_days")
+
+            days = st.multiselect("Days to schedule in:", WEEKDAY_NAMES, WEEKDAY_NAMES, key="activity_days")
         else:
             min_s, max_s, days = 30, 120, None
 
         if st.button("Add", type="primary", use_container_width=True, key="btn_add_activity"):
             if name:
                 result = NeroTimeLogic.add_activity(
-                    name, 3, deadline.isoformat(), hours, min_s, max_s, days,
-                    session_mode="manual" if session_mode == "Manual" else "automatic"
+                    name, 
+                    3, # priority (ignored for now)
+                    deadline.isoformat(), # due date as ISO string for storage
+                    hours, # total hours needed
+                    min_s, # minimum session duration in minutes
+                    max_s, # maximum session duration in minutes
+                    days, # list of days to schedule sessions in (only for automatic mode)
+                    session_mode="manual" if session_mode == "Manual" else "automatic" # session mode
                 )
                 if result["success"]:
                     st.success("✓ Added")
@@ -87,36 +103,37 @@ def _render_add_activity_form():
                     st.error(result["message"])
 
 
-def _render_manual_session_form(act, idx):
-    """Render the Add Manual Session form for manual-mode activities."""
+def _manual_session_form(act, idx):
+    """ Manual Session form for manual-mode activities."""
     # Calculate remaining minutes upfront so we can show it and cap the input
-    existing_sessions = [
-        s for s in st.session_state.sessions.values()
-        if s['activity_name'] == act['activity']
-    ]
+
+    existing_sessions = [s for s in st.session_state.sessions.values() if s['activity_name'] == act['activity']] # takes in the sessions from the global sessions and filters them.
+
     total_scheduled_minutes = sum(s.get('duration_minutes', 0) for s in existing_sessions)
     total_allowed_minutes = int(act['timing'] * 60)
     remaining_minutes = total_allowed_minutes - total_scheduled_minutes
 
     if remaining_minutes <= 0:
         st.info(
-            f"✅ All {act['timing']:.1f}h ({total_allowed_minutes} min) of activity has been scheduled. "
-            "Edit sessions or reset to add more."
+            f"✅ All {act['timing']:.1f}h ({total_allowed_minutes} min) of activity has been scheduled. Edit sessions or reset to add more."
         )
+
         return
 
     with st.form(key=f"add_manual_session_{idx}"):
         st.markdown(
             f"**➕ Add Manual Session** "
             f"<span style='color:gray;font-size:0.85em;'>"
-            f"({remaining_minutes} min / {remaining_minutes/60:.1f}h remaining)</span>",
+            f"({remaining_minutes/60:.1f}h/{total_allowed_minutes/60:.1f}h total to be scheduled)</span>",
             unsafe_allow_html=True
         )
         col_dur, col_day = st.columns(2)
         with col_dur:
             # Cap max value to whatever is still available (rounded down to nearest 15)
+
             max_allowed = int((remaining_minutes // 15) * 15) or 15
             default_dur = min(60, max_allowed)
+
             manual_duration = st.number_input(
                 "Duration (min)",
                 min_value=15,
@@ -125,12 +142,13 @@ def _render_manual_session_form(act, idx):
                 step=15,
                 key=f"manual_dur_{idx}"
             )
-            manual_duration = int(((manual_duration + 7) // 15) * 15)
+
+            manual_duration = int(((manual_duration + 7) // 15) * 15) # round to 15 minutes
+
         with col_day:
             preferred_day = st.selectbox("Preferred Day (optional)", ["Any"] + WEEKDAY_NAMES, key=f"manual_day_{idx}")
 
         if st.form_submit_button("Add Session", use_container_width=True):
-            # Final guard in case the rounded-up duration still overshoots
             if manual_duration > remaining_minutes:
                 st.error(
                     f"❌ {manual_duration} min exceeds the {remaining_minutes} min remaining "
@@ -149,21 +167,20 @@ def _render_manual_session_form(act, idx):
                     st.error(result["message"])
 
 
-def _render_sessions_list(act):
+def _sessions_list(act):
     """
     Render the sessions list for an activity.
-    Sessions are read from st.session_state.sessions filtered by activity_name.
     """
     st.markdown("#### 📋 Sessions")
 
     # Pull sessions for this activity from the unified store, sorted by session_num
     act_sessions = sorted(
-        [s for s in st.session_state.sessions.values() if s['activity_name'] == act['activity']],
+        [s for s in st.session_state.sessions.values() if s['activity_name'] == act['activity']], 
         key=lambda s: s['session_num']
     )
 
     if act_sessions:
-        for sess_idx, session in enumerate(act_sessions):
+        for session in act_sessions:
             session_id       = session['session_id']
             is_completed     = session.get('is_completed', False)
             duration_minutes = session.get('duration_minutes', 0)
@@ -176,6 +193,7 @@ def _render_sessions_list(act):
 
                 with col_s1:
                     status = "✅ Completed" if is_completed else "⚫ Pending"
+
                     st.markdown(f"**Session {session['session_num']}** - {status}")
                     st.caption(f"Duration: {duration_hours:.1f}h ({duration_minutes} min)")
 
@@ -195,15 +213,16 @@ def _render_sessions_list(act):
                 # Edit form
                 edit_state_key = f"editing_edit_session_{act['activity']}_{session_id}"
                 if st.session_state.get(edit_state_key, False):
-                    _render_session_edit_form(act, session_id, scheduled_time, duration_minutes, edit_state_key)
+                    _session_edit_form(act, session_id, scheduled_time, duration_minutes, edit_state_key)
 
                 st.divider()
     else:
         st.info("No sessions yet — generate a timetable (or add manual sessions) to create sessions")
 
 
-def _render_session_edit_form(act, session_id, scheduled_time, duration_minutes, edit_state_key):
-    """Render the inline session edit form."""
+def _session_edit_form(act, session_id, scheduled_time, duration_minutes, edit_state_key):
+    """Render the session edit form."""
+
     with st.form(key=f"form_{act['activity']}_{session_id}"):
         st.markdown("**Edit Session**")
 
@@ -267,7 +286,7 @@ def _render_session_edit_form(act, session_id, scheduled_time, duration_minutes,
             st.rerun()
 
 
-def _render_activity_action_buttons(act, idx):
+def _activity_action_buttons(act, idx):
     """Render Delete / Reset buttons for an activity."""
     col1, col2 = st.columns(2)
 
@@ -280,3 +299,26 @@ def _render_activity_action_buttons(act, idx):
         result = NeroTimeLogic.reset_activity_progress(act['activity'])
         if result["success"]:
             st.rerun()
+
+def _completed_activities_list(completed_activities):
+    """Render the list of completed activities with their progress."""
+
+    if completed_activities:
+         for idx, act in enumerate(completed_activities):
+            mode_badge = "🤖 Auto" if act.get('session_mode') == 'automatic' else "👨 Manual"
+            with st.expander(
+                f"{idx+1}. {act['activity']} "
+                f"({act['progress']['completed']:.1f}h/{act['timing']:.1f}h) - {mode_badge}"
+            ):
+                st.progress(act['progress']['percentage'] / 100)
+                st.caption(f"Deadline: {act['deadline']} days")
+
+                if act.get('session_mode') == 'manual':
+                    _manual_session_form(act, idx)
+                    st.divider()
+
+                _sessions_list(act) 
+                st.markdown("---")
+                _activity_action_buttons(act, idx)
+    else:
+        st.info("No completed activities yet. Keep going!")

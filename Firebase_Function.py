@@ -1,13 +1,14 @@
 '''
 FIREBASE STORAGE AND RETRIEVAL + FIREAUTH
 '''
+
 import streamlit as st
 import firebase_admin
 from firebase_admin import credentials, firestore
 import hashlib
 import secrets
 
-# db variable for Firebase
+# db (database) variable for Firebase
 db = None
 
 def init_firebase():
@@ -18,12 +19,12 @@ def init_firebase():
         # Check if already initialised
         firebase_admin.get_app()
     except ValueError:
-        # JSON File (for vscode)
+        # don
         try:
             cred = credentials.Certificate('firebase-credentials.json')
             firebase_admin.initialize_app(cred)
         except FileNotFoundError:
-            # STREAMLIT Secrets folder for Firebase info
+            # STREAMLIT secrets folder for Firebase Creds
             cred_dict = {
                 "type": st.secrets["firebase"]["type"],
                 "project_id": st.secrets["firebase"]["project_id"],
@@ -36,7 +37,7 @@ def init_firebase():
                 "auth_provider_x509_cert_url": st.secrets["firebase"]["auth_provider_x509_cert_url"],
                 "client_x509_cert_url": st.secrets["firebase"]["client_x509_cert_url"]
             }
-            cred = credentials.Certificate(cred_dict)
+            cred = credentials.Certificate(cred_dict) # obtain credentials
 
             firebase_admin.initialize_app(cred)
     
@@ -49,7 +50,7 @@ def init_firebase():
 # ==================== AUTHENTICATION ====================
 
 def hash_password(password, salt=None):
-    """Hashing passwords for security"""
+    """Password Hasher (for storage purposes)"""
     if salt is None:
         salt = secrets.token_hex(32)
 
@@ -58,10 +59,12 @@ def hash_password(password, salt=None):
 
 def verify_password(stored_hash, stored_salt, password):
     """Verify a password against stored hash"""
+    
     hashed, _ = hash_password(password, stored_salt)
+
     return hashed == stored_hash
 
-def create_user(username, password, email=None):
+def create_user(username, password, email=None): 
     """Create a new user account"""
     global db
     if db is None:
@@ -83,9 +86,9 @@ def create_user(username, password, email=None):
             'username': username,
             'email': email,
             'password_hash': password_hash,
-            'salt': salt,
+            'salt': salt, # id
             'created_at': firestore.SERVER_TIMESTAMP,
-            'tutorial_completed': False
+            'tutorial_completed': False # for future use
         }
         
         doc_ref = users_ref.add(user_data)
@@ -101,7 +104,7 @@ def create_user(username, password, email=None):
         return {"success": False, "message": f"Error creating account: {str(e)}"}
 
 def authenticate_user(username, password):
-    """Authenticate a user with username and password"""
+    """Sign-in a user with username and password"""
     global db
     if db is None:
         db = init_firebase()
@@ -211,12 +214,13 @@ def save_to_firebase(user_id, data_type, data):
         doc_ref = db.collection('users').document(user_id).collection(data_type).document('current')
         doc_ref.set({'data': data, 'updated_at': firestore.SERVER_TIMESTAMP})
         return True
+    
     except Exception as e:
         st.error(f"Error saving to Firebase: {e}")
         return False
 
 def load_from_firebase(user_id, data_type):
-    """Load data from Firebase of a certain data type"""
+    """Load data from Firebase of a certain key / data_type"""
     global db
     if db is None:
         db = init_firebase()
@@ -232,7 +236,7 @@ def load_from_firebase(user_id, data_type):
         return None
 
 def save_timetable_snapshot(user_id, timetable, activities, events):
-    """Saving a Timetable inside timetable_history"""
+    """Saving a Timetable Snapshot inside timetable_history"""
     global db
     if db is None:
         db = init_firebase()
@@ -246,12 +250,13 @@ def save_timetable_snapshot(user_id, timetable, activities, events):
         }
         db.collection('users').document(user_id).collection('timetable_history').add(snapshot_data)
         return True
+    
     except Exception as e:
         st.error(f"Error saving snapshot: {e}")
         return False
 
 def get_timetable_history(user_id, limit=10):
-    """Retrieving Timetable History"""
+    """Retrieving Timetable Snapshot History"""
     global db
     if db is None:
         db = init_firebase()
@@ -262,6 +267,7 @@ def get_timetable_history(user_id, limit=10):
             .limit(limit)\
             .stream()
         return [{'id': doc.id, **doc.to_dict()} for doc in docs]
+    
     except Exception as e:
         st.error(f"Error loading history: {e}")
         return []

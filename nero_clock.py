@@ -7,8 +7,6 @@ it makes the entire app basically unusable. This file is the code to allow the a
 import streamlit as st
 from datetime import datetime
 import pytz
-import asyncio
-import nest_asyncio
 from streamlit_autorefresh import st_autorefresh
 
 def show_live_clock(timezone_str="Asia/Singapore"):

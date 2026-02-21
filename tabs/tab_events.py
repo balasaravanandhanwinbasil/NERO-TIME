@@ -1,6 +1,7 @@
 """
 NERO-Time - EVENTS + SCHEDULE TAB
 """
+
 import streamlit as st
 from datetime import datetime
 from nero_logic import NeroTimeLogic
@@ -8,22 +9,24 @@ from Timetable_Generation import WEEKDAY_NAMES
 
 
 def ui_events_tab():
-    """Render the Events & Recurring Schedule tab content."""
-    st.header("Events & Recurring Schedule")
+    """UI for events and schedule tab"""
 
-    _render_add_event_form()
+    st.header("Events & Recurring Schedule", help="This tab is where you can manage your one-time events and recurring schedules. Add new events/schedules, view existing ones, and delete them as needed.")
 
-    st.divider()
-
-    _render_recurring_schedules()
+    _render_add_event_form() # ui for adding events
 
     st.divider()
 
-    _render_one_time_events()
+    _render_recurring_schedules() # ui for repeating schedules
+
+    st.divider()
+
+    _render_one_time_events() # ui for one-time events
 
 
 def _render_add_event_form():
-    """Render the Add Event/Schedule expander form."""
+    """Add Event/Schedule expander form."""
+
     with st.expander("➕ Add Event/Schedule", expanded=False):
         event_name = st.text_input("Name", key="event_name")
 
@@ -35,6 +38,7 @@ def _render_add_event_form():
         )
 
         col1, col2 = st.columns(2)
+
         with col1:
             start_t = st.time_input("Start", key="event_start_time")
         with col2:
@@ -56,17 +60,13 @@ def _render_add_event_form():
                         start_t.strftime("%H:%M"),
                         end_t.strftime("%H:%M")
                     )
+
                 else:
-                    recurrence_map = {
-                        "Weekly": "weekly",
-                        "Bi-weekly": "bi-weekly",
-                        "Monthly": "monthly"
-                    }
                     result = NeroTimeLogic.add_recurring_event(
                         event_name,
                         start_t.strftime("%H:%M"),
                         end_t.strftime("%H:%M"),
-                        recurrence_map[recurrence_type],
+                        recurrence_type.lower(),
                         selected_days,
                         event_date.isoformat() if event_date else None
                     )
@@ -79,18 +79,20 @@ def _render_add_event_form():
 
 
 def _render_recurring_schedules():
-    """Render the Recurring Schedules section."""
+    """Recurring schedules section."""
+
     st.markdown("### 📅 Recurring Schedules")
     school_data = NeroTimeLogic.get_school_schedule()
 
     if school_data['schedule']:
         for day in WEEKDAY_NAMES:
             if day in school_data['schedule']:
-                with st.expander(f"{day} ({len(school_data['schedule'][day])} slots)"):
+                with st.expander(f"{day} ({len(school_data['schedule'][day])} event{"" if len(school_data["schedule"][day]) == 1 else "s"})"):
                     for idx, cls in enumerate(school_data['schedule'][day]):
                         col1, col2 = st.columns([4, 1])
                         with col1:
                             recurrence_badge = cls.get('recurrence', 'weekly').title()
+
                             st.write(f"**{cls['subject']}** ({recurrence_badge})")
                             st.caption(f"{cls['start_time']} - {cls['end_time']}")
                         with col2:
@@ -104,11 +106,13 @@ def _render_recurring_schedules():
 
 def _render_one_time_events():
     """Render the One-time Events section."""
+    
     st.markdown("### 📌 One-time Events")
     events_data = NeroTimeLogic.get_events_data()
 
     if events_data['events']:
-        for idx, evt in enumerate(events_data['events']):
+        for idx, evt in enumerate(events_data['events']): # index and event name for each event
+
             with st.expander(f"{idx+1}. {evt['event']} - {evt['day']}"):
                 st.write(f"{evt['start_time']} - {evt['end_time']}")
                 if st.button("Delete", key=f"del_event_{idx}_{evt['event']}"):

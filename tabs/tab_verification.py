@@ -11,12 +11,12 @@ from nero_logic import NeroTimeLogic
 
 
 def ui_verification_tab():
-    """Render the Verification tab — a TODO list of finished sessions."""
+    """Render the Verification tab"""
   
     st.header("✅ Session Verification")
     st.caption(
         "Mark each finished session as **done** or **not done**. "
-        "Sessions marked ❌ will be rescheduled next time you generate the timetable."
+        "Sessions marked ❌ (skipped) will be rescheduled again next time you generate the timetable."
     )
 
     finished = NeroTimeLogic.get_finished_sessions()
@@ -41,8 +41,9 @@ def ui_verification_tab():
 
 
 def _render_session_group(sessions: list):
-    """Render a list of finished-session rows, grouped by activity name."""
+    """finished sessions grouped by activity"""
     by_activity: dict = {}
+
     for s in sessions:
         act = s.get('activity_name', 'Unknown')
         by_activity.setdefault(act, []).append(s)
@@ -62,7 +63,7 @@ def _render_session_group(sessions: list):
 
             # Status icon
             if not is_verified:
-                left_icon = "⬜"
+                left_icon = "⚫️"
             elif is_completed:
                 left_icon = "✅"
             else:

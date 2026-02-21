@@ -1,3 +1,9 @@
+"""
+NERO-TIME'S HTML theme to be used by streamlit
+
+Our theme colours are pink, red and purple.
+"""
+
 css_scheme = """
 <style>
 /* --------------------------------------------------

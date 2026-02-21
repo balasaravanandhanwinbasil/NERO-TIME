@@ -268,3 +268,10 @@ Fixed one-time/weekly/bi-weekly/monthly events that block out timetable slots.
        Absent on one-time events added via add_event().
 }
 
+
+st.session_state.school_schedule = dict of lists ["day_name": []], where day_name is MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY
+for each day_name: 
+    'subject':    name,
+    'start_time': start_time,
+    'end_time':   end_time,
+    'recurrence': recurrence_type

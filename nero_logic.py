@@ -5,11 +5,12 @@ NERO-Time BACKEND LOGIC
 import streamlit as st
 from datetime import datetime, timedelta
 from typing import Dict, List
-import pytz
-from Firebase_Function import save_to_firebase, load_from_firebase, save_timetable_snapshot
+from Firebase_Function import save_to_firebase
 from Timetable_Generation import (
-    time_str_to_minutes, minutes_to_time_str,
-    WEEKDAY_NAMES, get_month_days, get_timetable_view
+    time_str_to_minutes,
+    WEEKDAY_NAMES, 
+    get_month_days,
+    get_timetable_view
 )
 
 
@@ -20,10 +21,11 @@ def round_to_15_minutes(minutes: int) -> int:
 class NeroTimeLogic:
     """Backend logic for NERO-Time."""
 
-    # ── Initialisation ─────────────────────────────────────────────────────────
+    # ==== Initialisation ====
 
     @staticmethod
     def initialize_session_state():
+        # NOTE: readme.txt for elaboration on each of these variables.
         defaults = {
             'user_id':             None,
             'username':            None,
@@ -34,40 +36,40 @@ class NeroTimeLogic:
             'current_month':       datetime.now().month,
             'event_filter':        'weekly',
 
-            # Timetable: fixed events only (SCHOOL / COMPULSORY)
+            # Timetable (to display)
             'timetable':           {},
 
-            # Unified session store
+            # ALL sessions 
             'sessions':            {},
 
-            # Activity metadata (no embedded sessions)
+            # Activity metadata 
             'list_of_activities':  [],
 
-            'list_of_compulsory_events': [],
             'school_schedule':     {},
             'timetable_warnings':  [],
-            'work_start_minutes':  6 * 60,        # 06:00
-            'work_end_minutes':    23 * 60 + 30,  # 23:30
+            'work_start_minutes':  7 * 60,        # 07:00
+            'work_end_minutes':    22 * 60 + 30,  # 22:30
         }
+
+        # place the variables inside sessions_state so that it saves on each reload.
         for key, value in defaults.items():
             if key not in st.session_state:
                 st.session_state[key] = value
 
-    # ── Firebase load / save helpers ───────────────────────────────────────────
-
+    # === Firebase load / Save (USE EVERYTIME YOU CHANGE SESSION_STATE) ===
     @staticmethod
     def _save(data_type: str, data):
         if st.session_state.user_id:
             save_to_firebase(st.session_state.user_id, data_type, data)
 
-    # ── Session expiry check ───────────────────────────────────────────────────
 
+    # === SESSION EXPIRY CHECK ===
     @staticmethod
     def check_expired_sessions():
         """
         Mark sessions as is_finished when their end time has passed.
-        Reads/writes st.session_state.sessions directly.
-        No separate finished_sessions list needed — filter sessions instead.
+        Reads/writes to st.session_state.sessions directly. (is_finished = True, or is_finished = False)
+        Runs on every load.
         """
         now = datetime.now()
 
@@ -77,34 +79,38 @@ class NeroTimeLogic:
 
             scheduled_date_str = session.get('scheduled_date')
             scheduled_time_str = session.get('scheduled_time')
+
             if not scheduled_date_str or not scheduled_time_str:
                 continue
 
-            try:
+            try: # find end datetime in order to check if it is more than current date to see if it is is finishd
                 scheduled_date = datetime.fromisoformat(scheduled_date_str).date()
                 start_dt = datetime.combine(
                     scheduled_date,
                     datetime.strptime(scheduled_time_str, "%H:%M").time()
                 )
+
                 end_dt = start_dt + timedelta(minutes=session.get('duration_minutes', 0))
+
                 session['is_finished'] = (end_dt <= now)
+
             except Exception:
                 pass
 
         NeroTimeLogic._save('sessions', st.session_state.sessions)
 
-    # ── Dashboard data ─────────────────────────────────────────────────────────
-
+    # === Dashboard data ===
     @staticmethod
-    def get_dashboard_data() -> Dict:
+    def get_dashboard_data() -> Dict: # used in tab_dashboard.py for the ui
         """Return all data needed for the dashboard tab."""
+
         month_days = get_month_days(
             st.session_state.current_year,
             st.session_state.current_month
         )
         current_day, current_time = NeroTimeLogic._get_current_time_slot()
 
-        # Build timetable view (fixed events + activity sessions merged)
+        # Build timetable view using function
         timetable_view = get_timetable_view()
 
         return {
@@ -118,11 +124,11 @@ class NeroTimeLogic:
             "current_time": current_time,
         }
 
-    # ── Activities data ────────────────────────────────────────────────────────
-
+    # === Activities Data ===
     @staticmethod
     def get_activities_data() -> Dict:
-        """Return activities with live-computed progress and their sessions."""
+        """Returns the activities data, with all values computed and with all sessions inside"""
+
         enriched = []
         for activity in st.session_state.list_of_activities:
             name = activity['activity']
@@ -137,8 +143,8 @@ class NeroTimeLogic:
             )
             total_hours = activity['timing']
 
-            enriched.append({
-                **activity,
+            enriched.append({ # this adds all the sessions for the respective activity into the dict to be used
+                **activity, 
                 'sessions':  act_sessions,
                 'progress': {
                     'completed':   completed_hours,
@@ -149,16 +155,17 @@ class NeroTimeLogic:
 
         return {"activities": enriched}
 
-    # ── Finished / pending verification helpers ────────────────────────────────
-
+    # === Verification Helpers ===
     @staticmethod
     def get_finished_sessions() -> List[Dict]:
         """Return all sessions where is_finished=True (time has passed)."""
+
         return [s for s in st.session_state.sessions.values() if s.get('is_finished', False)]
 
     @staticmethod
     def get_pending_verification() -> List[Dict]:
         """Finished sessions not yet verified (neither completed nor skipped)."""
+
         return [
             s for s in st.session_state.sessions.values()
             if s.get('is_finished', False)
@@ -169,17 +176,19 @@ class NeroTimeLogic:
     @staticmethod
     def get_reviewed_sessions() -> List[Dict]:
         """Finished sessions that have been verified (completed or skipped)."""
+
         return [
             s for s in st.session_state.sessions.values()
             if s.get('is_finished', False)
             and (s.get('is_completed', False) or s.get('is_skipped', False))
         ]
 
-    # ── Verification ──────────────────────────────────────────────────────────
+    # === Session Verification ===
 
     @staticmethod
     def verify_finished_session(session_id: str, verified: bool) -> Dict:
         """Mark a finished session as completed (True) or skipped (False)."""
+
         session = st.session_state.sessions.get(session_id)
         if not session:
             return {"success": False, "message": "Session not found"}
@@ -187,10 +196,11 @@ class NeroTimeLogic:
         session['is_completed'] = verified
         session['is_skipped']   = not verified
 
-        NeroTimeLogic._save('sessions', st.session_state.sessions)
+        NeroTimeLogic._save('sessions', st.session_state.sessions) # saves the data in the session_state
+
         return {"success": True, "message": "Session verified"}
 
-    # ── Events / schedules data ────────────────────────────────────────────────
+    # === Events/Schedules Data ===
 
     @staticmethod
     def get_events_data() -> Dict:
@@ -204,27 +214,37 @@ class NeroTimeLogic:
     def get_school_schedule() -> Dict:
         return {"schedule": st.session_state.school_schedule}
 
-    # ── Activity CRUD ──────────────────────────────────────────────────────────
+    # === Activity Manipulation (Creating, Deleting, Reading, Updating) ===
 
     @staticmethod
-    def add_activity(name: str, priority: int, deadline_date: str, total_hours: int,
-                     min_session: int = 30, max_session: int = 120,
-                     allowed_days: List[str] = None,
-                     session_mode: str = "automatic") -> Dict:
+    def add_activity(
+        name: str, 
+        priority: int, 
+        deadline_date: str, 
+        total_hours: int,
+        min_session: int = 30, max_session: int = 120,
+        allowed_days: List[str] = None,
+        session_mode: str = "automatic"
+        ) -> Dict:
+        """Adds an Activity based on the inputs in the UI."""
+
         try:
             if not name:
                 return {"success": False, "message": "Activity name is required"}
-            for i in range(len(st.session_state.list_of_activities)):
+            
+            for i in range(len(st.session_state.list_of_activities)): # checks activities to ensure name isn't repeated. 
                 if name in st.session_state.list_of_activities[i]['activity']:
                     return {"success": False, "message": "Activity name is cannot be the same as a previous activity name"}
 
-            deadline_dt = datetime.fromisoformat(deadline_date)
+            deadline_dt = datetime.fromisoformat(deadline_date) # converts to e.g 2026-03-01 00:00:00 in order to calculate deadline.
             today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
             days_left = (deadline_dt.replace(hour=0, minute=0, second=0, microsecond=0) - today).days
 
-            min_session = int(round_to_15_minutes(min_session))
-            max_session = int(round_to_15_minutes(max_session))
+            min_session = int(round_to_15_minutes(min_session)) # minimum session timings (in min, to nearest 15 minutes.)
+            max_session = int(round_to_15_minutes(max_session)) # maxing session timings (in min, to nearest 15 minutes.)
 
+            # storing the values inside the session_state for activities (st.session_state.list_of_activities) for automtic generation.
             new_activity = {
                 "activity":            name,
                 "priority":            priority,
@@ -239,20 +259,23 @@ class NeroTimeLogic:
 
             st.session_state.list_of_activities.append(new_activity)
             NeroTimeLogic._save('activities', st.session_state.list_of_activities)
+
             return {"success": True, "message": f"Activity '{name}' added"}
         except Exception as e:
             return {"success": False, "message": f"Error: {e}"}
 
     @staticmethod
     def delete_activity(index: int) -> Dict:
+        """Deletes an activity at a certain index."""
+
         try:
-            if not (0 <= index < len(st.session_state.list_of_activities)):
+            if not (0 <= index < len(st.session_state.list_of_activities)): # input validation to ensure valid value
                 return {"success": False, "message": "Invalid activity index"}
 
             activity_name = st.session_state.list_of_activities[index]['activity']
-            st.session_state.list_of_activities.pop(index)
+            st.session_state.list_of_activities.pop(index) # remove activity from session_state.list_of_activities
 
-            # Remove all sessions belonging to this activity
+            # remove all sessions of the activity from session_state.sessions
             to_remove = [
                 sid for sid, s in st.session_state.sessions.items()
                 if s['activity_name'] == activity_name
@@ -262,6 +285,7 @@ class NeroTimeLogic:
 
             NeroTimeLogic._save('activities', st.session_state.list_of_activities)
             NeroTimeLogic._save('sessions',   st.session_state.sessions)
+
             return {"success": True, "message": f"Activity '{activity_name}' deleted"}
         except Exception as e:
             return {"success": False, "message": f"Error: {e}"}
@@ -273,11 +297,12 @@ class NeroTimeLogic:
             to_remove = [
                 sid for sid, s in st.session_state.sessions.items()
                 if s['activity_name'] == activity_name
-            ]
-            for sid in to_remove:
-                del st.session_state.sessions[sid]
+            ] # get id of all the sessions inside the session state
 
-            # Reset num_sessions on the metadata
+            for sid in to_remove:
+                del st.session_state.sessions[sid] # remove each of the elements using the id.
+
+            # Reset num_sessions on list_of_activities back to zero
             for activity in st.session_state.list_of_activities:
                 if activity['activity'] == activity_name:
                     activity['num_sessions'] = 0
@@ -285,29 +310,35 @@ class NeroTimeLogic:
 
             NeroTimeLogic._save('sessions',   st.session_state.sessions)
             NeroTimeLogic._save('activities', st.session_state.list_of_activities)
+
             return {"success": True, "message": f"Sessions cleared for '{activity_name}'"}
+        
         except Exception as e:
             return {"success": False, "message": f"Error: {e}"}
 
-    # ── Manual session management ──────────────────────────────────────────────
-
+    # === Manual Session Management ===
     @staticmethod
-    def add_manual_session(activity_name: str, duration_minutes: int,
-                           day_of_week: str = None) -> Dict:
-        """Add an unscheduled manual session (placed by next timetable generation)."""
+    def add_manual_session(
+        activity_name: str, 
+        duration_minutes: int,
+        day_of_week: str = None
+        ) -> Dict:
+        """Add an unscheduled manual session (placed by next timetable generation)"""
         try:
             activity = next(
                 (a for a in st.session_state.list_of_activities if a['activity'] == activity_name),
                 None
             )
+            # input validation
             if not activity:
-                return {"success": False, "message": "Activity not found"}
+                return {"success": False, "message": "Activity not found!"}
             if activity.get('session_mode') != 'manual':
-                return {"success": False, "message": "Activity is not in manual mode"}
-
+                return {"success": False, "message": "Activity is not in manual mode!"}
+            
+            # duration of session
             duration_minutes = int(round_to_15_minutes(duration_minutes))
 
-            # Next session number for this activity
+            # get the session number for this activity by looking at existing_nums
             existing_nums = [
                 s['session_num'] for s in st.session_state.sessions.values()
                 if s['activity_name'] == activity_name
@@ -374,10 +405,12 @@ class NeroTimeLogic:
         except Exception as e:
             return {"success": False, "message": f"Error: {e}"}
 
-    # ── Events CRUD ────────────────────────────────────────────────────────────
+    # === Events Manipulation (Creating, Deleting, Reading, Updating) ===
 
     @staticmethod
     def add_event(name: str, event_date: str, start_time: str, end_time: str) -> Dict:
+        """Add one-time events using this function."""
+
         try:
             if not name:
                 return {"success": False, "message": "Event name is required"}
@@ -389,6 +422,7 @@ class NeroTimeLogic:
             day_name    = WEEKDAY_NAMES[event_dt.weekday()]
             day_display = f"{day_name} {event_dt.strftime('%d/%m')}"
 
+            # add to list_of_compulsory_events session_state
             st.session_state.list_of_compulsory_events.append({
                 "event":      name,
                 "start_time": start_time,
@@ -396,8 +430,10 @@ class NeroTimeLogic:
                 "day":        day_display,
                 "date":       event_dt.isoformat(),
             })
+
             NeroTimeLogic._save('events', st.session_state.list_of_compulsory_events)
             return {"success": True, "message": f"Event '{name}' added"}
+        
         except Exception as e:
             return {"success": False, "message": f"Error: {e}"}
 
@@ -405,34 +441,41 @@ class NeroTimeLogic:
     def add_recurring_event(name: str, start_time: str, end_time: str,
                             recurrence_type: str, days: List[str] = None,
                             start_date: str = None) -> Dict:
+        """Add all recurring events using this function."""
+
         try:
             if not name:
                 return {"success": False, "message": "Event name is required"}
             if time_str_to_minutes(end_time) <= time_str_to_minutes(start_time):
                 return {"success": False, "message": "End time must be after start time"}
 
-            if recurrence_type in ["weekly", "bi-weekly"]:
+            if recurrence_type in ["weekly", "bi-weekly"]: # put in the recurring events into the session_state.school_schedule (for all weekly / bi-weekly events)
                 if not days:
                     return {"success": False, "message": "Days required for weekly/bi-weekly events"}
+                
                 for day_name in days:
                     if day_name not in WEEKDAY_NAMES:
                         continue
+
                     st.session_state.school_schedule.setdefault(day_name, []).append({
                         'subject':    name,
                         'start_time': start_time,
                         'end_time':   end_time,
                         'recurrence': recurrence_type,
                     })
+
                     st.session_state.school_schedule[day_name].sort(
                         key=lambda x: time_str_to_minutes(x['start_time'])
                     )
 
-            elif recurrence_type == "monthly":
+            elif recurrence_type == "monthly": # if monthly, can just place it inside list_of_compulsory_events but with recurrence set to monthly
                 if not start_date:
                     return {"success": False, "message": "Start date required for monthly events"}
+                
                 event_dt    = datetime.fromisoformat(start_date)
                 day_name    = WEEKDAY_NAMES[event_dt.weekday()]
                 day_display = f"{day_name} {event_dt.strftime('%d/%m')}"
+
                 st.session_state.list_of_compulsory_events.append({
                     "event":      name,
                     "start_time": start_time,
@@ -441,59 +484,80 @@ class NeroTimeLogic:
                     "date":       event_dt.isoformat(),
                     "recurrence": "monthly",
                 })
+
                 NeroTimeLogic._save('events', st.session_state.list_of_compulsory_events)
 
             NeroTimeLogic._save('school_schedule', st.session_state.school_schedule)
+
             return {"success": True, "message": f"Recurring event '{name}' added"}
         except Exception as e:
             return {"success": False, "message": f"Error: {e}"}
 
     @staticmethod
     def delete_event(index: int) -> Dict:
+        """"Deletes an one-time event/monthly event, based on the index given."""
+
         try:
+            # input validation (if index is above length)
             if not (0 <= index < len(st.session_state.list_of_compulsory_events)):
                 return {"success": False, "message": "Invalid event index"}
+            
+            # delete the event from list of compulsory events.
             name = st.session_state.list_of_compulsory_events[index]['event']
             st.session_state.list_of_compulsory_events.pop(index)
             NeroTimeLogic._save('events', st.session_state.list_of_compulsory_events)
+
             return {"success": True, "message": f"Event '{name}' deleted"}
         except Exception as e:
             return {"success": False, "message": f"Error: {e}"}
 
     @staticmethod
     def delete_school_schedule(day_name: str, index: int) -> Dict:
+        """Deletes a recurring event, based on the index given."""
         try:
             schedule = st.session_state.school_schedule
-            if day_name in schedule and 0 <= index < len(schedule[day_name]):
+
+            if day_name in schedule and 0 <= index < len(schedule[day_name]):  #input validation
                 schedule[day_name].pop(index)
                 if not schedule[day_name]:
                     del schedule[day_name]
+
                 NeroTimeLogic._save('school_schedule', schedule)
+
                 return {"success": True, "message": "Schedule deleted"}
+            
             return {"success": False, "message": "Schedule not found"}
+        
         except Exception as e:
             return {"success": False, "message": f"Error: {e}"}
 
-    # ── Timetable generation ───────────────────────────────────────────────────
+    # === TIMETABLE GENERATION ===
 
     @staticmethod
     def generate_timetable() -> Dict:
+        """Calls generate_timetable_with_sessions and returns the output, which is a Dict."""
+
         try:
-            from Timetable_Generation import generate_timetable_with_sessions
+            from Timetable_Generation import generate_timetable_with_sessions 
+
             result = generate_timetable_with_sessions(
                 st.session_state.current_year,
                 st.session_state.current_month
             )
+
             if result.get('success', True):
                 return {"success": True, "message": "Timetable generated successfully"}
+            
             return {"success": False, "message": result.get('message', 'Generation failed')}
+        
         except Exception as e:
             return {"success": False, "message": f"Error: {e}"}
 
-    # ── Month navigation ───────────────────────────────────────────────────────
+    # === Month Navigation ===
 
     @staticmethod
     def navigate_month(direction: str) -> Dict:
+        """Changes current_month, current_year based on <prev next> navigation in the dashboard"""
         try:
             if direction == "prev":
                 if st.session_state.current_month == 1:
@@ -514,14 +578,17 @@ class NeroTimeLogic:
 
             NeroTimeLogic._save('current_month', st.session_state.current_month)
             NeroTimeLogic._save('current_year',  st.session_state.current_year)
+
             return {"success": True}
+        
         except Exception as e:
             return {"success": False, "message": f"Error: {e}"}
 
-    # ── Data management ────────────────────────────────────────────────────────
+    # === Data management ===
 
     @staticmethod
     def clear_all_data() -> Dict:
+        """Resets all Data back to Zero"""
         try:
             st.session_state.list_of_activities         = []
             st.session_state.list_of_compulsory_events  = []
@@ -537,11 +604,13 @@ class NeroTimeLogic:
         except Exception as e:
             return {"success": False, "message": f"Error: {e}"}
 
-    # ── Internal helpers ───────────────────────────────────────────────────────
+    # === Internal helpers (gets the current time in hours) ===
 
     @staticmethod
     def _get_current_time_slot():
-        now         = datetime.now()
-        day_name    = WEEKDAY_NAMES[now.weekday()]
-        current_day = f"{day_name} {now.strftime('%d/%m')}"
-        return current_day, now.strftime("%H:%M")
+        now         = datetime.now() 
+        
+        day_name    = WEEKDAY_NAMES[now.weekday()] # gets the name of the day
+        current_day = f"{day_name} {now.strftime('%d/%m')}" # Example: "Saturday 21/02"
+
+        return current_day, now.strftime("%H:%M") # Output Example: "Saturday 21/02", "15:42"

@@ -6,9 +6,10 @@ from datetime import time as dtime
 from nero_logic import NeroTimeLogic
 
 
-# ── Defaults (must match Timetable_Generation fallbacks) ──────────────────────
-_DEFAULT_WORK_START = 6 * 60        # 06:00 in minutes
-_DEFAULT_WORK_END   = 23 * 60 + 30  # 23:30 in minutes
+# ===== Defaults (must be same as timetable generation) =====
+
+_DEFAULT_WORK_START = 7 * 60        # 07:00 in minutes form
+_DEFAULT_WORK_END   = 23 * 60 + 30  # 23:30 in minutes form
 
 
 def ui_settings_tab():
@@ -27,7 +28,7 @@ def ui_settings_tab():
     _render_data_management()
 
 
-# ── Account info ───────────────────────────────────────────────────────────────
+# === ACOUNT INFO === 
 
 def _render_account_info():
     st.markdown("### 👤 Account Information")
@@ -40,7 +41,7 @@ def _render_account_info():
         st.write(f"**Email:** {email if email else 'Not set'}")
 
 
-# ── Schedule hours + sleep warnings ───────────────────────────────────────────
+# === Schedule Hours + Sleep Warnings ===
 
 def _render_schedule_hours():
     """Editable wake/sleep times with real-time sleep-health warnings."""
@@ -54,7 +55,7 @@ def _render_schedule_hours():
     current_start = st.session_state.get('work_start_minutes', _DEFAULT_WORK_START)
     current_end   = st.session_state.get('work_end_minutes',   _DEFAULT_WORK_END)
 
-    start_h, start_m = divmod(current_start, 60)
+    start_h, start_m = divmod(current_start, 60) # use divmod to convert minutes to hours and minuts
     end_h,   end_m   = divmod(current_end,   60)
 
     col1, col2 = st.columns(2)
@@ -72,13 +73,13 @@ def _render_schedule_hours():
             value=dtime(end_h, end_m),
             step=900,
             key="setting_sleep_time",
-            help="Latest time a session may END (sessions won't be placed after this)"
+            help="Latest time a session may end."
         )
 
     wake_minutes  = wake_time.hour  * 60 + wake_time.minute
     sleep_minutes = sleep_time.hour * 60 + sleep_time.minute
 
-    # ── Sleep-health warnings ──────────────────────────────────────────────────
+    # === WARNINGS ===
     available_hours = (sleep_minutes - wake_minutes) / 60 if sleep_minutes > wake_minutes else 0
     sleep_hours     = 24 - available_hours  # sleep duration
 
@@ -87,23 +88,23 @@ def _render_schedule_hours():
     if sleep_time.hour > 23 or (sleep_time.hour == 23 and sleep_time.minute > 30):
         st.warning(
             "⚠️ **Late bedtime detected** — your day ends after 23:30. "
-            "Working this late may hurt your sleep quality and focus."
+            "Working this late may hurt your focus and sleep quality."
         )
         warnings_shown = True
 
     if wake_time.hour >= 10:
         st.warning(
-            f"⚠️ **Late wake-up detected** — waking at {wake_time.strftime('%H:%M')} "
+            f"⚠️ **Late wake-up detected** — starting at {wake_time.strftime('%H:%M')} "
             "This may impact your day's productivity. Set it atleast before 10:00 for best results!"
         )
         warnings_shown = True
 
     if sleep_hours < 8 and available_hours > 0:
         st.error(
-            f"❌ **Insufficient sleep** — your schedule implies only "
+            f"❌ **Insufficient sleep** — Y our schedule implies only "
             f"**{sleep_hours:.1f} hours** of sleep "
             f"({wake_time.strftime('%H:%M')} wake · {sleep_time.strftime('%H:%M')} bed). "
-            "Aim for at least 8 hours of sleep for a healthy lifestyle please!"
+            "Aim for at least 8 hours of sleep for a healthy lifestyle."
         )
         warnings_shown = True
     elif sleep_hours >= 8 and not warnings_shown:
@@ -114,14 +115,14 @@ def _render_schedule_hours():
 
     if sleep_minutes <= wake_minutes:
         st.error("❌ Bedtime must be later than wake-up time.")
-        return  # Don't save invalid values
+        return 
 
-    # ── Save button ────────────────────────────────────────────────────────────
+    # === SAVE BUTTON ===
     if st.button("💾 Save Schedule Hours", type="primary", key="btn_save_hours"):
         st.session_state.work_start_minutes = wake_minutes
         st.session_state.work_end_minutes   = sleep_minutes
 
-        # Persist to Firebase so the settings survive refresh
+        # send to firebase
         if st.session_state.user_id:
             from Firebase_Function import save_to_firebase
             save_to_firebase(st.session_state.user_id, 'work_start_minutes', wake_minutes)
@@ -135,12 +136,10 @@ def _render_schedule_hours():
         st.caption("Regenerate your timetable for changes to apply.")
 
 
-# ── Change password ────────────────────────────────────────────────────────────
+# === CHANGE PASSWORD ===
 
 def _render_change_password():
-    st.markdown("### 🔐 Change Password")
-
-    with st.expander("Change your password", expanded=False):
+    with st.expander("🔐 Change your password", expanded=False):
         with st.form(key="change_password_form"):
             old_password         = st.text_input("Current Password", type="password", key="old_password")
             new_password         = st.text_input("New Password", type="password", key="new_password",

@@ -5,7 +5,7 @@ import streamlit as st
 
 
 def ui_achievements_tab(total_hours_completed: float, total_activities: int):
-    """Render the Achievements tab content.
+    """UI for achievements tab
 
     INPUTS:
         total_hours_completed: Total hours completed across all activities.
@@ -17,124 +17,114 @@ def ui_achievements_tab(total_hours_completed: float, total_activities: int):
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        Badge = _render_badge(
-            condition=total_hours_completed >= 0,
-            icon="✅",
-            unlock_label="UNLOCKED 🔓",
-            locked_msg=f"Please obtain {int(abs(0 - total_hours_completed))}h to obtain this badge.",
-            description=f"You Just started. Achieve: {total_hours_completed:.1f}/0 hours to get this badge",
+        Badge = badge(
+            condition=total_hours_completed >= 1,
+            icon="⏰",
+            unlock_label="Your quest has just begun.",
+            locked_msg=f"Complete {1}h of work to obtain this badge.",
+            description=f"{min(total_hours_completed, 1):.1f}/1.0 hours completed",
             badge_count=Badge
         )
 
-        Badge = _render_badge(
+        Badge = badge(
             condition=total_activities >= 5,
             icon="💼",
-            unlock_label="UNLOCKED 🔓",
-            locked_msg=f"Please obtain {int(5 - total_activities)} more activites to obtain this badge.",
-            description=f"My first assignments! Achieve: {total_activities}/5 activites to get this badge",
+            unlock_label="Pawn of Assignments",
+            locked_msg=f"To begin timing, one must first take on the task.",
+            description=f"{min(total_activities, 5)}/5 activities",
             badge_count=Badge
         )
 
-        Badge = _render_badge(
+        Badge = badge(
             condition=Badge >= 3,
             icon="🏆",
-            unlock_label="UNLOCKED 🔓",
-            locked_msg=f"Please obtain {int(3 - Badge)} more badges to obtain this badge.",
-            description=f"My first achievements! Achieve: {Badge}/3 Badges to get this badge",
+            unlock_label="Badge Collector |",
+            locked_msg=f"To achieve greater heights, one must start from someething smaller.",
+            description=f"{min(Badge, 3)}/3 Badges",
             badge_count=Badge
         )
 
     with col2:
-        Badge = _render_badge(
+        Badge = badge(
             condition=total_hours_completed >= 24,
             icon="📅",
-            unlock_label="UNLOCKED 🔓",
-            locked_msg=f"Please obtain {int(max(0, 24 - total_hours_completed))}h to obtain this badge.",
-            description=f"A day of work! Achieve: {total_hours_completed:.1f}/24 hours to get this badge",
+            unlock_label="Commitment",
+            locked_msg=f"A full day of work.",
+            description=f"{min(total_hours_completed, 24):.1f}/24 hours worth of activities",
             badge_count=Badge
         )
 
-        Badge = _render_badge(
+        Badge = badge(
             condition=total_activities >= 20,
             icon="💪",
-            unlock_label="UNLOCKED 🔓",
-            locked_msg=f"Please obtain {int(20 - total_activities)} more activites to obtain this badge.",
-            description=f"Schedule getting tough! Achieve: {total_activities}/20 activites to get this badge",
+            unlock_label="Assignment Knight",
+            locked_msg=f"Are you busy because you have a lot of assignments, or do you have a lot of assignments because you are busy?",
+            description=f"{min(total_activities, 20)}/20 activities",
             badge_count=Badge
         )
 
-        Badge = _render_badge(
+        Badge = badge(
             condition=Badge >= 5,
             icon="🎖️",
-            unlock_label="UNLOCKED 🔓",
-            locked_msg=f"Please obtain {int(5 - Badge)} more badges to obtain this badge.",
-            description=f"Wow! Acomplished! Achieve: {Badge}/5 Badges to get this badge",
+            unlock_label="Badge King",
+            locked_msg=f"To achieve the greatest heights, one must start from something medium.",
+            description=f"{min(Badge, 5)}/5 Badges",
             badge_count=Badge
         )
 
     with col3:
-        Badge = _render_badge(
+        Badge = badge(
             condition=total_hours_completed >= 168,
             icon="👍",
-            unlock_label="UNLOCKED 🔓",
-            locked_msg=f"Please obtain {int(max(0, 168 - total_hours_completed))}h to obtain this badge.",
-            description=f"Commitment! Achieve: {total_hours_completed:.1f}/168 hours to get this badge",
+            unlock_label="The Completionist",
+            locked_msg=f"A full week of work.",
+            description=f"{min(total_hours_completed, 168):.1f}/168 hours",
             badge_count=Badge
         )
 
-        Badge = _render_badge(
+        Badge = badge(
             condition=total_activities >= 50,
             icon="😓",
-            unlock_label="UNLOCKED 🔓",
-            locked_msg=f"Please obtain {int(50 - total_activities)} more activites to obtain this badge.",
-            description=f"Can you manage? Achieve: {total_activities}/50 activites to get this badge",
+            unlock_label="The Overachiever",
+            locked_msg=f"The achiever of all time",
+            description=f"{min(total_activities, 50)}/50 activities",
             badge_count=Badge
         )
 
-        _render_badge(
+        badge(
             condition=Badge >= 8,
             icon="🥳",
-            unlock_label="UNLOCKED 🔓",
-            locked_msg=f"Please obtain {int(8 - Badge)} more badges to obtain this badge.",
-            description=f"Collector, I see! Achieve: {Badge}/8 Badges to get this badge",
+            unlock_label="Badge Supreme King",
+            locked_msg=f"To achieve the top, one must finish them all.",
+            description=f"{min(Badge, 8)}/8 Badges",
             badge_count=Badge
         )
 
 
-def _render_badge(condition: bool, icon: str, unlock_label: str,
+def badge(condition: bool, icon: str, unlock_label: str,
                   locked_msg: str, description: str, badge_count: int) -> int:
-    """Render a single achievement badge and return updated badge count.
-
-    Args:
-        condition: Whether the badge has been unlocked.
-        icon: Emoji icon to display.
-        unlock_label: Label shown when unlocked.
-        locked_msg: Message shown when locked.
-        description: Progress description shown below the badge.
-        badge_count: Current badge count before this badge.
-
-    Returns:
-        Updated badge count (incremented by 1 if condition is True).
     """
-    if condition:
-        st.markdown(
-            f"<h1 style='text-align: center; font-size: 10rem; color: #FFFFFF;'>{icon}",
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #00FF00;'> {unlock_label}",
-            unsafe_allow_html=True
-        )
-        badge_count += 1
-    else:
-        st.markdown(
-            f"<h1 style='text-align: center; font-size: 10rem; color: #000000;'>❌",
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: #FF0000;'>{locked_msg}</h1>",
-            unsafe_allow_html=True
-        )
+    NOTE: This also returns the badge count if condition is fulfulled
+    """
 
-    st.write(description)
+    icon = icon if condition else "❌"
+    color = "#00FF00" if condition else "#FF0000"
+
+    unlock_label = unlock_label if condition else locked_msg
+
+    st.markdown(
+            f"<h1 style='text-align: center; font-size: 10rem; color: {color};'>{icon}",
+            unsafe_allow_html=True
+    )
+    st.markdown(
+            f"<h1 style='text-align: center; margin-bottom: 1rem; font-size: 1rem; color: {color};'>{unlock_label}",
+            unsafe_allow_html=True
+    )
+
+    if condition:
+        badge_count += 1
+
+
+    st.write(f"Complete {description} to get this badge.")
+
     return badge_count

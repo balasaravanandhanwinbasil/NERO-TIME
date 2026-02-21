@@ -50,12 +50,12 @@ def ui_help_tab():
 def _render_FAQ():
     st.markdown("## ❓F&Q❓")
 
-    with large_expander("## Insert Question Here?", expanded=False, size=20):
-        st.text("Hi. Insert answer here.")
-    with large_expander("Insert Question Here?", expanded=False, size=20):
-        st.text("Hi. Insert answer here.")
-    with large_expander("Is my personal information safe?", expanded=False, size=20):
-        st.text("Yes, your personal information is secure and unaccessable to anyone except for Nero-Time. We can assure full, unexploitable safety of information data.")
+    with large_expander("## How do I begin using the app??", expanded=False, size=20):
+        st.text("All you have to do is head down to 'activities' and 'events' and schedule your tasks that you need to do in activities, and compulsory events in events! Then just hit generate, and watch the magic happen.")
+    with large_expander("## How do I contact the developers?", expanded=False, size=20):
+        st.text("Our customer support hotline is lau_kai_rui_gavin@s2023.ssts.edu.sg")
+    with large_expander("## Is my personal information safe?", expanded=False, size=20):
+        st.text("Yes, your personal information is secure and unaccessable to anyone except for you. We can assure full, unexploitable safety of information data.")
 
 #=============
 #Chatbot here!!!!!
