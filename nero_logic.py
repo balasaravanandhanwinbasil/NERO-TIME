@@ -226,7 +226,7 @@ class NeroTimeLogic:
         allowed_days: List[str] = None,
         session_mode: str = "automatic"
         ) -> Dict:
-        """Adds an Activity based on the inputs in the UI."""
+        """Adds an Activity based on the inputs given"""
 
         try:
             if not name:
@@ -234,7 +234,7 @@ class NeroTimeLogic:
             
             for i in range(len(st.session_state.list_of_activities)): # checks activities to ensure name isn't repeated. 
                 if name in st.session_state.list_of_activities[i]['activity']:
-                    return {"success": False, "message": "Activity name is cannot be the same as a previous activity name"}
+                    return {"success": False, "message": "Activity name cannot be the same as a previous activity name"}
 
             deadline_dt = datetime.fromisoformat(deadline_date) # converts to e.g 2026-03-01 00:00:00 in order to calculate deadline.
             today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)

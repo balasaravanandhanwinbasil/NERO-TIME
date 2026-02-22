@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Tuple
 
 WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
-# Fallback defaults (overridden by st.session_state at runtime)
+# Fallback Start time and End time (overridden by st.session_state at runtime)
 _DEFAULT_WORK_START_MINUTES = 6 * 60        # 06:00
 _DEFAULT_WORK_END_MINUTES   = 23 * 60 + 30  # 23:30
 
@@ -69,7 +69,7 @@ def get_month_days(year: int, month: int) -> list:
 
 def get_timetable_view() -> Dict[str, list]:
     """
-    Build the full timetable view dict on-the-fly.
+    Build the full timetable view 
 
     - Fixed events (SCHOOL, COMPULSORY) come from st.session_state.timetable.
     - ACTIVITY rows are generated from st.session_state.sessions.
@@ -77,6 +77,7 @@ def get_timetable_view() -> Dict[str, list]:
 
     Returns dict keyed by "Weekday DD/MM" → list of event dicts.
     """
+
     now = datetime.now()
     view: Dict[str, list] = {}
 
@@ -88,6 +89,7 @@ def get_timetable_view() -> Dict[str, list]:
     for session in st.session_state.sessions.values():
         day_display = session.get('scheduled_day')
         start_time  = session.get('scheduled_time')
+
         if not day_display or not start_time:
             continue  # unscheduled manual session — skip
 
@@ -95,7 +97,7 @@ def get_timetable_view() -> Dict[str, list]:
             time_str_to_minutes(start_time) + session['duration_minutes']
         )
 
-        # Derive is_finished live
+        # Derive is_finished 
         is_finished = False
         try:
             sched_date = datetime.fromisoformat(session['scheduled_date']).date()
@@ -104,6 +106,7 @@ def get_timetable_view() -> Dict[str, list]:
                 datetime.strptime(end_time, "%H:%M").time()
             )
             is_finished = end_dt <= now
+
         except Exception:
             pass
 
@@ -228,7 +231,7 @@ def find_free_slot(day: str, duration_minutes: int,
     return start_str, end_str
 
 
-# ── Fixed-event placement ──────────────────────────────────────────────────────
+# Fixed event placement
 
 def place_school_schedules(month_days: list, today: datetime):
     """Place recurring school/work blocks from today onwards."""
@@ -269,7 +272,7 @@ def place_compulsory_events(today: datetime):
                 add_fixed_event_to_timetable(day, start_time, end_time, event["event"], "COMPULSORY")
 
 
-# ── Available-day calculation ──────────────────────────────────────────────────
+# Available-day calculation
 
 def get_available_days_for_activity(activity: dict, month_days: list,
                                     today: datetime) -> list:
@@ -299,7 +302,7 @@ def get_available_days_for_activity(activity: dict, month_days: list,
     return available
 
 
-# ── Past-session warnings ──────────────────────────────────────────────────────
+#  Past-session warnings 
 
 def check_past_activities(activity: dict, warnings: list, today: datetime):
     """
@@ -332,7 +335,7 @@ def check_past_activities(activity: dict, warnings: list, today: datetime):
         )
 
 
-# ── Multi-pass activity scheduler ─────────────────────────────────────────────
+# === ACTIVITY SCHEDULER === 
 
 def place_activity_sessions(activity: dict, month_days: list,
                             warnings: list, today: datetime):
@@ -340,10 +343,11 @@ def place_activity_sessions(activity: dict, month_days: list,
     Schedule `activity` into free slots using a multi-pass strategy.
     Writes new sessions directly into st.session_state.sessions.
 
-    Survival rules:
+    NOTE:
       COMPLETED → kept, hours deducted from remaining
-      SKIPPED / UNVERIFIED past → discarded, hours added back
+      SKIPPED / UNVERIFIED past → discarded, hours added back to regenerate
     """
+
     activity_name = activity['activity']
     total_hours   = activity['timing']
     min_session   = round_to_15_minutes(activity.get('min_session_minutes', 30))
@@ -393,6 +397,7 @@ def place_activity_sessions(activity: dict, month_days: list,
     chunk_sizes.append(min_session)
     if min_session > 15:
         chunk_sizes.append(15)
+
     seen = set()
     chunk_sizes = [x for x in chunk_sizes if not (x in seen or seen.add(x))]
 
@@ -465,7 +470,7 @@ def place_activity_sessions(activity: dict, month_days: list,
         )
 
 
-# ── Top-level generation entry point ──────────────────────────────────────────
+# === Top-level generation entry point ===
 
 def generate_timetable_with_sessions(year=None, month=None):
     """Generate the complete timetable for the given month."""
