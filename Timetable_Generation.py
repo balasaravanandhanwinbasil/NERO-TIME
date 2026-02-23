@@ -28,27 +28,27 @@ def get_work_end_minutes() -> int:
 # TIME UTILITIES
 
 def time_str_to_minutes(time_str: str) -> int:
-    """Convert HH:MM to minutes since midnight."""
+    # Conversion to hours and minutes
 
     h, m = time_str.split(":")
     return int(h) * 60 + int(m)
 
 
 def minutes_to_time_str(minutes: int) -> str:
-    """Convert minutes since midnight to HH:MM."""
+    # Conversion into readable string
 
     minutes = int(minutes)
     return f"{minutes // 60:02d}:{minutes % 60:02d}"
 
 
 def round_to_15_minutes(minutes: int) -> int:
-    """Round to nearest 15-minute interval."""
+    # Round to 15 minutes for sessions to fit into the timetable
 
     return int(((int(minutes) + 7) // 15) * 15)
 
 
 def get_month_days(year: int, month: int) -> list:
-    """Return all days in the given month as a list of dicts."""
+    # Get the number of days in a month based on which year and said month
 
     from calendar import monthrange
     num_days = monthrange(year, month)[1]
@@ -91,7 +91,8 @@ def get_timetable_view() -> Dict[str, list]:
         start_time  = session.get('scheduled_time')
 
         if not day_display or not start_time:
-            continue  # unscheduled manual session — skip
+            continue 
+            # unscheduled manual session — skip
 
         end_time = minutes_to_time_str(
             time_str_to_minutes(start_time) + session['duration_minutes']
@@ -110,6 +111,7 @@ def get_timetable_view() -> Dict[str, list]:
         except Exception:
             pass
 
+        # Declare activity name and sessions
         activity_name = session['activity_name']
         session_num   = session['session_num']
 
@@ -127,6 +129,7 @@ def get_timetable_view() -> Dict[str, list]:
             "is_user_edited": session.get('is_user_edited', False),
         }
 
+        # Show the event when added
         if day_display not in view:
             view[day_display] = []
         view[day_display].append(event)
@@ -175,7 +178,7 @@ def add_fixed_event_to_timetable(day: str, start_time: str, end_time: str,
     """Insert a SCHOOL or COMPULSORY event into the stored timetable and sort."""
     if day not in st.session_state.timetable:
         st.session_state.timetable[day] = []
-
+    # Declare fixed activity
     st.session_state.timetable[day].append({
         "start":        start_time,
         "end":          end_time,
@@ -199,18 +202,18 @@ def find_free_slot(day: str, duration_minutes: int,
     duration_minutes = int(duration_minutes)
     work_start = get_work_start_minutes()
     work_end   = get_work_end_minutes()
-
+    #Look for empty slots
     earliest = work_start
     if current_time_minutes is not None:
         earliest = max(work_start, round_to_15_minutes(current_time_minutes + 15))
-
+    #Find all possible "candidates" to add to the timetable
     candidates = []
     t = earliest
     while t + duration_minutes <= work_end:
         end_t     = t + duration_minutes
         start_str = minutes_to_time_str(t)
         end_str   = minutes_to_time_str(end_t)
-
+        
         if is_time_slot_free(day, start_str, end_str):
             break_end = end_t + BREAK_MINUTES
             if break_end <= work_end:
@@ -386,7 +389,7 @@ def place_activity_sessions(activity: dict, month_days: list,
     )
     session_count = next_session_num - 1  # will be incremented before use
 
-    # Multi pass strat
+    # Multi-pass strategy
     chunk_sizes = []
     c = max_session
     while c > min_session:
@@ -514,7 +517,7 @@ def generate_timetable_with_sessions(year=None, month=None):
         )
 
     st.session_state.timetable_warnings = warnings or []
-
+    # Save to firebase to open on the next use
     if st.session_state.user_id:
         from Firebase_Function import save_to_firebase, save_timetable_snapshot
         save_to_firebase(st.session_state.user_id, 'timetable', st.session_state.timetable)
