@@ -90,11 +90,11 @@ class NeroTimeLogic:
                 continue
 
             try: # find end datetime in order to check if it is more than current date to see if it is is finishd
-                scheduled_date = datetime.fromisoformat(scheduled_date_str).date()
-                start_dt = datetime.combine(
+                scheduled_date = tz.localize(datetime.fromisoformat(scheduled_date_str)).date()
+                start_dt = tz.localize(datetime.combine(
                     scheduled_date,
                     datetime.strptime(scheduled_time_str, "%H:%M").time()
-                )
+                ))
 
                 end_dt = start_dt + timedelta(minutes=session.get('duration_minutes', 0))
 
@@ -242,7 +242,7 @@ class NeroTimeLogic:
                 if name in st.session_state.list_of_activities[i]['activity']:
                     return {"success": False, "message": "Activity name cannot be the same as a previous activity name"}
 
-            deadline_dt = datetime.fromisoformat(deadline_date) # converts to e.g 2026-03-01 00:00:00 in order to calculate deadline.
+            deadline_dt = tz.localize(datetime.fromisoformat(deadline_date)) # converts to e.g 2026-03-01 00:00:00 in order to calculate deadline.
             today = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
 
             days_left = (deadline_dt.replace(hour=0, minute=0, second=0, microsecond=0) - today).days
@@ -421,7 +421,7 @@ class NeroTimeLogic:
             if not name:
                 return {"success": False, "message": "Event name is required"}
 
-            event_dt = datetime.fromisoformat(event_date)
+            event_dt = tz.localize(datetime.fromisoformat(event_date))
             if time_str_to_minutes(end_time) <= time_str_to_minutes(start_time):
                 return {"success": False, "message": "End time must be after start time"}
 
@@ -478,7 +478,7 @@ class NeroTimeLogic:
                 if not start_date:
                     return {"success": False, "message": "Start date required for monthly events"}
                 
-                event_dt    = datetime.fromisoformat(start_date)
+                event_dt    = tz.localize(datetime.fromisoformat(start_date))
                 day_name    = WEEKDAY_NAMES[event_dt.weekday()]
                 day_display = f"{day_name} {event_dt.strftime('%d/%m')}"
 
