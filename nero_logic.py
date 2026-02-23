@@ -44,6 +44,7 @@ class NeroTimeLogic:
 
             # Activity metadata 
             'list_of_activities':  [],
+            'list_of_compulsory_events':  [],
 
             'school_schedule':     {},
             'timetable_warnings':  [],
