@@ -1,7 +1,9 @@
 """
 NERO-Time BACKEND LOGIC 
 """
-
+timezone_str="Asia/Singapore"
+import pytz
+tz = pytz.timezone(timezone_str)
 import streamlit as st
 from datetime import datetime, timedelta
 from typing import Dict, List
@@ -32,8 +34,8 @@ class NeroTimeLogic:
             'user_email':          None,
             'data_loaded':         False,
             'login_mode':          'login',
-            'current_year':        datetime.now().year,
-            'current_month':       datetime.now().month,
+            'current_year':        datetime.now(tz).year,
+            'current_month':       datetime.now(tz).month,
             'event_filter':        'weekly',
 
             # Timetable (to display)
@@ -75,7 +77,7 @@ class NeroTimeLogic:
         Reads/writes to st.session_state.sessions directly. (is_finished = True, or is_finished = False)
         Runs on every load.
         """
-        now = datetime.now()
+        now = datetime.now(tz)
 
         for session in st.session_state.sessions.values():
             if session.get('is_completed', False):
@@ -241,7 +243,7 @@ class NeroTimeLogic:
                     return {"success": False, "message": "Activity name cannot be the same as a previous activity name"}
 
             deadline_dt = datetime.fromisoformat(deadline_date) # converts to e.g 2026-03-01 00:00:00 in order to calculate deadline.
-            today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            today = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
 
             days_left = (deadline_dt.replace(hour=0, minute=0, second=0, microsecond=0) - today).days
 
@@ -576,7 +578,7 @@ class NeroTimeLogic:
                 else:
                     st.session_state.current_month += 1
             elif direction == "today":
-                now = datetime.now()
+                now = datetime.now(tz)
                 st.session_state.current_month = now.month
                 st.session_state.current_year  = now.year
 
@@ -612,7 +614,7 @@ class NeroTimeLogic:
 
     @staticmethod
     def _get_current_time_slot():
-        now         = datetime.now() 
+        now         = datetime.now(tz) 
         
         day_name    = WEEKDAY_NAMES[now.weekday()] # gets the name of the day
         current_day = f"{day_name} {now.strftime('%d/%m')}" # Example: "Saturday 21/02"
