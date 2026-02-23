@@ -18,7 +18,7 @@ def filter_events_by_period(month_days, filter_type):
         return [d for d in month_days if start_of_week <= d['date'].date() <= end_of_week]
     elif filter_type == 'monthly':
         return [d for d in month_days if d['date'].month == today.month and d['date'].year == today.year]
-    else:  # yearly
+    else:  # yearly, unused
         return [d for d in month_days if d['date'].year == today.year]
 
 
@@ -120,14 +120,6 @@ def ui_dashboard_tab():
             key="filter_monthly"
         ):
             st.session_state.event_filter = 'monthly'
-            st.rerun()
-    with col_f3:
-        if st.button(
-            "🗓️ Yearly", use_container_width=True,
-            type="primary" if st.session_state.event_filter == 'yearly' else "secondary",
-            key="filter_yearly"
-        ):
-            st.session_state.event_filter = 'yearly'
             st.rerun()
 
     st.divider()

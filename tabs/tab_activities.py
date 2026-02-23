@@ -310,8 +310,8 @@ def _completed_activities_list(completed_activities):
                 f"{idx+1}. {act['activity']} "
                 f"({act['progress']['completed']:.1f}h/{act['timing']:.1f}h) - {mode_badge}"
             ):
-                st.progress(act['progress']['percentage'] / 100)
                 st.caption(f"Deadline: {act['deadline']} days")
+                st.progress(act['progress']['percentage'] / 100)
 
                 if act.get('session_mode') == 'manual':
                     _manual_session_form(act, idx)

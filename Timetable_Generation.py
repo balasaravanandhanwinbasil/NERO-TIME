@@ -371,7 +371,7 @@ def place_activity_sessions(activity: dict, month_days: list,
     remaining_minutes = int((total_hours - comp_hours) * 60)
 
     if remaining_minutes <= 0:
-        warnings.append(f"✓ '{activity_name}': All hours already completed!")
+        # All hours already completed
         return
 
     available_days = get_available_days_for_activity(activity, month_days, today)
