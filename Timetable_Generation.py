@@ -313,6 +313,7 @@ def check_past_activities(activity: dict, warnings: list, today: datetime):
     but have never been verified (not completed and not skipped).
     Reads directly from st.session_state.sessions.
     """
+
     today_date    = today.date()
     activity_name = activity['activity']
     past_count    = 0
@@ -343,7 +344,7 @@ def check_past_activities(activity: dict, warnings: list, today: datetime):
 def place_activity_sessions(activity: dict, month_days: list,
                             warnings: list, today: datetime):
     """
-    Schedule `activity` into free slots using a multi-pass strategy.
+    Schedule `activity` into free slots using a "multi-pass strategy".
     Writes new sessions directly into st.session_state.sessions.
 
     NOTE:
@@ -473,7 +474,7 @@ def place_activity_sessions(activity: dict, month_days: list,
         )
 
 
-# === Top-level generation entry point ===
+# === TOP-LEVEL GENERATION ENRTY POINT ===
 
 def generate_timetable_with_sessions(year=None, month=None):
     """Generate the complete timetable for the given month."""
@@ -490,7 +491,7 @@ def generate_timetable_with_sessions(year=None, month=None):
     st.session_state.current_month = month
     st.session_state.current_year  = year
 
-    # ── Reset non-completed session flags ──────────────────────────────────────
+    # ── Reset non-completed sessions ──────────────────────────────────────
     for session in st.session_state.sessions.values():
         if not session.get('is_completed', False):
             session['is_skipped']  = False
