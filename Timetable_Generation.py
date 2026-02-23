@@ -386,7 +386,7 @@ def place_activity_sessions(activity: dict, month_days: list,
     )
     session_count = next_session_num - 1  # will be incremented before use
 
-    # ── Multi-pass chunk strategy ──────────────────────────────────────────────
+    # Multi pass strat
     chunk_sizes = []
     c = max_session
     while c > min_session:

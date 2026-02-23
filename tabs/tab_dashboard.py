@@ -153,7 +153,8 @@ def ui_dashboard_tab():
                 for event in visible_events:
                     _render_event_row(event, is_current_day, dashboard_data) # each event uses this
     else:
-        st.info("No events for this period")
+        st.info("No events for this period.")
+        st.info("Add activities, and events to start generating!")
 
 
 def _render_event_row(event, is_current_day, dashboard_data):

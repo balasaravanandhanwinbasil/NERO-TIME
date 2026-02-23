@@ -13,7 +13,7 @@ from Timetable_Generation import WEEKDAY_NAMES
 
 def ui_activities_tab():
     """UI for activities tab"""
-    st.header("Activities", help="This tab is where you can manage your activities that you want to do. Add activities, view their sessions, and track their progress here.")
+    st.header("Activities", help="This tab is where you can manage your activities that you need to complete. Add activities, view their sessions, and track their progress here.")
     activities_data = NeroTimeLogic.get_activities_data()
 
     _add_activity_form() # ui for add activity form
@@ -115,7 +115,7 @@ def _manual_session_form(act, idx):
 
     if remaining_minutes <= 0:
         st.info(
-            f"✅ All {act['timing']:.1f}h ({total_allowed_minutes} min) of activity has been scheduled. Edit sessions or reset to add more."
+            f"✅ All {act['timing']:.1f}h ({total_allowed_minutes} min) of activity has been scheduled! Edit sessions or reset to add more."
         )
 
         return
