@@ -1,4 +1,6 @@
-hi please edit this if changes are made to any of the variables.
+This is for programmer's use.
+All session_state variables, what they do and what type they are.
+Edit this file if any changes are made to these variables.
 
 # st.session_state.user_id: str | None
 Firebase ID (based on username)
