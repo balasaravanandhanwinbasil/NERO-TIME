@@ -89,6 +89,7 @@ def _render_session_group(sessions: list):
                     use_container_width=True,
                     type=done_type,
                     help="Mark as completed"
+                    disabled=is_completed
                 ):
                     result = NeroTimeLogic.verify_finished_session(session_id, True)
                     if result["success"]:
@@ -104,6 +105,7 @@ def _render_session_group(sessions: list):
                     use_container_width=True,
                     type=skip_type,
                     help="Mark as not done — will be rescheduled on next generation"
+                    disabled=is_skipped
                 ):
                     result = NeroTimeLogic.verify_finished_session(session_id, False)
                     if result["success"]:
