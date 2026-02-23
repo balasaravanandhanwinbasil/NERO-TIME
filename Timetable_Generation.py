@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import streamlit as st
 import random
 from typing import Dict, List, Optional, Tuple
-import tz
+import pytz
 timezone_str="Asia/Singapore"
 tz = pytz.timezone(timezone_str)
 WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
