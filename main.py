@@ -87,7 +87,7 @@ if not st.session_state.user_id:
         tab_login, tab_register = st.tabs(["Login", "Register"])
 
         with tab_login:
-            st.markdown("### Welcome Back")
+            st.markdown("### Welcome Back!")
             login_username = st.text_input("Username", placeholder="Enter your username", key="login_username")
             login_password = st.text_input("Password", type="password", placeholder="Enter your password", key="login_password")
 
@@ -108,7 +108,7 @@ if not st.session_state.user_id:
                     st.error("Please enter both username and password")
 
         with tab_register:
-            st.markdown("### Create Account", help = "Welcome to NERO-TIME!")
+            st.markdown("### Create Account", help = "Welcome to NERO-TIME! Create an account with a username and strong password to start your time management journey.")
             reg_username         = st.text_input("Username", placeholder="Choose a username", key="reg_username")
             reg_email            = st.text_input("Email (optional)", placeholder="your.email@example.com", key="reg_email")
             reg_password         = st.text_input("Password", type="password", placeholder="Choose a strong password", key="reg_password")
