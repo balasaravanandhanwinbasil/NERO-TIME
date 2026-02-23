@@ -217,7 +217,7 @@ def _sessions_list(act):
 
                 st.divider()
     else:
-        st.info("No sessions yet — generate a timetable (or add manual sessions) to create sessions")
+        st.info("No sessions yet — generate a timetable to create sessions")
 
 
 def _session_edit_form(act, session_id, scheduled_time, duration_minutes, edit_state_key):

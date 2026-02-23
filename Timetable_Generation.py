@@ -98,18 +98,9 @@ def get_timetable_view() -> Dict[str, list]:
             time_str_to_minutes(start_time) + session['duration_minutes']
         )
 
-        # Derive is_finished 
-        is_finished = False
-        try:
-            sched_date = datetime.fromisoformat(session['scheduled_date']).date()
-            end_dt = datetime.combine(
-                sched_date,
-                datetime.strptime(end_time, "%H:%M").time()
-            )
-            is_finished = end_dt <= now
+        # get is_finished
+        is_finished = session.get('is_finished', False)
 
-        except Exception:
-            pass
 
         # Declare activity name and sessions
         activity_name = session['activity_name']
