@@ -85,7 +85,7 @@ if not st.session_state.user_id:
     </p>
 
     <p style='font-size: 1.15rem; color: #E91E63; font-weight: 600;'>
-        Register to begin
+        Register to start your journey.
     </p>
 </div>
 """, unsafe_allow_html=True)
