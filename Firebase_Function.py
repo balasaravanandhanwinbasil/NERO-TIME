@@ -41,7 +41,7 @@ def init_firebase():
 
             firebase_admin.initialize_app(cred)
     
-    # Initialize db 
+    # Initialise db 
     if db is None:
         db = firestore.client()
     
@@ -141,7 +141,7 @@ def authenticate_user(username, password):
         return {"success": False, "message": f"Error during login: {str(e)}"}
 
 def check_username_exists(username):
-    """Check if a username already exists"""
+    #Check if a username already exists
     global db
     if db is None:
         db = init_firebase()
@@ -155,7 +155,7 @@ def check_username_exists(username):
         return False
 
 def update_user_email(user_id, new_email):
-    """Update user's email address"""
+    #Update user's email address
     global db
     if db is None:
         db = init_firebase()
@@ -168,7 +168,7 @@ def update_user_email(user_id, new_email):
         return {"success": False, "message": f"Error updating email: {str(e)}"}
 
 def change_password(user_id, old_password, new_password):
-    """Change user's password"""
+    #Change user's password
     global db
     if db is None:
         db = init_firebase()
