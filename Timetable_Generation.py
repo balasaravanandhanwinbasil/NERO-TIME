@@ -6,7 +6,9 @@ from datetime import datetime, timedelta
 import streamlit as st
 import random
 from typing import Dict, List, Optional, Tuple
-
+import tz
+timezone_str="Asia/Singapore"
+tz = pytz.timezone(timezone_str)
 WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 # Fallback Start time and End time (overridden by st.session_state at runtime)
@@ -78,7 +80,7 @@ def get_timetable_view() -> Dict[str, list]:
     Returns dict keyed by "Weekday DD/MM" → list of event dicts.
     """
 
-    now = datetime.now()
+    now = datetime.now(tz)
     view: Dict[str, list] = {}
 
     # Copy fixed events (SCHOOL / COMPULSORY) from stored timetable
@@ -257,7 +259,7 @@ def place_compulsory_events(today: datetime):
         try:
             date_part = day.split()[-1]
             day_num, month_num = map(int, date_part.split('/'))
-            year = st.session_state.get('current_year', datetime.now().year)
+            year = st.session_state.get('current_year', datetime.now(tz).year)
             event_date = datetime(year, month_num, day_num).date()
             if event_date >= today_date and is_time_slot_free(day, start_time, end_time):
                 add_fixed_event_to_timetable(day, start_time, end_time, event["event"], "COMPULSORY")
@@ -470,11 +472,11 @@ def place_activity_sessions(activity: dict, month_days: list,
 def generate_timetable_with_sessions(year=None, month=None):
     """Generate the complete timetable for the given month."""
     if year is None or month is None:
-        now   = datetime.now()
+        now   = datetime.now(tz)
         year  = now.year
         month = now.month
 
-    today      = datetime.now()
+    today      = datetime.now(tz)
     month_days = get_month_days(year, month)
 
     # ── Reset stored timetable (fixed events only) ─────────────────────────────
