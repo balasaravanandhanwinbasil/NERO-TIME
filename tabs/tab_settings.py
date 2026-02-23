@@ -101,7 +101,7 @@ def _render_schedule_hours():
 
     if sleep_hours < 8 and available_hours > 0:
         st.error(
-            f"❌ **Insufficient sleep** — Y our schedule implies only "
+            f"❌ **Insufficient sleep** — Your schedule implies only "
             f"**{sleep_hours:.1f} hours** of sleep "
             f"({wake_time.strftime('%H:%M')} wake · {sleep_time.strftime('%H:%M')} bed). "
             "Aim for at least 8 hours of sleep for a healthy lifestyle."

@@ -11,7 +11,7 @@ from Timetable_Generation import WEEKDAY_NAMES
 def ui_events_tab():
     """UI for events and schedule tab"""
 
-    st.header("Events & Recurring Schedules", help="This tab is where you can manage your compulsory one-time events or recurring schedules. Add new events/schedules, view existing ones, and delete them as needed!")
+    st.header("Events & Recurring Schedules", help="This tab is where you can manage your compulsory one-time events or recurring schedules (e.g. School). Add new events/schedules, view existing ones, and delete them as needed!")
 
     _render_add_event_form() # ui for adding events
 

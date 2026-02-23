@@ -46,6 +46,9 @@ class NeroTimeLogic:
             'list_of_activities':  [],
             'list_of_compulsory_events':  [],
 
+            # events data
+            'list_of_compulsory_events': [],
+
             'school_schedule':     {},
             'timetable_warnings':  [],
             'work_start_minutes':  7 * 60,        # 07:00
