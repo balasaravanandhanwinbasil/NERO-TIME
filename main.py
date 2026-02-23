@@ -72,23 +72,12 @@ if not st.session_state.data_loaded and st.session_state.user_id:
 
 # === LOGIN SCREEN ===
 if not st.session_state.user_id:
-    st.markdown("""
-<div style='text-align: center; padding: 4rem 0 2rem 0;'>
-    <h1 style='font-size: 4rem; margin-bottom: 0.5rem;'>🕛</h1>
-
-    <h1 style='font-size: 3rem; margin-bottom: 0.5rem; color: #E91E63;'>
-        NERO-TIME
-    </h1>
-
-    <p style='font-size: 1.1rem; color: #757575; margin-bottom: 1rem;'>
-        Finish all of your tasks on time. On NERO-TIME.
-    </p>
-
-    <p style='font-size: 1.15rem; color: #E91E63; font-weight: 600;'>
-        Register to start your journey.
-    </p>
-</div>
-""", unsafe_allow_html=True)
+    st.markdown(""" 
+                <div style='text-align: center; padding: 4rem 0 2rem 0;'> 
+                <h1 style='font-size: 4rem; margin-bottom: 0.5rem;'>🕛</h1> 
+                <h1 style='font-size: 3rem; margin-bottom: 0.5rem; color: #E91E63;'>NERO-TIME</h1> 
+                <p style='font-size: 1.1rem; color: #757575; margin-bottom: 3rem;'> Finish all of your tasks on time. On NERO-TIME. </p> 
+                </div> """, unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
