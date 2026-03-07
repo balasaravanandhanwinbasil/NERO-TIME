@@ -1,116 +1,71 @@
 """
-]cookie helper for Streamlit.
+cookie_manager.py
+Persistent login for Streamlit using st.query_params as the cookie jar.
 
-Usage:
-    from cookie_manager import get_cookie, set_cookie, delete_cookie, load_cookies
+HOW IT WORKS:
+- On login:  set_cookie() writes values into st.query_params so they appear
+             in the URL (e.g. ?nero_user_id=...&nero_token=...).
+             The URL persists across tab closes IF the browser restores the
+             last-visited URL (which all major browsers do by default).
+- On load:   load_cookies() simply reads st.query_params — no JS, no st.stop(),
+             no black screen.
+- On logout: delete_cookie() removes the keys from st.query_params, cleaning
+             the URL.
 
-    # Call once at the top of your app — reads all cookies into session_state
-    load_cookies()
-
-    # Then read / write / delete as needed
-    uid = get_cookie("nero_user_id")
-    set_cookie("nero_user_id", "abc123", days=30)
-    delete_cookie("nero_user_id")
+SECURITY NOTE:
+  The token value is a 48-byte random secret validated against Firebase.
+  Exposing it in the URL is acceptable for a personal productivity app, but
+  if you need higher security, consider a proper backend session endpoint.
 """
 
 import streamlit as st
-import streamlit.components.v1 as components
-import urllib.parse
 
-
-# ── Internal helpers ───────────────────────────────────────────────────────────
-
-def _parse_cookie_string(raw: str) -> dict:
-    result = {}
-    for part in raw.split(";"):
-        part = part.strip()
-        if "=" in part:
-            k, _, v = part.partition("=")
-            try:
-                result[k.strip()] = urllib.parse.unquote(v.strip())
-            except Exception:
-                result[k.strip()] = v.strip()
-    return result
-
-
-# ── Public API ─────────────────────────────────────────────────────────────────
 
 def load_cookies():
     """
-    Render a hidden component that reads document.cookie and stores it in
-    st.query_params['_nero_cookies'] so Python can parse it.
-
-    Call this ONCE near the top of main.py, before any cookie reads.
-    On the very first load the query param won't exist yet — the component
-    writes it and triggers a rerun, after which it's available.
+    Read persisted values from st.query_params into st.session_state cache.
+    Call once near the top of main.py — safe on every rerun, never blocks.
     """
-    raw = st.query_params.get("_nero_cookies", None)
-
-    if raw is None:
-        components.html("""
-            <script>
-            const raw  = encodeURIComponent(document.cookie);
-            const url  = new URL(window.parent.location.href);
-            url.searchParams.set('_nero_cookies', raw);
-            window.parent.history.replaceState({}, '', url.toString());
-
-            // Poke Streamlit into a rerun by simulating an input event
-            // on the hidden query-param watcher it uses internally
-            window.parent.postMessage({type: 'streamlit:forceRerun'}, '*');
-            </script>
-        """, height=0)
-        st.stop()
-
-    # Decode and cache in session_state so we don't re-parse every call
     if "_nero_cookie_dict" not in st.session_state:
-        st.session_state["_nero_cookie_dict"] = _parse_cookie_string(
-            urllib.parse.unquote(raw)
-        )
+        st.session_state["_nero_cookie_dict"] = {}
+
+    params = st.query_params
+    # Copy any nero_ prefixed params into our in-memory dict
+    for key in list(params.keys()):
+        if key.startswith("nero_"):
+            st.session_state["_nero_cookie_dict"][key] = params[key]
 
 
 def get_cookie(name: str, default: str = "") -> str:
-    """Return the value of cookie `name`, or `default` if not set."""
+    """Return the value of a persisted cookie, or `default` if not set."""
     return st.session_state.get("_nero_cookie_dict", {}).get(name, default)
 
 
 def set_cookie(name: str, value: str, days: int = 30):
     """
-    Write a persistent cookie. Renders a hidden JS snippet.
-    The new value is also written into the in-memory cache immediately
-    so subsequent get_cookie() calls in the same run see it.
+    Persist a value by writing it into both st.query_params and the
+    in-memory cache. The query_params write keeps it in the URL so it
+    survives a tab close / browser restart.
     """
-    safe_val = urllib.parse.quote(str(value), safe="")
-    components.html(f"""
-        <script>
-        (function() {{
-            var d = new Date();
-            d.setTime(d.getTime() + {days} * 86400000);
-            document.cookie = "{name}=" + "{safe_val}"
-                + ";expires=" + d.toUTCString()
-                + ";path=/;SameSite=Strict";
-        }})();
-        </script>
-    """, height=0)
-
-    # Update in-memory cache
     if "_nero_cookie_dict" not in st.session_state:
         st.session_state["_nero_cookie_dict"] = {}
-    st.session_state["_nero_cookie_dict"][name] = str(value)
 
-    # Keep query param in sync so the value survives a rerun within same session
-    current = st.session_state["_nero_cookie_dict"]
-    raw_pairs = ";".join(f"{k}={urllib.parse.quote(v, safe='')}" for k, v in current.items())
-    st.query_params["_nero_cookies"] = urllib.parse.quote(raw_pairs, safe="")
+    st.session_state["_nero_cookie_dict"][name] = str(value)
+    st.query_params[name] = str(value)
 
 
 def delete_cookie(name: str):
-    """Expire a cookie immediately."""
-    components.html(f"""
-        <script>
-        document.cookie = "{name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;SameSite=Strict";
-        </script>
-    """, height=0)
-
-    # Remove from in-memory cache
+    """Remove a persisted value from both the URL and the in-memory cache."""
     if "_nero_cookie_dict" in st.session_state:
         st.session_state["_nero_cookie_dict"].pop(name, None)
+
+    try:
+        # st.query_params raises KeyError if key doesn't exist
+        params = dict(st.query_params)
+        if name in params:
+            del params[name]
+            st.query_params.clear()
+            for k, v in params.items():
+                st.query_params[k] = v
+    except Exception:
+        pass
