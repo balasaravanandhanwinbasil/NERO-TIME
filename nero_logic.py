@@ -468,6 +468,7 @@ class NeroTimeLogic:
                         'start_time': start_time,
                         'end_time':   end_time,
                         'recurrence': recurrence_type,
+                        'start_date': start_date,  
                     })
 
                     st.session_state.school_schedule[day_name].sort(

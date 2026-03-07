@@ -6,3 +6,4 @@ openai
 pytz
 nest-asyncio
 streamlit-autorefresh
+extra_streamlit_components

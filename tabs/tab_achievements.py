@@ -125,6 +125,9 @@ def badge(condition: bool, icon: str, unlock_label: str,
         badge_count += 1
 
 
-    st.write(f"Complete {description} to get this badge.")
+    st.markdown(
+    f"<p style='text-align: center; color: white;'>Complete {description} to get this badge.</p>",
+    unsafe_allow_html=True
+    )
 
     return badge_count
