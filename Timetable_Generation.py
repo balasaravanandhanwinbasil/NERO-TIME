@@ -213,39 +213,46 @@ def find_free_slot(day: str, duration_minutes: int,
                    current_time_minutes: Optional[int] = None,
                    ignore_session_ids: Optional[set] = None,
                    is_today: bool = False) -> Optional[Tuple[str, str]]:
-    """
-    Scan every 15-minute boundary on `day` and return the first (start, end)
-    pair where the activity window + silent break gap are both free.
-    Never schedules before the current real-world time (for today).
-    """
+
     duration_minutes = int(duration_minutes)
     work_start = get_work_start_minutes()
     work_end   = get_work_end_minutes()
 
     def _ceil15(m: int) -> int:
-        return int(((int(m) + 14) // 15) * 15)
+        return ((int(m) + 14) // 15) * 15
 
+    # --- HARD BLOCK PAST TIMES ---
     if is_today:
-        now_minutes = current_time_minutes if current_time_minutes is not None else (
-            datetime.now().hour * 60 + datetime.now().minute
-        )
+        now_minutes = datetime.now().hour * 60 + datetime.now().minute
+
+        # start strictly AFTER current time
         earliest = max(work_start, _ceil15(now_minutes + 1))
+
     else:
         earliest = work_start
-        if current_time_minutes is not None:
-            earliest = max(earliest, _ceil15(current_time_minutes + 1))
 
-    candidates = []
+    # --------------------------------
+
     t = earliest
+    candidates = []
+
     while t + duration_minutes <= work_end:
-        end_t     = t + duration_minutes
+
         start_str = minutes_to_time_str(t)
-        end_str   = minutes_to_time_str(end_t)
+        end_t = t + duration_minutes
+        end_str = minutes_to_time_str(end_t)
 
         if is_time_slot_free(day, start_str, end_str, ignore_session_ids):
+
             break_end = end_t + BREAK_MINUTES
+
             if break_end <= work_end:
-                if is_time_slot_free(day, end_str, minutes_to_time_str(break_end), ignore_session_ids):
+                if is_time_slot_free(
+                    day,
+                    end_str,
+                    minutes_to_time_str(break_end),
+                    ignore_session_ids
+                ):
                     candidates.append((t, start_str, end_str))
             else:
                 candidates.append((t, start_str, end_str))
@@ -255,12 +262,14 @@ def find_free_slot(day: str, duration_minutes: int,
     if not candidates:
         return None
 
+    # prefer earlier slots
     candidates.sort(key=lambda x: x[0])
-    pool = candidates[: max(1, len(candidates) // 3)]
-    random.shuffle(pool)
-    _, start_str, end_str = pool[0]
-    return start_str, end_str
 
+    pool = candidates[:max(1, len(candidates)//3)]
+
+    start_minutes, start_str, end_str = random.choice(pool)
+
+    return start_str, end_str
 
 # ── Fixed event placement ────────────────────────────────────────────────────────
 
@@ -440,7 +449,7 @@ def get_available_days_for_activity(activity: dict, month_days: list,
         day_date = day_info['date']
         if day_date.date() < today_date:
             continue
-        if day_date.date() == today_date and current_time_minutes >= work_end:
+        if day_date.date() == today_date and current_time_minutes >= work_end - 15:
             continue
         if day_date <= deadline and day_info['day_name'] in allowed:
             available.append({
