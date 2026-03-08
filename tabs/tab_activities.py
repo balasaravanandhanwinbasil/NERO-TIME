@@ -7,8 +7,8 @@ Activities are read from NeroTimeLogic.get_activities_data(), which returns a di
 
 import streamlit as st
 from datetime import datetime, timedelta
-from nero_logic import NeroTimeLogic
-from Timetable_Generation import WEEKDAY_NAMES, tz
+from nero_logic import NeroTimeLogic, tz
+from Timetable_Generation import WEEKDAY_NAMES
 
 
 def _format_session_datetime(session: dict) -> str:
