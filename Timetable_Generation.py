@@ -340,15 +340,49 @@ def check_past_activities(activity: dict, warnings: list, today: datetime):
 
 # === ACTIVITY SCHEDULER ===
 
+def _build_chunk_pool(min_session: int, max_session: int) -> list:
+    """
+    Build a weighted pool of chunk sizes between min_session and max_session
+    so that random.choice() across the pool produces a realistic spread of
+    session lengths rather than always picking the maximum.
+
+    Sizes are spaced at 15-minute intervals. Smaller chunks get slightly higher
+    weight so the scheduler doesn't pile everything into max-length blocks.
+    """
+    sizes = []
+    s = min_session
+    while s <= max_session:
+        sizes.append(s)
+        s += 15
+
+    if not sizes:
+        return [min_session]
+
+    # Weight: largest chunk gets weight 1, each step down gets +0.5 more weight.
+    # e.g. for [30, 45, 60, 75, 90, 105, 120] the weights are [4, 3.5, 3, 2.5, 2, 1.5, 1]
+    n = len(sizes)
+    pool = []
+    for i, size in enumerate(sizes):
+        weight = max(1, round((n - i) * 0.5 + 0.5))  # decreasing as size grows
+        pool.extend([size] * weight)
+
+    random.shuffle(pool)
+    return pool
+
+
 def place_activity_sessions(activity: dict, month_days: list,
                             warnings: list, today: datetime):
     """
-    Schedule `activity` into free slots using a "multi-pass strategy".
+    Schedule `activity` into free slots.
     Writes new sessions directly into st.session_state.sessions.
 
-    NOTE:
-      COMPLETED → kept, hours deducted from remaining
-      SKIPPED / UNVERIFIED past → discarded, hours added back to regenerate
+    Session handling:
+      COMPLETED      → always kept, hours deducted from remaining
+      USER-EDITED    → kept as-is (respects manual placement), hours deducted
+      Everything else → discarded and regenerated
+
+    Chunk sizes are drawn randomly from a weighted pool between min_session
+    and max_session so output is varied rather than always max-length blocks.
     """
     activity_name = activity['activity']
     total_hours   = activity['timing']
@@ -357,23 +391,31 @@ def place_activity_sessions(activity: dict, month_days: list,
 
     check_past_activities(activity, warnings, today)
 
-    # Partition existing sessions for this activity
+    # ── Partition existing sessions ────────────────────────────────────────────
     existing = {
         sid: s for sid, s in st.session_state.sessions.items()
         if s['activity_name'] == activity_name
     }
-    completed = {sid: s for sid, s in existing.items() if s.get('is_completed', False)}
+    completed   = {sid: s for sid, s in existing.items() if s.get('is_completed', False)}
+    # Keep user-edited sessions that are not yet completed — the user placed
+    # them deliberately and we must not discard them on regeneration.
+    user_edited = {
+        sid: s for sid, s in existing.items()
+        if s.get('is_user_edited', False) and not s.get('is_completed', False)
+    }
 
-    # Remove non-completed sessions — they will be rescheduled
+    keep = {**completed, **user_edited}
+
+    # Remove every session that isn't being kept
     for sid in existing:
-        if sid not in completed:
+        if sid not in keep:
             del st.session_state.sessions[sid]
 
-    comp_hours        = sum(s.get('duration_hours', 0) for s in completed.values())
-    remaining_minutes = int((total_hours - comp_hours) * 60)
+    # Deduct hours already accounted for (completed + user-edited)
+    kept_hours        = sum(s.get('duration_hours', 0) for s in keep.values())
+    remaining_minutes = int((total_hours - kept_hours) * 60)
 
     if remaining_minutes <= 0:
-        # All hours already completed
         return
 
     available_days = get_available_days_for_activity(activity, month_days, today)
@@ -382,83 +424,74 @@ def place_activity_sessions(activity: dict, month_days: list,
         warnings.append(f"❌ '{activity_name}': No available days before deadline!")
         return
 
-    # Determine next session number (after completed ones)
+    # Determine next session number (after kept ones)
     next_session_num = (
-        max((s['session_num'] for s in completed.values()), default=0) + 1
+        max((s['session_num'] for s in keep.values()), default=0) + 1
     )
-    session_count = next_session_num - 1  # will be incremented before use
+    session_count = next_session_num - 1  # incremented before use
 
-    # Multi-pass strategy
-    chunk_sizes = []
-    c = max_session
-    while c > min_session:
-        chunk_sizes.append(c)
-        c = round_to_15_minutes(c // 2)
-        if c < min_session:
-            break
-    chunk_sizes.append(min_session)
-    if min_session > 15:
-        chunk_sizes.append(15)
-
-    seen = set()
-    chunk_sizes = [x for x in chunk_sizes if not (x in seen or seen.add(x))]
+    # ── Build a randomised chunk pool ─────────────────────────────────────────
+    # Each slot draw picks a random size from this pool, giving natural variety.
+    chunk_pool = _build_chunk_pool(min_session, max_session)
+    pool_index = 0  # cycles through the shuffled pool
 
     new_sessions_count = 0
+    day_index  = 0
+    days_tried = 0
+    max_days   = len(available_days) * 4  # enough passes to fill remaining time
 
-    for pass_chunk in chunk_sizes:
-        if remaining_minutes <= 0:
-            break
+    while remaining_minutes > 0 and days_tried < max_days:
+        day_info    = available_days[day_index % len(available_days)]
+        day_display = day_info['display']
 
-        day_index  = 0
-        days_tried = 0
-        max_days   = len(available_days) * 2
+        # Pick a chunk size from the pool, capped at what's still needed
+        raw_chunk = chunk_pool[pool_index % len(chunk_pool)]
+        pool_index += 1
 
-        while remaining_minutes > 0 and days_tried < max_days:
-            day_info    = available_days[day_index % len(available_days)]
-            day_display = day_info['display']
+        chunk = min(remaining_minutes, raw_chunk)
+        chunk = round_to_15_minutes(chunk)
+        if chunk < 15:
+            chunk = 15
 
-            chunk = min(remaining_minutes, pass_chunk)
-            chunk = round_to_15_minutes(chunk)
-            if chunk < 15:
-                chunk = 15
+        current_time_mins = (
+            day_info['current_time_minutes'] if day_info.get('is_today') else None
+        )
 
-            current_time_mins = (
-                day_info['current_time_minutes'] if day_info.get('is_today') else None
-            )
+        slot = find_free_slot(day_display, chunk, current_time_minutes=current_time_mins)
 
-            slot = find_free_slot(day_display, chunk, current_time_minutes=current_time_mins)
+        if slot:
+            start_time, _ = slot
+            session_count      += 1
+            new_sessions_count += 1
+            session_id = f"{activity_name.replace(' ', '_')}_session_{session_count}"
 
-            if slot:
-                start_time, _ = slot
-                session_count    += 1
-                new_sessions_count += 1
-                session_id       = f"{activity_name.replace(' ', '_')}_session_{session_count}"
+            st.session_state.sessions[session_id] = {
+                'session_id':       session_id,
+                'session_num':      session_count,
+                'activity_name':    activity_name,
+                'scheduled_day':    day_display,
+                'scheduled_date':   day_info['date'].isoformat(),
+                'scheduled_time':   start_time,
+                'duration_minutes': chunk,
+                'duration_hours':   round(chunk / 60, 2),
+                'is_completed':     False,
+                'is_skipped':       False,
+                'is_finished':      False,
+                'is_user_edited':   False,
+                'is_manual':        False,
+            }
+            remaining_minutes -= chunk
 
-                st.session_state.sessions[session_id] = {
-                    'session_id':       session_id,
-                    'session_num':      session_count,
-                    'activity_name':    activity_name,
-                    'scheduled_day':    day_display,
-                    'scheduled_date':   day_info['date'].isoformat(),
-                    'scheduled_time':   start_time,
-                    'duration_minutes': chunk,
-                    'duration_hours':   round(chunk / 60, 2),
-                    'is_completed':     False,
-                    'is_skipped':       False,
-                    'is_finished':      False,
-                    'is_user_edited':   False,
-                    'is_manual':        False,
-                }
-                remaining_minutes -= chunk
+        day_index  += 1
+        days_tried += 1
 
-            day_index  += 1
-            days_tried += 1
+    comp_hours = sum(s.get('duration_hours', 0) for s in completed.values())
 
     if remaining_minutes > 0:
-        scheduled_h = total_hours - comp_hours - remaining_minutes / 60
+        scheduled_h = total_hours - kept_hours - remaining_minutes / 60
         warnings.append(
             f"⚠️ '{activity_name}': Scheduled {scheduled_h:.1f}h of "
-            f"{(total_hours - comp_hours):.1f}h needed. "
+            f"{(total_hours - kept_hours):.1f}h needed. "
             f"{remaining_minutes / 60:.1f}h could not fit before the deadline!"
         )
     elif comp_hours > 0:
@@ -489,9 +522,9 @@ def generate_timetable_with_sessions(year=None, month=None):
     st.session_state.current_month = month
     st.session_state.current_year  = year
 
-    # ── Reset non-completed sessions ──────────────────────────────────────
+    # ── Reset non-completed, non-user-edited sessions ──────────────────────────
     for session in st.session_state.sessions.values():
-        if not session.get('is_completed', False):
+        if not session.get('is_completed', False) and not session.get('is_user_edited', False):
             session['is_skipped']  = False
             session['is_finished'] = False
 
