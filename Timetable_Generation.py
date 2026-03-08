@@ -223,9 +223,11 @@ def find_free_slot(day: str, duration_minutes: int,
 
     # Always respect the current real time as the hard floor
     now_minutes = datetime.now().hour * 60 + datetime.now().minute
-    earliest = max(work_start, round_to_15_minutes(now_minutes + 15))
+    def _ceil15(m: int) -> int:
+        return int(((int(m) + 14) // 15) * 15)
+    earliest = max(work_start, _ceil15(now_minutes + 1))
     if current_time_minutes is not None:
-        earliest = max(earliest, round_to_15_minutes(current_time_minutes + 15))
+        earliest = max(earliest, _ceil15(current_time_minutes + 1))
 
     candidates = []
     t = earliest
