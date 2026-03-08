@@ -240,14 +240,18 @@ def find_free_slot(day: str, duration_minutes: int,
 
     if slot_is_today:
         now_minutes = now.hour * 60 + now.minute
-        # Start strictly after current time, aligned to next 15-min boundary
-        earliest = max(work_start, _ceil15(now_minutes + 1))
+        # Start strictly after current time, aligned to next 15-min boundary.
+        # Add 15 min of padding so we never land on the 15-min block we're
+        # currently inside — _ceil15 alone would give the boundary we're in.
+        earliest = max(work_start, _ceil15(now_minutes + 15))
     else:
         earliest = work_start
 
-    # Allow caller to push earliest later (e.g. after a prior session)
+    # Allow caller to push earliest later (e.g. after a prior session).
+    # Use _ceil15 (ceiling) not round_to_15_minutes (nearest) so we never
+    # round *down* into a window that has already started.
     if current_time_minutes is not None:
-        earliest = max(earliest, round_to_15_minutes(current_time_minutes + 15))
+        earliest = max(earliest, _ceil15(current_time_minutes + 15))
 
     candidates = []
     t = earliest
