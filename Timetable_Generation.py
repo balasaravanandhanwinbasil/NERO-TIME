@@ -215,14 +215,17 @@ def find_free_slot(day: str, duration_minutes: int,
     """
     Scan every 15-minute boundary on `day` and return the first (start, end)
     pair where the activity window + silent break gap are both free.
+    Never schedules before the current real-world time (for today).
     """
     duration_minutes = int(duration_minutes)
     work_start = get_work_start_minutes()
     work_end   = get_work_end_minutes()
 
-    earliest = work_start
+    # Always respect the current real time as the hard floor
+    now_minutes = datetime.now().hour * 60 + datetime.now().minute
+    earliest = max(work_start, round_to_15_minutes(now_minutes + 15))
     if current_time_minutes is not None:
-        earliest = max(work_start, round_to_15_minutes(current_time_minutes + 15))
+        earliest = max(earliest, round_to_15_minutes(current_time_minutes + 15))
 
     candidates = []
     t = earliest
