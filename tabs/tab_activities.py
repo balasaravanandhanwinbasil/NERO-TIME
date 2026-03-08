@@ -7,15 +7,13 @@ Activities are read from NeroTimeLogic.get_activities_data(), which returns a di
 
 import streamlit as st
 from datetime import datetime, timedelta
-from nero_logic import NeroTimeLogic, tz
+from nero_logic import NeroTimeLogic
 from Timetable_Generation import WEEKDAY_NAMES
+import pytz
+tz = pytz.timezone("Asia/Singapore")
 
 
 def _format_session_datetime(session: dict) -> str:
-    """
-    Return a human-readable string for a session's scheduled time.
-    e.g. "Monday 9/03 at 9pm" or "Monday 9/03 at 9:30pm"
-    """
     try:
         date_str = session.get('scheduled_date', '')
         time_str = session.get('scheduled_time', '')
@@ -23,16 +21,14 @@ def _format_session_datetime(session: dict) -> str:
         if not date_str or not time_str:
             return "Not scheduled yet"
 
-        dt  = datetime.fromisoformat(date_str)
+        dt = datetime.fromisoformat(date_str)
         h, m = map(int, time_str.split(":"))
 
-        period  = "am" if h < 12 else "pm"
-        h12     = h % 12 or 12
-        time_display = f"{h12}:{m:02d}{period}" if m != 0 else f"{h12}{period}"
+        time_display = f"{h:02d}:{m:02d}"
 
-        day_name   = dt.strftime("%A")
-        day_num    = str(dt.day)          # no leading zero
-        month_num  = dt.strftime("%m")
+        day_name  = dt.strftime("%A")
+        day_num   = dt.strftime("%d")   # leading zero e.g. 09
+        month_num = dt.strftime("%m")
 
         return f"{day_name} {day_num}/{month_num} at {time_display}"
     except Exception:
@@ -290,17 +286,14 @@ def _session_edit_form(act, session_id, scheduled_time, duration_minutes, edit_s
                     f"({deadline_date.strftime('%A %-d/%m')}). Please choose an earlier date."
                 )
             else:
-                actual_day = WEEKDAY_NAMES[new_date.weekday()]
-                # Build the display string to confirm to the user
-                h, m   = new_time.hour, new_time.minute
-                period = "am" if h < 12 else "pm"
-                h12    = h % 12 or 12
-                time_display = f"{h12}:{m:02d}{period}" if m != 0 else f"{h12}{period}"
-                display_str  = f"{actual_day} {new_date.day}/{new_date.strftime('%m')} at {time_display}"
+                actual_day  = WEEKDAY_NAMES[new_date.weekday()]
+                day_display = f"{actual_day} {new_date.strftime('%d/%m')}"
+                time_display = new_time.strftime("%H:%M")
+                display_str  = f"{actual_day} {new_date.strftime('%d/%m')} at {time_display}"
 
                 result = NeroTimeLogic.edit_session(
                     act['activity'], session_id,
-                    new_day=actual_day,
+                    new_day=day_display,
                     new_start_time=new_time.strftime("%H:%M"),
                     new_duration=new_duration,
                     new_date=new_date.isoformat()

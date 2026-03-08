@@ -27,26 +27,21 @@ def get_work_end_minutes() -> int:
 
 # TIME UTILITIES
 
-
 def time_str_to_minutes(time_str: str) -> int:
-    
     h, m = time_str.split(":")
     return int(h) * 60 + int(m)
 
 
 def minutes_to_time_str(minutes: int) -> str:
-
     minutes = int(minutes)
     return f"{minutes // 60:02d}:{minutes % 60:02d}"
 
 
 def round_to_15_minutes(minutes: int) -> int:
-
     return int(((int(minutes) + 7) // 15) * 15)
 
 
 def get_month_days(year: int, month: int) -> list:
-
     from calendar import monthrange
     num_days = monthrange(year, month)[1]
     days = []
@@ -58,7 +53,6 @@ def get_month_days(year: int, month: int) -> list:
             'day_name': day_name,
             'display': f"{day_name} {date_obj.strftime('%d/%m')}"
         })
-
     return days
 
 
@@ -70,7 +64,6 @@ def get_timetable_view() -> Dict[str, list]:
     - Fixed events (SCHOOL, COMPULSORY) come from st.session_state.timetable.
     - ACTIVITY rows are generated from st.session_state.sessions.
     - Each day list is sorted by start time.
-
     """
     now = datetime.now()
     view: Dict[str, list] = {}
@@ -452,9 +445,7 @@ def check_past_activities(activity: dict, warnings: list, today: datetime):
     """
     Warn about sessions for this activity that are scheduled in the past
     but have never been verified (not completed and not skipped).
-    Reads directly from the dict
     """
-
     today_date    = today.date()
     activity_name = activity['activity']
     past_count    = 0
@@ -491,7 +482,6 @@ def place_activity_sessions(activity: dict, month_days: list,
     COMPLETED → kept, hours deducted from remaining
     SKIPPED / UNVERIFIED past → discarded, hours added back to regenerate
     """
-
     activity_name = activity['activity']
     total_hours   = activity['timing']
     min_session   = round_to_15_minutes(activity.get('min_session_minutes', 30))
@@ -502,19 +492,20 @@ def place_activity_sessions(activity: dict, month_days: list,
     # Partition existing sessions for this activity
     existing  = {sid: s for sid, s in st.session_state.sessions.items()
                  if s['activity_name'] == activity_name}
-    completed = {sid: s for sid, s in existing.items() if s.get('is_completed', False)}
+    completed    = {sid: s for sid, s in existing.items() if s.get('is_completed', False)}
+    user_edited  = {sid: s for sid, s in existing.items()
+                    if s.get('is_user_edited', False) and not s.get('is_completed', False)}
 
-    # Remove non-completed sessions — they will be rescheduled
+    # Keep completed AND user-edited sessions — remove everything else for rescheduling
+    keep = {**completed, **user_edited}
     for sid in existing:
-        if sid not in completed:
+        if sid not in keep:
             del st.session_state.sessions[sid]
 
-    comp_hours        = sum(s.get('duration_hours', 0) for s in completed.values())
+    comp_hours        = sum(s.get('duration_hours', 0) for s in keep.values())
     remaining_minutes = int((total_hours - comp_hours) * 60)
 
-
     if remaining_minutes <= 0:
-
         return
 
     available_days = get_available_days_for_activity(activity, month_days, today)
@@ -523,9 +514,8 @@ def place_activity_sessions(activity: dict, month_days: list,
         warnings.append(f"❌ '{activity_name}': No available days before deadline!")
         return
 
-
     next_session_num = (
-        max((s['session_num'] for s in completed.values()), default=0) + 1
+        max((s['session_num'] for s in keep.values()), default=0) + 1
     )
     session_count = next_session_num - 1
 
@@ -646,7 +636,6 @@ def generate_timetable_with_sessions(year=None, month=None):
 
     for activity in sorted_activities:
         place_activity_sessions(activity, month_days, warnings, today)
-
         activity['num_sessions'] = sum(
             1 for s in st.session_state.sessions.values()
             if s['activity_name'] == activity['activity']

@@ -405,7 +405,9 @@ class NeroTimeLogic:
                 # Validate new_date against the activity deadline
                 if new_date:
                     try:
-                        from Timetable_Generation import tz
+                        import pytz
+                        tz = pytz.timezone("Asia/Singapore")
+
                         session_dt  = tz.localize(datetime.fromisoformat(new_date))
                         today       = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
                         deadline_dt = today + timedelta(days=activity['deadline'])
@@ -447,7 +449,9 @@ class NeroTimeLogic:
         e.g. "Monday 09/03 at 9pm" or "Monday 09/03 at 9:30pm"
         """
         try:
-            from Timetable_Generation import tz
+            import pytz
+            tz = pytz.timezone("Asia/Singapore")
+
             date_str  = session.get('scheduled_date', '')
             time_str  = session.get('scheduled_time', '')
 

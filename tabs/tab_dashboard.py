@@ -203,8 +203,8 @@ def _render_activity_event(event, is_current_slot, is_finished):
         badges += '<span class="happening-now">● LIVE NOW</span> '
     if is_finished and not is_completed and not is_skipped:
         badges += '<span class="finished-badge">⏰ FINISHED</span> '
-    if is_user_edited:
-        badges += '<span class="user-edited-badge">EDITED</span> '
+    # if is_user_edited:
+        # badges += '<span class="user-edited-badge">EDITED</span> '
 
     # PROGRESS (for html ui)
     progress_html = "" 
