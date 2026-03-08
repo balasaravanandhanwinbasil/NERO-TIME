@@ -502,17 +502,34 @@ class NeroTimeLogic:
 
     @staticmethod
     def delete_event(index: int) -> Dict:
-        """"Deletes an one-time event/monthly event, based on the index given."""
-
+        """Deletes a one-time event/monthly event, based on the index given."""
         try:
-            # input validation (if index is above length)
             if not (0 <= index < len(st.session_state.list_of_compulsory_events)):
                 return {"success": False, "message": "Invalid event index"}
-            
-            # delete the event from list of compulsory events.
-            name = st.session_state.list_of_compulsory_events[index]['event']
+
+            evt  = st.session_state.list_of_compulsory_events[index]
+            name = evt['event']
+            day  = evt['day']           # e.g. "Monday 10/03"
+            start_time = evt['start_time']
+            end_time   = evt['end_time']
+
+            # Remove from compulsory events list
             st.session_state.list_of_compulsory_events.pop(index)
-            NeroTimeLogic._save('events', st.session_state.list_of_compulsory_events)
+
+            # Remove matching entry from the stored timetable so it disappears
+            
+            if day in st.session_state.timetable:
+                st.session_state.timetable[day] = [
+                    e for e in st.session_state.timetable[day]
+                    if not (
+                        e.get('name') == name
+                        and e.get('start') == start_time
+                        and e.get('end')   == end_time
+                    )
+                ]
+
+            NeroTimeLogic._save('events',    st.session_state.list_of_compulsory_events)
+            NeroTimeLogic._save('timetable', st.session_state.timetable)
 
             return {"success": True, "message": f"Event '{name}' deleted"}
         except Exception as e:
@@ -520,21 +537,42 @@ class NeroTimeLogic:
 
     @staticmethod
     def delete_school_schedule(day_name: str, index: int) -> Dict:
-        """Deletes a recurring event, based on the index given."""
+        """Deletes a recurring schedule entry, based on the index given."""
         try:
             schedule = st.session_state.school_schedule
 
-            if day_name in schedule and 0 <= index < len(schedule[day_name]):  #input validation
-                schedule[day_name].pop(index)
-                if not schedule[day_name]:
-                    del schedule[day_name]
+            if day_name not in schedule or not (0 <= index < len(schedule[day_name])):
+                return {"success": False, "message": "Schedule not found"}
 
-                NeroTimeLogic._save('school_schedule', schedule)
+            evt        = schedule[day_name][index]
+            subj       = evt['subject']
+            start_time = evt['start_time']
+            end_time   = evt['end_time']
 
-                return {"success": True, "message": "Schedule deleted"}
-            
-            return {"success": False, "message": "Schedule not found"}
-        
+            # Remove from school_schedule
+            schedule[day_name].pop(index)
+            if not schedule[day_name]:
+                del schedule[day_name]
+
+            # Remove every matching SCHOOL entry from every day in the timetable.
+            for day_display, events in st.session_state.timetable.items():
+                # Only touch days whose weekday name matche
+                if not day_display.startswith(day_name):
+                    continue
+                st.session_state.timetable[day_display] = [
+                    e for e in events
+                    if not (
+                        e.get('name')  == subj
+                        and e.get('start') == start_time
+                        and e.get('end')   == end_time
+                        and e.get('type')  == 'SCHOOL'
+                    )
+                ]
+
+            NeroTimeLogic._save('school_schedule', schedule)
+            NeroTimeLogic._save('timetable',       st.session_state.timetable)
+
+            return {"success": True, "message": "Schedule deleted"}
         except Exception as e:
             return {"success": False, "message": f"Error: {e}"}
 
