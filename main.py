@@ -28,7 +28,9 @@ SESSION_TTL_DAYS = 30
 
 def _create_session_token(user_id: str) -> str:
     token  = secrets.token_urlsafe(48)
-    expiry = (datetime.utcnow() + timedelta(days=SESSION_TTL_DAYS)).isoformat()
+    from datetime import datetime, timezone, timedelta
+    expiry = (datetime.now(timezone.utc) + timedelta(days=SESSION_TTL_DAYS)).isoformat()
+    
     save_to_firebase(user_id, f"session_token_{token}", {
         "user_id": user_id,
         "expires": expiry,
