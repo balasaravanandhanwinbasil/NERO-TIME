@@ -211,7 +211,8 @@ def add_fixed_event_to_timetable(day: str, start_time: str, end_time: str,
 
 def find_free_slot(day: str, duration_minutes: int,
                    current_time_minutes: Optional[int] = None,
-                   ignore_session_ids: Optional[set] = None) -> Optional[Tuple[str, str]]:
+                   ignore_session_ids: Optional[set] = None,
+                   is_today: bool = False) -> Optional[Tuple[str, str]]:
     """
     Scan every 15-minute boundary on `day` and return the first (start, end)
     pair where the activity window + silent break gap are both free.
@@ -221,13 +222,18 @@ def find_free_slot(day: str, duration_minutes: int,
     work_start = get_work_start_minutes()
     work_end   = get_work_end_minutes()
 
-    # Always respect the current real time as the hard floor
-    now_minutes = datetime.now().hour * 60 + datetime.now().minute
     def _ceil15(m: int) -> int:
         return int(((int(m) + 14) // 15) * 15)
-    earliest = max(work_start, _ceil15(now_minutes + 1))
-    if current_time_minutes is not None:
-        earliest = max(earliest, _ceil15(current_time_minutes + 1))
+
+    if is_today:
+        now_minutes = datetime.now().hour * 60 + datetime.now().minute
+        earliest = max(work_start, _ceil15(now_minutes + 1))
+        if current_time_minutes is not None:
+            earliest = max(earliest, _ceil15(current_time_minutes + 1))
+    else:
+        earliest = work_start
+        if current_time_minutes is not None:
+            earliest = max(earliest, _ceil15(current_time_minutes + 1))
 
     candidates = []
     t = earliest
@@ -392,10 +398,12 @@ def reschedule_displaced_sessions(displaced_sessions: list, month_days: list,
             if day_date.date() < today_date:
                 continue
 
-            current_mins = current_time_minutes if day_date.date() == today_date else None
+            day_is_today = day_date.date() == today_date
+            current_mins = current_time_minutes if day_is_today else None
 
             slot = find_free_slot(day_display, duration_minutes,
-                                  current_time_minutes=current_mins)
+                                  current_time_minutes=current_mins,
+                                  is_today=day_is_today)
             if slot:
                 new_start, _ = slot
                 # Update the session with its new time
@@ -562,7 +570,9 @@ def place_activity_sessions(activity: dict, month_days: list,
                 day_info['current_time_minutes'] if day_info.get('is_today') else None
             )
 
-            slot = find_free_slot(day_display, chunk, current_time_minutes=current_time_mins)
+            slot = find_free_slot(day_display, chunk,
+                                  current_time_minutes=current_time_mins,
+                                  is_today=day_info.get('is_today', False))
 
             if slot:
                 start_time, _ = slot
