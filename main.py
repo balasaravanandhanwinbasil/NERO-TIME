@@ -249,12 +249,10 @@ with col_stat2: st.metric("Sessions",        f"{completed_sessions}/{total_sessi
 with col_stat3: st.metric("Hours Completed", f"{total_hours_completed:.1f}h")
 with col_stat4: st.metric("Completion Rate", f"{int(completion_rate)}%")
 
-col_user, col_logout = st.columns([6, 1])
+col_user, col_2 = st.columns([6, 1])
 with col_user:
     st.caption(f"👤 {st.session_state.get('username', st.session_state.user_id)}")
-with col_logout:
-    if st.button("Logout", key="btn_logout_main"):
-        _logout()
+
 
 st.divider()
 
