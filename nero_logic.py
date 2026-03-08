@@ -378,7 +378,12 @@ class NeroTimeLogic:
     def edit_session(activity_name: str, session_id: str,
                      new_day: str = None, new_start_time: str = None,
                      new_duration: int = None, new_date: str = None) -> Dict:
-        """Edit a scheduled session's day, time, or duration."""
+        """Edit a scheduled session's day, time, or duration.
+        
+        - Validates that the new date does not exceed the activity's deadline.
+        - Marks the session as is_user_edited=True so timetable regeneration
+          skips it (preserving the user's manual placement).
+        """
         try:
             session = st.session_state.sessions.get(session_id)
             if not session:
@@ -386,13 +391,37 @@ class NeroTimeLogic:
             if session.get('is_completed', False):
                 return {"success": False, "message": "Cannot edit a completed session"}
 
-            # Check activity deadline hasn't passed
+            # Find the parent activity
             activity = next(
-                (a for a in st.session_state.list_of_activities if a['activity'] == activity_name),
+                (a for a in st.session_state.list_of_activities
+                 if a['activity'] == activity_name),
                 None
             )
-            if activity and activity['deadline'] < 0:
-                return {"success": False, "message": "Cannot edit — activity deadline has passed"}
+
+            if activity:
+                if activity['deadline'] < 0:
+                    return {"success": False, "message": "Cannot edit — activity deadline has passed"}
+
+                # Validate new_date against the activity deadline
+                if new_date:
+                    try:
+                        from Timetable_Generation import tz
+                        session_dt  = tz.localize(datetime.fromisoformat(new_date))
+                        today       = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
+                        deadline_dt = today + timedelta(days=activity['deadline'])
+
+                        if session_dt.date() > deadline_dt.date():
+                            deadline_str = deadline_dt.strftime("%A %d/%m at %-I%p").replace(" 0", " ").lower()
+                            deadline_str = deadline_str[0].upper() + deadline_str[1:]
+                            return {
+                                "success": False,
+                                "message": f"Date exceeds the activity deadline ({deadline_str}). Please choose an earlier date."
+                            }
+                        if session_dt.date() < today.date():
+                            return {"success": False, "message": "Cannot schedule a session in the past"}
+
+                    except Exception as ex:
+                        return {"success": False, "message": f"Invalid date: {ex}"}
 
             if new_duration is not None:
                 new_duration = int(round_to_15_minutes(new_duration))
@@ -404,12 +433,44 @@ class NeroTimeLogic:
             if new_start_time is not None: session['scheduled_time'] = new_start_time
             if new_date       is not None: session['scheduled_date'] = new_date
 
-            session['is_user_edited'] = True
+            session['is_user_edited'] = True  # locks this session from being moved by regeneration
 
             NeroTimeLogic._save('sessions', st.session_state.sessions)
             return {"success": True, "message": "Session updated"}
         except Exception as e:
             return {"success": False, "message": f"Error: {e}"}
+
+    @staticmethod
+    def format_session_datetime(session: dict) -> str:
+        """
+        Return a human-readable string for a session's scheduled time.
+        e.g. "Monday 09/03 at 9pm" or "Monday 09/03 at 9:30pm"
+        """
+        try:
+            from Timetable_Generation import tz
+            date_str  = session.get('scheduled_date', '')
+            time_str  = session.get('scheduled_time', '')
+
+            if not date_str or not time_str:
+                return "Unscheduled"
+
+            dt = datetime.fromisoformat(date_str)
+            h, m = map(int, time_str.split(":"))
+
+            # Format hour: drop the minute if it's on the hour
+            period = "am" if h < 12 else "pm"
+            h12    = h % 12 or 12
+            time_display = f"{h12}:{m:02d}{period}" if m != 0 else f"{h12}{period}"
+
+            day_name   = dt.strftime("%A")          # e.g. Monday
+            date_label = dt.strftime("%d/%m")       # e.g. 09/03
+            # strip leading zero from day number
+            date_label = date_label.lstrip("0") if date_label[0] == "0" else date_label
+
+            return f"{day_name} {date_label} at {time_display}"
+
+        except Exception:
+            return session.get('scheduled_day', 'Unscheduled')
 
     # === Events Manipulation (Creating, Deleting, Reading, Updating) ===
 
