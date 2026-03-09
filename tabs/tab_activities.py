@@ -8,7 +8,7 @@ Activities are read from NeroTimeLogic.get_activities_data(), which returns a di
 import streamlit as st
 from datetime import datetime, timedelta
 from nero_logic import NeroTimeLogic
-from Timetable_Generation import WEEKDAY_NAMES
+from Timetable_Generation import WEEKDAY_NAMES, minutes_to_time_str, time_str_to_minutes
 import pytz
 tz = pytz.timezone("Asia/Singapore")
 
@@ -232,15 +232,76 @@ def _sessions_list(act):
         st.info("No sessions yet — generate a timetable to create sessions")
 
 
+def _get_conflicts_for_proposed_slot(day_display: str, start_time_str: str,
+                                     duration_minutes: int, exclude_session_id: str) -> list:
+    """
+    Return conflict strings for the proposed slot, checking:
+      - Work-hour boundaries
+      - Fixed timetable events (SCHOOL / COMPULSORY)
+      - Other sessions (excluding the one being edited)
+    Runs entirely client-side against session_state so no backend round-trip needed.
+    """
+    conflicts = []
+    s_min = time_str_to_minutes(start_time_str)
+    e_min = s_min + duration_minutes
+
+    work_start = st.session_state.get('work_start_minutes', 7 * 60)
+    work_end   = st.session_state.get('work_end_minutes', 22 * 60 + 30)
+
+    # Work boundary checks
+    if s_min < work_start:
+        conflicts.append(
+            f"Start time {start_time_str} is before your work start "
+            f"({minutes_to_time_str(work_start)})."
+        )
+    if e_min > work_end:
+        conflicts.append(
+            f"Session would end at {minutes_to_time_str(e_min)}, "
+            f"after your work end ({minutes_to_time_str(work_end)})."
+        )
+
+    # Fixed events on that day
+    for event in st.session_state.timetable.get(day_display, []):
+        es = time_str_to_minutes(event["start"])
+        ee = time_str_to_minutes(event["end"])
+        if not (e_min <= es or s_min >= ee):
+            label = "Recurring schedule" if event.get("type") == "SCHOOL" else "Compulsory event"
+            conflicts.append(
+                f"Overlaps with {label} '{event['name']}' "
+                f"({event['start']}–{event['end']})."
+            )
+
+    # Other sessions on that day
+    for sid, session in st.session_state.sessions.items():
+        if sid == exclude_session_id:
+            continue
+        if session.get('scheduled_day') != day_display:
+            continue
+        sched_time = session.get('scheduled_time')
+        if not sched_time:
+            continue
+        ss = time_str_to_minutes(sched_time)
+        se = ss + session.get('duration_minutes', 0)
+        if not (e_min <= ss or s_min >= se):
+            conflicts.append(
+                f"Overlaps with '{session.get('activity_name', '?')}' "
+                f"Session {session.get('session_num', '?')} "
+                f"({sched_time}–{minutes_to_time_str(se)})."
+            )
+
+    return conflicts
+
+
 def _session_edit_form(act, session_id, scheduled_time, duration_minutes, edit_state_key):
-    """Render the session edit form with deadline validation."""
+    """Render the session edit form with deadline and conflict validation."""
 
     deadline_date = _get_deadline_date(act)
+    today         = datetime.now(tz).date()
+    now_time      = datetime.now(tz).time()
 
     with st.form(key=f"form_{act['activity']}_{session_id}"):
         st.markdown("**✏️ Edit Session**")
 
-        # Show deadline as a hint
         if deadline_date:
             st.caption(f"Activity deadline: {deadline_date.strftime('%A %-d/%m')}")
 
@@ -249,10 +310,8 @@ def _session_edit_form(act, session_id, scheduled_time, duration_minutes, edit_s
         with col_e1:
             new_date = st.date_input(
                 "Date",
-                value=datetime.now().date(),
-                min_value=datetime.now().date(),
-                # cap the max selectable date to the deadline so the user can't
-                # even pick an invalid date in the calendar widget
+                value=today,
+                min_value=today,
                 max_value=deadline_date if deadline_date else None,
                 key=f"date_{session_id}"
             )
@@ -260,7 +319,7 @@ def _session_edit_form(act, session_id, scheduled_time, duration_minutes, edit_s
         with col_e2:
             default_time = (
                 datetime.strptime(scheduled_time, "%H:%M").time()
-                if scheduled_time else datetime.now().time()
+                if scheduled_time else now_time
             )
             new_time = st.time_input("Start Time", value=default_time, key=f"time_{session_id}")
 
@@ -271,30 +330,69 @@ def _session_edit_form(act, session_id, scheduled_time, duration_minutes, edit_s
             )
             new_duration = ((new_duration + 7) // 15) * 15
 
+        # ── Live conflict preview (outside form submission) ────────────────
+        # Compute the proposed day_display and time string from current widget
+        # values so the user sees problems before they hit Save.
+        proposed_day_name = WEEKDAY_NAMES[new_date.weekday()]
+        proposed_day_display = f"{proposed_day_name} {new_date.strftime('%d/%m')}"
+        proposed_start = new_time.strftime("%H:%M")
+
+        # Additional date/time checks shown inline
+        inline_errors = []
+
+        if act['deadline'] < 0:
+            inline_errors.append("Activity deadline has already passed — editing is disabled.")
+
+        if new_date == today:
+            proposed_start_min = new_time.hour * 60 + new_time.minute
+            now_min = now_time.hour * 60 + now_time.minute
+            if proposed_start_min <= now_min:
+                inline_errors.append(
+                    f"Start time {proposed_start} is in the past "
+                    f"(current time is {now_time.strftime('%H:%M')})."
+                )
+
+        if deadline_date and new_date > deadline_date:
+            inline_errors.append(
+                f"Date exceeds the deadline ({deadline_date.strftime('%A %-d/%m')})."
+            )
+
+        # Conflict check against existing events/sessions
+        slot_conflicts = _get_conflicts_for_proposed_slot(
+            proposed_day_display, proposed_start, new_duration, session_id
+        )
+
+        all_issues = inline_errors + slot_conflicts
+
+        if all_issues:
+            for issue in all_issues:
+                st.warning(f"⚠️ {issue}")
+
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
-            submitted = st.form_submit_button("💾 Save", type="primary", use_container_width=True)
+            submitted = st.form_submit_button(
+                "💾 Save", type="primary", use_container_width=True,
+                disabled=bool(inline_errors)   # hard-block on deadline/past errors
+            )
         with col_btn2:
             cancelled = st.form_submit_button("❌ Cancel", use_container_width=True)
 
         if submitted:
-            if act['deadline'] < 0:
-                st.error("❌ Cannot edit — activity deadline has passed!")
-            elif deadline_date and new_date > deadline_date:
-                st.error(
-                    f"❌ Date exceeds the deadline "
-                    f"({deadline_date.strftime('%A %-d/%m')}). Please choose an earlier date."
-                )
+            # Re-run conflict check on submit (widget values may differ from preview)
+            final_conflicts = _get_conflicts_for_proposed_slot(
+                proposed_day_display, proposed_start, new_duration, session_id
+            )
+            if final_conflicts:
+                for c in final_conflicts:
+                    st.error(f"❌ {c}")
             else:
-                actual_day  = WEEKDAY_NAMES[new_date.weekday()]
-                day_display = f"{actual_day} {new_date.strftime('%d/%m')}"
                 time_display = new_time.strftime("%H:%M")
-                display_str  = f"{actual_day} {new_date.strftime('%d/%m')} at {time_display}"
+                display_str  = f"{proposed_day_name} {new_date.strftime('%d/%m')} at {time_display}"
 
                 result = NeroTimeLogic.edit_session(
                     act['activity'], session_id,
-                    new_day=day_display,
-                    new_start_time=new_time.strftime("%H:%M"),
+                    new_day=proposed_day_display,
+                    new_start_time=proposed_start,
                     new_duration=new_duration,
                     new_date=new_date.isoformat()
                 )
